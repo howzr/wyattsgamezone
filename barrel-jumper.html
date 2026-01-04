@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barrel Jumper</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        #game-container {
+            position: relative;
+        }
+        canvas {
+            border: 4px solid #ffd700;
+            border-radius: 8px;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 20px;
+            text-shadow: 2px 2px #000;
+        }
+        #ui div {
+            margin-bottom: 5px;
+        }
+        #ui span {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 3px 3px #000;
+            text-align: center;
+            display: none;
+            background: rgba(0,0,0,0.8);
+            padding: 30px 50px;
+            border-radius: 15px;
+            border: 3px solid #ffd700;
+        }
+        #restart-btn {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 20px;
+            background: #ffd700;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #restart-btn:hover {
+            background: #ffed4a;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #aaa;
+            font-size: 14px;
+        }
+        #pause-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            font-size: 16px;
+            background: rgba(0,0,0,0.6);
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #pause-btn:hover {
+            background: #ffd700;
+            color: #000;
+        }
+        #mode-select {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0,0,0,0.9);
+            padding: 40px 60px;
+            border-radius: 15px;
+            border: 3px solid #ffd700;
+        }
+        #mode-select h2 {
+            color: #ffd700;
+            font-size: 42px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px #ffd700;
+        }
+        .mode-btn {
+            display: block;
+            width: 250px;
+            margin: 15px auto;
+            padding: 15px 30px;
+            font-size: 22px;
+            background: linear-gradient(180deg, #444, #222);
+            color: #fff;
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover {
+            background: linear-gradient(180deg, #ffd700, #ff9900);
+            color: #000;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #ffd700;
+        }
+        .mode-btn small {
+            display: block;
+            font-size: 12px;
+            font-weight: normal;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game" width="1000" height="800"></canvas>
+        <div id="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Best: <span id="high-score">0</span></div>
+            <div>Lives: <span id="lives">3</span></div>
+            <div><span id="level-label">Level</span>: <span id="level">1</span> - <span id="level-name" style="font-size: 14px;">Beginner's Luck</span></div>
+        </div>
+        <div id="message">
+            <div id="msg-text"></div>
+            <button id="restart-btn" onclick="restartGame()">Play Again</button>
+            <button id="menu-btn" class="mode-btn" style="margin-top:10px; width:200px; padding:10px 20px; font-size:16px;" onclick="showModeSelect()">Main Menu</button>
+        </div>
+        <div id="mode-select">
+            <h2>BARREL JUMPER</h2>
+            <button class="mode-btn" onclick="startGame('normal')">
+                Classic Mode
+                <small>5 levels - Reach the goal!</small>
+                <small style="color: #ffd700;">Best: <span id="classic-high">0</span></small>
+            </button>
+            <button class="mode-btn" onclick="startGame('endless')">
+                Endless Mode
+                <small>Survive as long as you can!</small>
+                <small style="color: #ffd700;">Best: <span id="endless-high">0</span></small>
+            </button>
+        </div>
+        <div id="instructions">Left/Right: Move | Up: Jump over barrels / Climb Ladders | Reach the top!</div>
+        <button id="pause-btn" onclick="togglePause()" style="display: none;">PAUSE</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        // Audio context for sound effects
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playExplosionSound() {
+            initAudio();
+            if (!audioCtx) return;
+
+            // Create noise buffer for explosion
+            const bufferSize = audioCtx.sampleRate * 0.3;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            // Filter for boom effect
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+
+            // Volume
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            noise.start();
+            noise.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playHitSound() {
+            initAudio();
+            if (!audioCtx) return;
+
+            // Oscillator for hurt sound - descending tone
+            const osc = audioCtx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+
+            // Volume
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // Game settings
+        const GRAVITY = 0.5;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 5;
+
+        // Level configurations
+        const LEVEL_CONFIG = {
+            1: { barrelSpeed: 2.5, spawnInterval: 220, maxBarrels: 4, activeBirds: 2, name: "Beginner's Luck", color: '#4CAF50' },
+            2: { barrelSpeed: 3, spawnInterval: 180, maxBarrels: 6, activeBirds: 3, name: "Getting Warmer", color: '#8BC34A' },
+            3: { barrelSpeed: 3.5, spawnInterval: 150, maxBarrels: 8, activeBirds: 4, name: "Barrel Madness", color: '#FFC107' },
+            4: { barrelSpeed: 4, spawnInterval: 120, maxBarrels: 10, activeBirds: 4, name: "Bird Frenzy", color: '#FF9800' },
+            5: { barrelSpeed: 4.5, spawnInterval: 90, maxBarrels: 12, activeBirds: 5, name: "Ultimate Challenge", color: '#f44336' }
+        };
+
+        // Game state
+        let player, birds, platforms, barrels, ladders, explosions;
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let gameOver = false;
+        let gameWon = false;
+        let showingLevelIntro = true;
+        let levelIntroTimer = 180;
+        let keys = { left: false, right: false, up: false, down: false };
+
+        // Game mode
+        let gameMode = 'normal'; // 'normal' or 'endless'
+        let showingModeSelect = true;
+        let endlessTimer = 0;
+        let endlessDifficulty = 1;
+        let isPaused = false;
+
+        // High scores
+        let highScores = {
+            normal: 0,
+            endless: 0
+        };
+
+        // Load high scores from localStorage
+        function loadHighScores() {
+            try {
+                const saved = localStorage.getItem('barrelJumperHighScores');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    highScores.normal = parsed.normal || 0;
+                    highScores.endless = parsed.endless || 0;
+                }
+            } catch (e) {
+                console.log('Could not load high scores');
+            }
+            updateHighScoreDisplays();
+        }
+
+        // Save high scores to localStorage
+        function saveHighScores() {
+            try {
+                localStorage.setItem('barrelJumperHighScores', JSON.stringify(highScores));
+            } catch (e) {
+                console.log('Could not save high scores');
+            }
+        }
+
+        // Check and update high score
+        function checkHighScore() {
+            const currentHigh = highScores[gameMode];
+            if (score > currentHigh) {
+                highScores[gameMode] = score;
+                saveHighScores();
+                updateHighScoreDisplays();
+                return true; // New high score!
+            }
+            return false;
+        }
+
+        // Update all high score displays
+        function updateHighScoreDisplays() {
+            document.getElementById('high-score').textContent = highScores[gameMode];
+            document.getElementById('classic-high').textContent = highScores.normal;
+            document.getElementById('endless-high').textContent = highScores.endless;
+        }
+
+        function getCurrentConfig() {
+            if (gameMode === 'endless') {
+                // Endless mode scales difficulty over time
+                const diff = Math.min(endlessDifficulty, 10);
+                return {
+                    barrelSpeed: 2.5 + diff * 0.3,
+                    spawnInterval: Math.max(60, 180 - diff * 12),
+                    maxBarrels: 5 + diff * 2,
+                    activeBirds: Math.min(3 + Math.floor(diff / 2), 8),
+                    name: 'Endless',
+                    color: '#9c27b0'
+                };
+            }
+            return LEVEL_CONFIG[level] || LEVEL_CONFIG[5];
+        }
+
+        // Create explosion at position
+        function createExplosion(x, y) {
+            const particles = [];
+            for (let i = 0; i < 15; i++) {
+                const angle = (Math.PI * 2 / 15) * i;
+                const speed = 3 + Math.random() * 4;
+                particles.push({
+                    x: x,
+                    y: y,
+                    velX: Math.cos(angle) * speed,
+                    velY: Math.sin(angle) * speed,
+                    radius: 5 + Math.random() * 8,
+                    color: ['#ff6600', '#ff9900', '#ffcc00', '#ff3300'][Math.floor(Math.random() * 4)],
+                    life: 1.0
+                });
+            }
+            explosions.push(...particles);
+        }
+
+        // Update explosions
+        function updateExplosions() {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const p = explosions[i];
+                p.x += p.velX;
+                p.y += p.velY;
+                p.velY += 0.2;  // Gravity
+                p.life -= 0.03;
+                p.radius *= 0.96;
+
+                if (p.life <= 0) {
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+
+        // Draw explosions
+        function drawExplosions() {
+            for (const p of explosions) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        // Player
+        function createPlayer() {
+            return {
+                x: gameMode === 'endless' ? canvas.width / 2 - 17 : 50,
+                y: 700,
+                width: 35,
+                height: 45,
+                velX: 0,
+                velY: 0,
+                onGround: false,
+                climbing: false,
+                color: '#ff6b6b'
+            };
+        }
+
+        // Birds - one on each platform (normal mode)
+        function createBirds() {
+            if (gameMode === 'endless') {
+                return createEndlessBirds();
+            }
+            return [
+                // Bird on top platform (goal area)
+                { x: 850, y: 40, width: 70, height: 60, wingAngle: 0, barrelTimer: 0, barrelInterval: 120, facingLeft: true },
+                // Bird on level 4 (y: 150)
+                { x: 100, y: 110, width: 70, height: 60, wingAngle: 0.5, barrelTimer: 30, barrelInterval: 140, facingLeft: false },
+                // Bird on level 3 (y: 300)
+                { x: 850, y: 260, width: 70, height: 60, wingAngle: 1, barrelTimer: 60, barrelInterval: 160, facingLeft: true },
+                // Bird on level 2 (y: 450)
+                { x: 100, y: 410, width: 70, height: 60, wingAngle: 1.5, barrelTimer: 90, barrelInterval: 180, facingLeft: false },
+                // Bird on level 1 (y: 600)
+                { x: 850, y: 560, width: 70, height: 60, wingAngle: 2, barrelTimer: 45, barrelInterval: 200, facingLeft: true }
+            ];
+        }
+
+        // Birds for endless mode - fly across the sky
+        function createEndlessBirds() {
+            const birds = [];
+            for (let i = 0; i < 8; i++) {
+                birds.push({
+                    x: Math.random() * canvas.width,
+                    y: 50 + Math.random() * 150,
+                    width: 70,
+                    height: 60,
+                    wingAngle: Math.random() * Math.PI * 2,
+                    barrelTimer: Math.random() * 100,
+                    barrelInterval: 150,
+                    facingLeft: Math.random() > 0.5,
+                    velX: (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random() * 2),
+                    active: false
+                });
+            }
+            return birds;
+        }
+
+        // Create platforms for the building
+        function createPlatforms() {
+            const plats = [];
+
+            if (gameMode === 'endless') {
+                // Endless mode - just ground, no platforms
+                plats.push({ x: 0, y: 750, width: 1000, height: 50 });
+                return plats;
+            }
+
+            // Ground floor
+            plats.push({ x: 0, y: 750, width: 1000, height: 50 });
+
+            // Platform levels - zigzag pattern
+            plats.push({ x: 50, y: 600, width: 900, height: 20 });
+            plats.push({ x: 50, y: 450, width: 900, height: 20 });
+            plats.push({ x: 50, y: 300, width: 900, height: 20 });
+            plats.push({ x: 50, y: 150, width: 900, height: 20 });
+
+            // Top platform (goal)
+            plats.push({ x: 150, y: 80, width: 700, height: 20, isGoal: true });
+
+            return plats;
+        }
+
+        // Create ladders
+        function createLadders() {
+            if (gameMode === 'endless') {
+                return []; // No ladders in endless mode
+            }
+            return [
+                // Ground to Level 1
+                { x: 900, y: 600, width: 35, height: 150 },
+                // Level 1 to Level 2
+                { x: 70, y: 450, width: 35, height: 150 },
+                // Level 2 to Level 3
+                { x: 900, y: 300, width: 35, height: 150 },
+                // Level 3 to Level 4
+                { x: 70, y: 150, width: 35, height: 150 },
+                // Level 4 to Goal
+                { x: 800, y: 80, width: 35, height: 70 }
+            ];
+        }
+
+        // Initialize game
+        function init() {
+            player = createPlayer();
+            birds = createBirds();
+            platforms = createPlatforms();
+            ladders = createLadders();
+            barrels = [];
+            explosions = [];
+        }
+
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            // Pause toggle
+            if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                togglePause();
+                return;
+            }
+
+            // Don't process movement when paused
+            if (isPaused) return;
+
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.up = true;
+            if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
+            e.preventDefault();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.up = false;
+            if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+        });
+
+        // Spawn barrel - bird throws it forward far
+        function spawnBarrel(bird) {
+            const config = getCurrentConfig();
+            if (barrels.length >= config.maxBarrels) return;
+
+            const direction = bird.facingLeft ? -1 : 1;
+            barrels.push({
+                x: bird.x + (bird.facingLeft ? -200 : bird.width + 200),
+                y: bird.y + bird.height,
+                radius: 22,
+                velX: config.barrelSpeed * 0.5 * direction,
+                velY: 2,
+                rotation: 0,
+                onPlatform: null
+            });
+        }
+
+        // Check if player is on a ladder
+        function isOnLadder() {
+            const playerCenterX = player.x + player.width / 2;
+            const playerBottom = player.y + player.height;
+
+            for (const ladder of ladders) {
+                if (playerCenterX > ladder.x &&
+                    playerCenterX < ladder.x + ladder.width &&
+                    playerBottom > ladder.y &&
+                    player.y < ladder.y + ladder.height) {
+                    return ladder;
+                }
+            }
+            return null;
+        }
+
+        // Update player
+        function updatePlayer() {
+            const ladder = isOnLadder();
+
+            // Horizontal movement (only when not climbing)
+            if (!player.climbing) {
+                if (keys.left) {
+                    player.velX = -MOVE_SPEED;
+                } else if (keys.right) {
+                    player.velX = MOVE_SPEED;
+                } else {
+                    player.velX = 0;
+                }
+            } else {
+                player.velX = 0;
+            }
+
+            // Ladder climbing
+            if (ladder) {
+                if (keys.up) {
+                    player.climbing = true;
+                    player.velY = -MOVE_SPEED;
+                    player.onGround = false;
+                } else if (keys.down) {
+                    player.climbing = true;
+                    player.velY = MOVE_SPEED;
+                } else if (player.climbing) {
+                    player.velY = 0;
+                }
+
+                // Allow leaving ladder with left/right
+                if ((keys.left || keys.right) && player.onGround) {
+                    player.climbing = false;
+                }
+            } else {
+                player.climbing = false;
+
+                // Jump over barrels (small jump, can't reach platforms)
+                if (keys.up && player.onGround) {
+                    player.velY = -10;
+                    player.onGround = false;
+                }
+
+                // Apply gravity only when not on ladder
+                player.velY += GRAVITY;
+            }
+
+            // Update position
+            player.x += player.velX;
+            player.y += player.velY;
+
+            // Screen boundaries
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            if (player.y < 0) player.y = 0;
+
+            // Platform collision - only when falling down
+            player.onGround = false;
+            for (const plat of platforms) {
+                if (player.velY >= 0 &&
+                    player.x + player.width > plat.x &&
+                    player.x < plat.x + plat.width &&
+                    player.y + player.height >= plat.y &&
+                    player.y + player.height <= plat.y + 20) {
+
+                    player.y = plat.y - player.height;
+                    player.velY = 0;
+                    player.onGround = true;
+                    player.climbing = false;
+
+                    // Check if reached goal
+                    if (plat.isGoal) {
+                        winLevel();
+                    }
+                }
+            }
+
+            // Fall off screen
+            if (player.y > canvas.height) {
+                loseLife();
+            }
+        }
+
+        // Update barrels
+        function updateBarrels() {
+            for (let i = barrels.length - 1; i >= 0; i--) {
+                const barrel = barrels[i];
+
+                // Apply gravity
+                barrel.velY += GRAVITY * 0.5;
+                if (barrel.velY > 15) barrel.velY = 15;
+
+                // Move barrel
+                barrel.y += barrel.velY;
+                barrel.x += barrel.velX;
+                barrel.rotation += barrel.velX * 0.08;
+
+                // Find platform barrel should be on
+                let landedOnPlatform = null;
+
+                for (const plat of platforms) {
+                    const barrelBottom = barrel.y + barrel.radius;
+                    const onPlatformX = barrel.x >= plat.x && barrel.x <= plat.x + plat.width;
+
+                    // Landing on platform from above
+                    if (onPlatformX && barrelBottom >= plat.y && barrelBottom <= plat.y + 25 && barrel.velY > 0) {
+                        barrel.y = plat.y - barrel.radius;
+                        barrel.velY = 0;
+                        landedOnPlatform = plat;
+
+                        // Change direction when landing on NEW platform
+                        if (barrel.onPlatform !== plat) {
+                            barrel.velX = -barrel.velX;
+                            barrel.onPlatform = plat;
+                        }
+                        break;
+                    }
+                }
+
+                // Check if rolled off current platform - immediately drop
+                if (barrel.onPlatform && !landedOnPlatform) {
+                    const plat = barrel.onPlatform;
+                    if (barrel.x < plat.x || barrel.x > plat.x + plat.width) {
+                        barrel.onPlatform = null;
+                        barrel.velY = 12;  // Immediately drop fast
+                    }
+                }
+
+                // Remove barrel if off screen
+                if (barrel.y > canvas.height + 50 || barrel.x < -50 || barrel.x > canvas.width + 50) {
+                    barrels.splice(i, 1);
+                    continue;
+                }
+
+                // Collision with player
+                const dx = (player.x + player.width / 2) - barrel.x;
+                const dy = (player.y + player.height / 2) - barrel.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < barrel.radius + 20) {
+                    // Check if player jumped on top of barrel
+                    const playerBottom = player.y + player.height;
+                    const barrelTop = barrel.y - barrel.radius;
+
+                    if (player.velY > 0 && playerBottom < barrel.y + 5) {
+                        // Destroy barrel when jumping on it
+                        createExplosion(barrel.x, barrel.y);
+                        playExplosionSound();
+                        barrels.splice(i, 1);
+                        score += 100;
+                        player.velY = -8;  // Small bounce
+                    } else {
+                        playHitSound();
+                        loseLife();
+                        barrels.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        // Update birds
+        function updateBirds() {
+            const config = getCurrentConfig();
+
+            if (gameMode === 'endless') {
+                // Endless mode - birds fly across the screen
+                for (let i = 0; i < birds.length; i++) {
+                    const bird = birds[i];
+                    bird.wingAngle += 0.25;
+
+                    // Only active birds based on difficulty
+                    if (i < config.activeBirds) {
+                        bird.active = true;
+
+                        // Move bird
+                        bird.x += bird.velX;
+                        bird.facingLeft = bird.velX < 0;
+
+                        // Wrap around screen
+                        if (bird.x > canvas.width + 100) {
+                            bird.x = -100;
+                            bird.y = 50 + Math.random() * 150;
+                        } else if (bird.x < -100) {
+                            bird.x = canvas.width + 100;
+                            bird.y = 50 + Math.random() * 150;
+                        }
+
+                        // Spawn barrels
+                        bird.barrelTimer++;
+                        if (bird.barrelTimer >= config.spawnInterval) {
+                            spawnBarrelEndless(bird);
+                            bird.barrelTimer = 0;
+                        }
+                    } else {
+                        bird.active = false;
+                    }
+                }
+                return;
+            }
+
+            // Normal mode
+            for (let i = 0; i < birds.length; i++) {
+                const bird = birds[i];
+                bird.wingAngle += 0.2;
+
+                // Only active birds spawn barrels (based on level)
+                if (i < config.activeBirds) {
+                    bird.barrelTimer++;
+                    if (bird.barrelTimer >= config.spawnInterval) {
+                        spawnBarrel(bird);
+                        bird.barrelTimer = 0;
+                    }
+                    bird.active = true;
+                } else {
+                    bird.active = false;
+                }
+            }
+        }
+
+        // Spawn barrel for endless mode - drops straight down
+        function spawnBarrelEndless(bird) {
+            const config = getCurrentConfig();
+            if (barrels.length >= config.maxBarrels) return;
+
+            barrels.push({
+                x: bird.x,
+                y: bird.y + bird.height,
+                radius: 22,
+                velX: bird.velX * 0.3,
+                velY: 2,
+                rotation: 0,
+                onPlatform: null
+            });
+        }
+
+        // Lose a life - stay in place unless game over
+        function loseLife() {
+            lives--;
+            document.getElementById('lives').textContent = lives;
+
+            if (lives <= 0) {
+                endGame(false);
+            }
+            // Stay in same place if still have lives
+        }
+
+        // Play level complete sound
+        function playLevelCompleteSound() {
+            initAudio();
+            if (!audioCtx) return;
+
+            const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'square';
+                osc.frequency.value = freq;
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime + i * 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(audioCtx.currentTime + i * 0.15);
+                osc.stop(audioCtx.currentTime + i * 0.15 + 0.3);
+            });
+        }
+
+        // Play new high score fanfare
+        function playHighScoreSound() {
+            initAudio();
+            if (!audioCtx) return;
+
+            const notes = [523, 659, 784, 880, 1047, 1319, 1568]; // Ascending fanfare
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'square';
+                osc.frequency.value = freq;
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime + i * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.1 + 0.25);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(audioCtx.currentTime + i * 0.1);
+                osc.stop(audioCtx.currentTime + i * 0.1 + 0.25);
+            });
+        }
+
+        // Win level
+        function winLevel() {
+            score += 500 * level; // More points for harder levels
+            level++;
+            document.getElementById('level').textContent = level;
+            document.getElementById('score').textContent = score;
+
+            playLevelCompleteSound();
+
+            if (level > 5) {
+                endGame(true);
+            } else {
+                // Restore lives for new level
+                lives = 3;
+                document.getElementById('lives').textContent = lives;
+                // Update level name in UI
+                document.getElementById('level-name').textContent = getCurrentConfig().name;
+                // Show level intro for next level
+                showingLevelIntro = true;
+                levelIntroTimer = 180;
+                player.x = 50;
+                player.y = 700;
+                player.velX = 0;
+                player.velY = 0;
+                barrels = [];
+                explosions = [];
+                // Reset bird timers for next level
+                birds = createBirds();
+            }
+        }
+
+        // End game
+        function endGame(won) {
+            gameOver = true;
+            gameWon = won;
+
+            const isNewHighScore = checkHighScore();
+            if (isNewHighScore) {
+                playHighScoreSound();
+            }
+            const highScoreText = isNewHighScore
+                ? '<br><span style="color:#ffd700; font-size:28px;">NEW HIGH SCORE!</span>'
+                : '<br><span style="font-size:18px; color:#aaa;">Best: ' + highScores[gameMode] + '</span>';
+
+            const msgText = document.getElementById('msg-text');
+            if (won) {
+                msgText.innerHTML = '<span style="color:#ffd700;">YOU WIN!</span><br><span style="font-size:24px;">Final Score: ' + score + '</span>' + highScoreText;
+            } else {
+                msgText.innerHTML = '<span style="color:#ff4444;">GAME OVER</span><br><span style="font-size:24px;">Score: ' + score + '</span>' + highScoreText;
+            }
+            document.getElementById('message').style.display = 'block';
+        }
+
+        // Restart game
+        function restartGame() {
+            gameOver = false;
+            gameWon = false;
+            isPaused = false;
+            document.getElementById('pause-btn').textContent = 'PAUSE';
+            score = 0;
+            lives = 3;
+            level = 1;
+            endlessTimer = 0;
+            endlessDifficulty = 1;
+            showingLevelIntro = true;
+            levelIntroTimer = 180;
+
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+
+            if (gameMode === 'normal') {
+                document.getElementById('level-label').textContent = 'Level';
+                document.getElementById('level').textContent = level;
+                document.getElementById('level-name').textContent = LEVEL_CONFIG[1].name;
+            } else {
+                document.getElementById('level-label').textContent = 'Wave';
+                document.getElementById('level').textContent = endlessDifficulty;
+                document.getElementById('level-name').textContent = 'Endless';
+            }
+            document.getElementById('message').style.display = 'none';
+
+            init();
+        }
+
+        // Show mode select screen
+        function showModeSelect() {
+            showingModeSelect = true;
+            gameOver = false;
+            isPaused = false;
+            document.getElementById('pause-btn').textContent = 'PAUSE';
+            document.getElementById('pause-btn').style.display = 'none';
+            document.getElementById('message').style.display = 'none';
+            document.getElementById('mode-select').style.display = 'block';
+            updateHighScoreDisplays();
+        }
+
+        // Toggle pause
+        function togglePause() {
+            if (gameOver || showingModeSelect || showingLevelIntro) return;
+
+            isPaused = !isPaused;
+            document.getElementById('pause-btn').textContent = isPaused ? 'RESUME' : 'PAUSE';
+        }
+
+        // Draw pause screen
+        function drawPauseScreen() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 20;
+
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 60px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2 - 40);
+
+            ctx.restore();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = '24px Arial';
+            ctx.fillText('Press P or ESC to resume', canvas.width / 2, canvas.height / 2 + 20);
+
+            ctx.fillStyle = '#aaa';
+            ctx.font = '18px Arial';
+            ctx.fillText('Score: ' + score + '  |  Best: ' + highScores[gameMode], canvas.width / 2, canvas.height / 2 + 60);
+
+            ctx.textAlign = 'left';
+        }
+
+        // Start game with selected mode
+        function startGame(mode) {
+            gameMode = mode;
+            showingModeSelect = false;
+            document.getElementById('mode-select').style.display = 'none';
+            document.getElementById('pause-btn').style.display = 'block';
+
+            // Update UI based on mode
+            if (mode === 'endless') {
+                document.getElementById('level-label').textContent = 'Wave';
+                document.getElementById('level-name').textContent = 'Endless';
+                document.getElementById('instructions').textContent = 'Left/Right: Move | Up/Space: Jump | Survive!';
+            } else {
+                document.getElementById('level-label').textContent = 'Level';
+                document.getElementById('level-name').textContent = LEVEL_CONFIG[1].name;
+                document.getElementById('instructions').textContent = 'Left/Right: Move | Up: Jump over barrels / Climb Ladders | Reach the top!';
+            }
+
+            // Update high score display for selected mode
+            updateHighScoreDisplays();
+
+            restartGame();
+        }
+
+        // Draw level intro screen
+        function drawLevelIntro() {
+            const config = getCurrentConfig();
+
+            // Dark overlay
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Level number with glow effect
+            const pulse = Math.sin(levelIntroTimer * 0.1) * 0.2 + 0.8;
+            ctx.save();
+            ctx.shadowColor = config.color;
+            ctx.shadowBlur = 30 * pulse;
+
+            ctx.fillStyle = config.color;
+            ctx.font = 'bold 80px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`LEVEL ${level}`, canvas.width / 2, canvas.height / 2 - 60);
+
+            ctx.restore();
+
+            // Level name
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 36px Arial';
+            ctx.fillText(config.name, canvas.width / 2, canvas.height / 2 + 10);
+
+            // Difficulty info
+            ctx.fillStyle = '#aaa';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Active Birds: ${config.activeBirds} | Max Barrels: ${config.maxBarrels}`, canvas.width / 2, canvas.height / 2 + 60);
+
+            // Progress bar for countdown
+            const barWidth = 300;
+            const barHeight = 10;
+            const progress = levelIntroTimer / 180;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(canvas.width / 2 - barWidth / 2, canvas.height / 2 + 100, barWidth, barHeight);
+            ctx.fillStyle = config.color;
+            ctx.fillRect(canvas.width / 2 - barWidth / 2, canvas.height / 2 + 100, barWidth * progress, barHeight);
+
+            // Get ready text
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '24px Arial';
+            ctx.fillText('Get Ready!', canvas.width / 2, canvas.height / 2 + 150);
+
+            ctx.textAlign = 'left';
+        }
+
+        // Draw building background
+        function drawBackground() {
+            if (gameMode === 'endless') {
+                drawEndlessBackground();
+                return;
+            }
+
+            // Building wall
+            ctx.fillStyle = '#4a3728';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Bricks pattern
+            const brickWidth = 60;
+            const brickHeight = 30;
+            for (let row = 0; row < canvas.height / brickHeight; row++) {
+                for (let col = 0; col < canvas.width / brickWidth + 1; col++) {
+                    const offsetX = (row % 2) * (brickWidth / 2);
+                    const x = col * brickWidth - offsetX;
+                    const y = row * brickHeight;
+
+                    ctx.strokeStyle = '#3e2723';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, brickWidth, brickHeight);
+                }
+            }
+
+            // Windows
+            ctx.fillStyle = '#87ceeb';
+            const windows = [
+                { x: 30, y: 200 }, { x: 130, y: 200 }, { x: 830, y: 200 }, { x: 930, y: 200 },
+                { x: 30, y: 350 }, { x: 130, y: 350 }, { x: 830, y: 350 }, { x: 930, y: 350 },
+                { x: 30, y: 500 }, { x: 130, y: 500 }, { x: 830, y: 500 }, { x: 930, y: 500 },
+                { x: 30, y: 650 }, { x: 130, y: 650 }, { x: 830, y: 650 }, { x: 930, y: 650 }
+            ];
+            windows.forEach(w => {
+                ctx.fillStyle = '#4a90a4';
+                ctx.fillRect(w.x, w.y, 50, 70);
+                ctx.strokeStyle = '#2c3e50';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(w.x, w.y, 50, 70);
+                ctx.beginPath();
+                ctx.moveTo(w.x + 25, w.y);
+                ctx.lineTo(w.x + 25, w.y + 70);
+                ctx.moveTo(w.x, w.y + 35);
+                ctx.lineTo(w.x + 50, w.y + 35);
+                ctx.stroke();
+            });
+        }
+
+        // Draw endless mode background - open sky
+        function drawEndlessBackground() {
+            // Sky gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#1a0533');
+            skyGrad.addColorStop(0.3, '#2d1b4e');
+            skyGrad.addColorStop(0.6, '#4a2c6a');
+            skyGrad.addColorStop(1, '#6b3d7a');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Stars
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 73 + endlessTimer * 0.02) % canvas.width;
+                const y = (i * 47) % 400;
+                const twinkle = Math.sin(endlessTimer * 0.05 + i) * 0.5 + 0.5;
+                ctx.globalAlpha = twinkle * 0.8;
+                ctx.beginPath();
+                ctx.arc(x, y, 1 + Math.random(), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Ground (grass)
+            const groundGrad = ctx.createLinearGradient(0, 730, 0, 800);
+            groundGrad.addColorStop(0, '#2d5a27');
+            groundGrad.addColorStop(0.3, '#1e4d1a');
+            groundGrad.addColorStop(1, '#0d2609');
+            ctx.fillStyle = groundGrad;
+            ctx.fillRect(0, 730, canvas.width, 70);
+
+            // Grass blades
+            ctx.strokeStyle = '#3d7a35';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < canvas.width; i += 15) {
+                const wave = Math.sin(endlessTimer * 0.02 + i * 0.1) * 3;
+                ctx.beginPath();
+                ctx.moveTo(i, 750);
+                ctx.lineTo(i + wave, 735);
+                ctx.stroke();
+            }
+        }
+
+        // Draw platforms
+        function drawPlatforms() {
+            platforms.forEach(plat => {
+                if (plat.isGoal) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                    ctx.fillStyle = '#ff6b00';
+                    ctx.font = 'bold 20px Arial';
+                    ctx.fillText('GOAL!', plat.x + plat.width / 2 - 30, plat.y + 16);
+                } else {
+                    const grad = ctx.createLinearGradient(plat.x, plat.y, plat.x, plat.y + plat.height);
+                    grad.addColorStop(0, '#7f8c8d');
+                    grad.addColorStop(0.5, '#95a5a6');
+                    grad.addColorStop(1, '#7f8c8d');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+
+                    ctx.fillStyle = '#5d6d7e';
+                    for (let i = 0; i < plat.width; i += 50) {
+                        ctx.beginPath();
+                        ctx.arc(plat.x + i + 15, plat.y + plat.height / 2, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            });
+        }
+
+        // Draw ladders
+        function drawLadders() {
+            ladders.forEach(ladder => {
+                ctx.strokeStyle = '#f39c12';
+                ctx.lineWidth = 5;
+
+                ctx.beginPath();
+                ctx.moveTo(ladder.x, ladder.y);
+                ctx.lineTo(ladder.x, ladder.y + ladder.height);
+                ctx.moveTo(ladder.x + ladder.width, ladder.y);
+                ctx.lineTo(ladder.x + ladder.width, ladder.y + ladder.height);
+                ctx.stroke();
+
+                for (let i = 0; i < ladder.height; i += 18) {
+                    ctx.beginPath();
+                    ctx.moveTo(ladder.x, ladder.y + i);
+                    ctx.lineTo(ladder.x + ladder.width, ladder.y + i);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // Draw player
+        function drawPlayer() {
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            ctx.fillStyle = '#ffeaa7';
+            ctx.fillRect(player.x + 5, player.y + 5, 25, 18);
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(player.x + 10, player.y + 10, 5, 5);
+            ctx.fillRect(player.x + 22, player.y + 10, 5, 5);
+
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillRect(player.x, player.y - 8, 35, 10);
+            ctx.fillRect(player.x + 5, player.y - 15, 25, 10);
+        }
+
+        // Draw birds
+        function drawBirds() {
+            for (const bird of birds) {
+                ctx.save();
+                ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+
+                // Make inactive birds appear faded/sleeping
+                if (!bird.active) {
+                    ctx.globalAlpha = 0.4;
+                }
+
+                // Flip if facing right
+                if (!bird.facingLeft) {
+                    ctx.scale(-1, 1);
+                }
+
+                // Body - active birds have slightly red tint
+                ctx.fillStyle = bird.active ? '#3d5a73' : '#2c3e50';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 35, 25, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Head
+                ctx.fillStyle = bird.active ? '#455d72' : '#34495e';
+                ctx.beginPath();
+                ctx.arc(-25, -12, 18, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Beak
+                ctx.fillStyle = '#f39c12';
+                ctx.beginPath();
+                ctx.moveTo(-43, -12);
+                ctx.lineTo(-55, -5);
+                ctx.lineTo(-43, 2);
+                ctx.closePath();
+                ctx.fill();
+
+                // Eye - active birds have angry red eyes
+                ctx.fillStyle = bird.active ? '#ff4444' : '#666';
+                ctx.beginPath();
+                ctx.arc(-30, -15, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(-30, -15, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wing - animate only for active birds
+                ctx.fillStyle = '#1a252f';
+                const wingY = bird.active ? Math.sin(bird.wingAngle) * 12 : 0;
+                ctx.beginPath();
+                ctx.ellipse(12, -12 + wingY, 25, 10, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                // Draw barrel the bird is holding (only for active birds)
+                if (bird.active) {
+                    const barrelX = bird.x + (bird.facingLeft ? -10 : bird.width + 10);
+                    const barrelY = bird.y + bird.height - 10;
+                    ctx.fillStyle = '#8b4513';
+                    ctx.beginPath();
+                    ctx.arc(barrelX, barrelY, 18, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#5d3a1a';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Draw barrels
+        function drawBarrels() {
+            barrels.forEach(barrel => {
+                ctx.save();
+                ctx.translate(barrel.x, barrel.y);
+                ctx.rotate(barrel.rotation);
+
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.arc(0, 0, barrel.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#5d3a1a';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.strokeStyle = '#4a4a4a';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, barrel.radius - 6, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, barrel.radius - 14, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.restore();
+            });
+        }
+
+        // Main game loop
+        function gameLoop() {
+            // If showing mode select, just draw background
+            if (showingModeSelect) {
+                drawBackground();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            // Handle level intro
+            if (showingLevelIntro) {
+                levelIntroTimer--;
+                if (levelIntroTimer <= 0) {
+                    showingLevelIntro = false;
+                }
+            }
+
+            if (!gameOver && !showingLevelIntro && !isPaused) {
+                updatePlayer();
+                updateBarrels();
+                updateBirds();
+                updateExplosions();
+
+                // Endless mode: score increases over time, difficulty scales
+                if (gameMode === 'endless') {
+                    endlessTimer++;
+                    // Add 1 point every 6 frames (10 points per second)
+                    if (endlessTimer % 6 === 0) {
+                        score++;
+                    }
+                    // Increase difficulty every 30 seconds
+                    const newDifficulty = 1 + Math.floor(endlessTimer / 1800);
+                    if (newDifficulty !== endlessDifficulty) {
+                        endlessDifficulty = newDifficulty;
+                        document.getElementById('level').textContent = endlessDifficulty;
+                    }
+                }
+
+                document.getElementById('score').textContent = score;
+            }
+
+            drawBackground();
+            drawPlatforms();
+            if (gameMode === 'normal') {
+                drawLadders();
+            }
+            drawBarrels();
+            drawExplosions();
+            drawBirds();
+            drawPlayer();
+
+            // Draw level intro on top (only for normal mode)
+            if (showingLevelIntro && !gameOver && gameMode === 'normal') {
+                drawLevelIntro();
+            }
+
+            // Draw endless mode intro
+            if (showingLevelIntro && !gameOver && gameMode === 'endless') {
+                drawEndlessIntro();
+            }
+
+            // Draw pause screen
+            if (isPaused && !gameOver) {
+                drawPauseScreen();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Draw endless mode intro
+        function drawEndlessIntro() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const pulse = Math.sin(levelIntroTimer * 0.1) * 0.2 + 0.8;
+            ctx.save();
+            ctx.shadowColor = '#9c27b0';
+            ctx.shadowBlur = 30 * pulse;
+
+            ctx.fillStyle = '#9c27b0';
+            ctx.font = 'bold 70px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('ENDLESS MODE', canvas.width / 2, canvas.height / 2 - 80);
+
+            ctx.restore();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 30px Arial';
+            ctx.fillText('Survive as long as you can!', canvas.width / 2, canvas.height / 2 - 20);
+
+            ctx.fillStyle = '#aaa';
+            ctx.font = '20px Arial';
+            ctx.fillText('Jump on barrels for +100 points', canvas.width / 2, canvas.height / 2 + 20);
+            ctx.fillText('Difficulty increases over time!', canvas.width / 2, canvas.height / 2 + 50);
+
+            // Progress bar for countdown
+            const barWidth = 300;
+            const barHeight = 10;
+            const progress = levelIntroTimer / 180;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(canvas.width / 2 - barWidth / 2, canvas.height / 2 + 90, barWidth, barHeight);
+            ctx.fillStyle = '#9c27b0';
+            ctx.fillRect(canvas.width / 2 - barWidth / 2, canvas.height / 2 + 90, barWidth * progress, barHeight);
+
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '24px Arial';
+            ctx.fillText('Get Ready!', canvas.width / 2, canvas.height / 2 + 140);
+
+            ctx.textAlign = 'left';
+        }
+
+        // Start with mode select
+        loadHighScores();
+        init();
+        gameLoop();
+    </script>
+</body>
+</html>

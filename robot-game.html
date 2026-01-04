@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Robot Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        #info h2 {
+            margin-bottom: 10px;
+            color: #00ff88;
+        }
+        #score {
+            font-size: 24px;
+            color: #ffcc00;
+            margin-top: 10px;
+        }
+        #health {
+            font-size: 18px;
+            color: #ff4444;
+            margin-top: 5px;
+        }
+        #team-info {
+            font-size: 14px;
+            color: #88ff88;
+            margin-top: 10px;
+        }
+        .health-bar {
+            width: 150px;
+            height: 15px;
+            background: #333;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ff8888);
+            transition: width 0.3s;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 20px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+        #win-screen {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 50, 0, 0.9);
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 200;
+            border: 3px solid #00ff88;
+        }
+        #win-screen h1 {
+            color: #00ff88;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        #win-screen p {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #restart-btn {
+            background: #00ff88;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #restart-btn:hover {
+            transform: scale(1.1);
+        }
+        #coins {
+            font-size: 18px;
+            color: #ffd700;
+            margin-top: 8px;
+        }
+        #weapon-info {
+            font-size: 14px;
+            color: #ff88ff;
+            margin-top: 8px;
+        }
+        #shop-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #6c5ce7, #a55eea);
+            border: 2px solid #ffd700;
+            color: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 100;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            transition: all 0.3s;
+        }
+        #shop-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #ffd700;
+        }
+        #weapon-store {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(20, 20, 40, 0.95), rgba(40, 20, 60, 0.95));
+            padding: 30px;
+            border-radius: 20px;
+            border: 3px solid #ffd700;
+            z-index: 300;
+            min-width: 400px;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+        }
+        #weapon-store h2 {
+            color: #ffd700;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+            text-shadow: 0 0 10px #ffd700;
+        }
+        .weapon-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .weapon-item:hover {
+            border-color: #ffd700;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .weapon-item.owned {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+        .weapon-item.equipped {
+            border-color: #ff88ff;
+            background: rgba(255, 136, 255, 0.15);
+            box-shadow: 0 0 15px rgba(255, 136, 255, 0.3);
+        }
+        .weapon-icon {
+            font-size: 32px;
+            margin-right: 15px;
+        }
+        .weapon-details {
+            flex: 1;
+        }
+        .weapon-name {
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .weapon-desc {
+            color: #aaa;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+        .weapon-price {
+            color: #ffd700;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .buy-btn {
+            background: #ffd700;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .buy-btn:hover {
+            transform: scale(1.1);
+        }
+        .buy-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .equip-btn {
+            background: #00ff88;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .equipped-label {
+            color: #ff88ff;
+            font-weight: bold;
+            padding: 8px 16px;
+        }
+        #close-shop {
+            display: block;
+            margin: 20px auto 0;
+            background: #ff4444;
+            border: none;
+            padding: 10px 30px;
+            color: #fff;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        #close-shop:hover {
+            background: #ff6666;
+        }
+        .shop-coins {
+            text-align: center;
+            color: #ffd700;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        #robot-shop-btn {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background: linear-gradient(135deg, #00aa44, #00dd66);
+            border: 2px solid #88ff88;
+            color: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 100;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            transition: all 0.3s;
+        }
+        #robot-shop-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #88ff88;
+        }
+        #robot-store {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0, 40, 20, 0.95), rgba(0, 60, 30, 0.95));
+            padding: 30px;
+            border-radius: 20px;
+            border: 3px solid #00ff88;
+            z-index: 300;
+            min-width: 450px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.3);
+        }
+        #robot-store h2 {
+            color: #00ff88;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+            text-shadow: 0 0 10px #00ff88;
+        }
+        .robot-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .robot-item:hover {
+            border-color: #00ff88;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .robot-icon {
+            font-size: 36px;
+            margin-right: 15px;
+        }
+        .robot-details {
+            flex: 1;
+        }
+        .robot-name {
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .robot-desc {
+            color: #aaa;
+            font-size: 11px;
+            margin-top: 3px;
+        }
+        .robot-stats {
+            color: #88ff88;
+            font-size: 10px;
+            margin-top: 2px;
+        }
+        .robot-price {
+            color: #ffd700;
+            font-size: 16px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .recruit-btn {
+            background: #00ff88;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #000;
+            transition: all 0.2s;
+        }
+        .recruit-btn:hover {
+            transform: scale(1.1);
+        }
+        .recruit-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #close-robot-shop {
+            display: block;
+            margin: 20px auto 0;
+            background: #ff4444;
+            border: none;
+            padding: 10px 30px;
+            color: #fff;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>Robot Collector</h2>
+        <div>Collect orbs! Defeat enemies!</div>
+        <div id="score">Score: 0 / 10</div>
+        <div id="health">
+            Health:
+            <div class="health-bar"><div class="health-fill" id="health-fill" style="width: 100%"></div></div>
+        </div>
+        <div id="coins">Coins: <span id="coin-count">0</span></div>
+        <div id="weapon-info">Weapon: <span id="current-weapon">None</span></div>
+        <div id="team-info">Allies: <span id="ally-count">2</span> | Enemies: <span id="enemy-count">3</span></div>
+    </div>
+    <button id="shop-btn" onclick="toggleShop()">WEAPON SHOP</button>
+    <button id="robot-shop-btn" onclick="toggleRobotShop()">ROBOT SHOP</button>
+    <div id="instructions">
+        <strong>Controls:</strong><br>
+        WASD/Arrows - Move | Space - Jump<br>
+        <strong style="color:#ff88ff">Click/E - Shoot</strong><br>
+        B - Weapons | R - Robots<br>
+        <span style="color:#88ff88">Green = Allies</span> | <span style="color:#ff6666">Red = Enemies</span>
+    </div>
+    <div id="win-screen">
+        <h1>You Win!</h1>
+        <p>All orbs collected!</p>
+        <button id="restart-btn" onclick="restartGame()">Play Again</button>
+    </div>
+    <div id="game-over-screen" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(80,0,0,0.9); padding:40px 60px; border-radius:20px; text-align:center; z-index:200; border:3px solid #ff4444;">
+        <h1 style="color:#ff4444; font-size:48px; margin-bottom:20px;">GAME OVER</h1>
+        <p style="color:#fff; font-size:24px; margin-bottom:20px;">The enemy robots got you!</p>
+        <button onclick="restartGame()" style="background:#ff4444; border:none; padding:15px 40px; font-size:20px; border-radius:10px; cursor:pointer;">Try Again</button>
+    </div>
+
+    <div id="weapon-store">
+        <h2>WEAPON STORE</h2>
+        <div class="shop-coins">Your Coins: <span id="shop-coin-count">0</span></div>
+        <div id="weapon-list"></div>
+        <button id="close-shop" onclick="toggleShop()">CLOSE</button>
+    </div>
+
+    <div id="robot-store">
+        <h2>ROBOT RECRUITMENT</h2>
+        <div class="shop-coins">Your Coins: <span id="robot-shop-coin-count">0</span></div>
+        <div id="robot-list"></div>
+        <button id="close-robot-shop" onclick="toggleRobotShop()">CLOSE</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game state
+        let score = 0;
+        const totalOrbs = 25;
+        let orbs = [];
+        let isJumping = false;
+        let velocityY = 0;
+        const gravity = -0.015;
+        const jumpForce = 0.3;
+        let health = 100;
+        let gameOver = false;
+        let allies = [];
+        let enemies = [];
+        const numAllies = 2;
+        const numEnemies = 6;
+        let lastDamageTime = 0;
+        let robotShopOpen = false;
+
+        // Robot types for the shop
+        const robotTypes = [
+            { id: 'scout', name: 'Scout Bot', icon: '🤖', price: 8, health: 60, damage: 15, cooldown: 0.8, speed: 0.08, color: 0x00ff88, desc: 'Fast but fragile' },
+            { id: 'soldier', name: 'Soldier Bot', icon: '🎖️', price: 15, health: 100, damage: 25, cooldown: 1.0, speed: 0.05, color: 0x4488ff, desc: 'Balanced fighter' },
+            { id: 'tank', name: 'Tank Bot', icon: '🛡️', price: 25, health: 200, damage: 20, cooldown: 1.5, speed: 0.03, color: 0x888888, desc: 'Heavy armor, slow' },
+            { id: 'sniper', name: 'Sniper Bot', icon: '🎯', price: 20, health: 50, damage: 50, cooldown: 2.0, speed: 0.04, color: 0xff8800, desc: 'Long range, high damage' },
+            { id: 'healer', name: 'Medic Bot', icon: '💚', price: 30, health: 80, damage: 10, cooldown: 1.2, speed: 0.05, color: 0x00ffaa, desc: 'Heals nearby allies' },
+            { id: 'berserker', name: 'Berserker Bot', icon: '🔥', price: 35, health: 120, damage: 40, cooldown: 0.6, speed: 0.07, color: 0xff4400, desc: 'Aggressive attacker' },
+            { id: 'freezer', name: 'Cryo Bot', icon: '❄️', price: 28, health: 90, damage: 15, cooldown: 1.0, speed: 0.05, color: 0x88ffff, desc: 'Slows enemies' },
+            { id: 'bomber', name: 'Bomber Bot', icon: '💣', price: 40, health: 70, damage: 80, cooldown: 2.5, speed: 0.04, color: 0xffff00, desc: 'Explosive shots' },
+            { id: 'elite', name: 'Elite Bot', icon: '⭐', price: 60, health: 150, damage: 45, cooldown: 0.8, speed: 0.06, color: 0xffdd00, desc: 'Top tier fighter' },
+            { id: 'commander', name: 'Commander Bot', icon: '👑', price: 100, health: 250, damage: 60, cooldown: 0.7, speed: 0.05, color: 0xff00ff, desc: 'Ultimate ally' }
+        ];
+
+        // Weapon & Shop system
+        let coins = 0;
+        let shopOpen = false;
+        let projectiles = [];
+        let lastShotTime = 0;
+        let equippedWeapon = null;
+
+        // Player stats
+        let playerSpeed = 0.15;
+        let playerMaxHealth = 100;
+
+        const weapons = [
+            { id: 'blaster', name: 'Plasma Blaster', icon: '🔫', price: 5, damage: 25, cooldown: 0.5, speed: 0.8, color: 0x00ffff, desc: 'Basic plasma shots' },
+            { id: 'laser', name: 'Laser Rifle', icon: '⚡', price: 15, damage: 40, cooldown: 0.3, speed: 1.2, color: 0xff0000, desc: 'Fast laser beams' },
+            { id: 'rocket', name: 'Rocket Launcher', icon: '🚀', price: 30, damage: 80, cooldown: 1.5, speed: 0.5, color: 0xff8800, desc: 'Explosive rockets' },
+            { id: 'freeze', name: 'Freeze Ray', icon: '❄️', price: 25, damage: 15, cooldown: 0.4, speed: 0.6, color: 0x88ffff, desc: 'Slows enemies down' },
+            { id: 'plasma', name: 'Plasma Cannon', icon: '💥', price: 50, damage: 100, cooldown: 2.0, speed: 0.4, color: 0xff00ff, desc: 'Ultimate destruction' }
+        ];
+
+        let ownedWeapons = [];
+
+        // Shop functions
+        function toggleShop() {
+            shopOpen = !shopOpen;
+            document.getElementById('weapon-store').style.display = shopOpen ? 'block' : 'none';
+            if (shopOpen) {
+                updateShopUI();
+            }
+        }
+
+        function updateShopUI() {
+            document.getElementById('shop-coin-count').textContent = coins;
+            const weaponList = document.getElementById('weapon-list');
+            weaponList.innerHTML = '';
+
+            weapons.forEach(weapon => {
+                const owned = ownedWeapons.includes(weapon.id);
+                const equipped = equippedWeapon && equippedWeapon.id === weapon.id;
+                const canAfford = coins >= weapon.price;
+
+                const div = document.createElement('div');
+                div.className = 'weapon-item' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '');
+
+                let buttonHtml = '';
+                if (equipped) {
+                    buttonHtml = '<span class="equipped-label">EQUIPPED</span>';
+                } else if (owned) {
+                    buttonHtml = `<button class="equip-btn" onclick="equipWeapon('${weapon.id}')">EQUIP</button>`;
+                } else {
+                    buttonHtml = `<button class="buy-btn" onclick="buyWeapon('${weapon.id}')" ${!canAfford ? 'disabled' : ''}>BUY</button>`;
+                }
+
+                div.innerHTML = `
+                    <span class="weapon-icon">${weapon.icon}</span>
+                    <div class="weapon-details">
+                        <div class="weapon-name">${weapon.name}</div>
+                        <div class="weapon-desc">${weapon.desc} | DMG: ${weapon.damage}</div>
+                    </div>
+                    ${!owned ? `<span class="weapon-price">${weapon.price} coins</span>` : ''}
+                    ${buttonHtml}
+                `;
+                weaponList.appendChild(div);
+            });
+        }
+
+        function buyWeapon(weaponId) {
+            const weapon = weapons.find(w => w.id === weaponId);
+            if (weapon && coins >= weapon.price && !ownedWeapons.includes(weaponId)) {
+                coins -= weapon.price;
+                ownedWeapons.push(weaponId);
+                equipWeapon(weaponId);
+                updateShopUI();
+                updateCoinsDisplay();
+            }
+        }
+
+        function equipWeapon(weaponId) {
+            const weapon = weapons.find(w => w.id === weaponId);
+            if (weapon && ownedWeapons.includes(weaponId)) {
+                equippedWeapon = weapon;
+                document.getElementById('current-weapon').textContent = weapon.icon + ' ' + weapon.name;
+                updateShopUI();
+            }
+        }
+
+        function updateCoinsDisplay() {
+            document.getElementById('coin-count').textContent = coins;
+        }
+
+        // Shooting function
+        function shoot() {
+            if (!equippedWeapon || gameOver || shopOpen || robotShopOpen) return;
+
+            const currentTime = performance.now() / 1000;
+            if (currentTime - lastShotTime < equippedWeapon.cooldown) return;
+
+            lastShotTime = currentTime;
+
+            // Create projectile
+            const projectileGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+            const projectileMaterial = new THREE.MeshStandardMaterial({
+                color: equippedWeapon.color,
+                emissive: equippedWeapon.color,
+                emissiveIntensity: 0.8
+            });
+            const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+
+            // Start position at robot's front
+            const direction = new THREE.Vector3(
+                -Math.sin(robot.rotation.y),
+                0,
+                -Math.cos(robot.rotation.y)
+            );
+
+            projectile.position.set(
+                robot.position.x + direction.x * 1.5,
+                robot.position.y + 1.5,
+                robot.position.z + direction.z * 1.5
+            );
+
+            // Add glow light
+            const light = new THREE.PointLight(equippedWeapon.color, 0.5, 5);
+            light.position.copy(projectile.position);
+            scene.add(light);
+
+            scene.add(projectile);
+            projectiles.push({
+                mesh: projectile,
+                light: light,
+                direction: direction,
+                speed: equippedWeapon.speed,
+                damage: equippedWeapon.damage,
+                weaponId: equippedWeapon.id,
+                life: 3 // seconds before despawn
+            });
+        }
+
+        // Update projectiles
+        function updateProjectiles(deltaTime) {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const proj = projectiles[i];
+
+                // Move projectile
+                proj.mesh.position.x += proj.direction.x * proj.speed;
+                proj.mesh.position.z += proj.direction.z * proj.speed;
+                proj.light.position.copy(proj.mesh.position);
+
+                proj.life -= deltaTime;
+                let projectileHit = false;
+
+                // Enemy shots can hit player and allies
+                if (proj.isNPCShot && !proj.isAllyShot) {
+                    // Check hit on player
+                    const pdx = proj.mesh.position.x - robot.position.x;
+                    const pdz = proj.mesh.position.z - robot.position.z;
+                    const playerDist = Math.sqrt(pdx * pdx + pdz * pdz);
+
+                    if (playerDist < 1.0) {
+                        health -= proj.damage;
+                        document.getElementById('health-fill').style.width = Math.max(0, health) + '%';
+                        projectileHit = true;
+
+                        if (health <= 0) {
+                            health = 0;
+                            gameOver = true;
+                            document.getElementById('game-over-screen').style.display = 'block';
+                        }
+                    }
+
+                    // Check hit on allies
+                    if (!projectileHit) {
+                        for (let j = allies.length - 1; j >= 0; j--) {
+                            const ally = allies[j];
+                            const adx = proj.mesh.position.x - ally.mesh.position.x;
+                            const adz = proj.mesh.position.z - ally.mesh.position.z;
+                            const allyDist = Math.sqrt(adx * adx + adz * adz);
+
+                            if (allyDist < 1.0) {
+                                ally.health -= proj.damage;
+                                projectileHit = true;
+
+                                if (ally.health <= 0) {
+                                    scene.remove(ally.mesh);
+                                    allies.splice(j, 1);
+                                    document.getElementById('ally-count').textContent = allies.length;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Player and ally shots hit enemies
+                if (!proj.isNPCShot || proj.isAllyShot) {
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const enemy = enemies[j];
+                        const dx = proj.mesh.position.x - enemy.mesh.position.x;
+                        const dz = proj.mesh.position.z - enemy.mesh.position.z;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+
+                        if (dist < 1.2) {
+                            // Hit enemy
+                            enemy.health -= proj.damage;
+                            projectileHit = true;
+
+                            // Freeze effect (player weapons only)
+                            if (proj.weaponId === 'freeze') {
+                                enemy.speed = 0.01;
+                                setTimeout(() => { enemy.speed = 0.04; }, 3000);
+                            }
+
+                            // Check if enemy destroyed
+                            if (enemy.health <= 0) {
+                                scene.remove(enemy.mesh);
+                                enemies.splice(j, 1);
+                                coins += 3; // Reward for killing enemy
+                                updateCoinsDisplay();
+                                document.getElementById('enemy-count').textContent = enemies.length;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Remove projectile if it hit something
+                if (projectileHit) {
+                    scene.remove(proj.mesh);
+                    scene.remove(proj.light);
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+
+                // Remove old projectiles
+                if (proj.life <= 0) {
+                    scene.remove(proj.mesh);
+                    scene.remove(proj.light);
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+
+        window.toggleShop = toggleShop;
+        window.buyWeapon = buyWeapon;
+        window.equipWeapon = equipWeapon;
+
+        // Robot Shop functions
+        function toggleRobotShop() {
+            robotShopOpen = !robotShopOpen;
+            document.getElementById('robot-store').style.display = robotShopOpen ? 'block' : 'none';
+            if (robotShopOpen) {
+                updateRobotShopUI();
+            }
+        }
+
+        function updateRobotShopUI() {
+            document.getElementById('robot-shop-coin-count').textContent = coins;
+            const robotList = document.getElementById('robot-list');
+            robotList.innerHTML = '';
+
+            robotTypes.forEach(rtype => {
+                const canAfford = coins >= rtype.price;
+
+                const div = document.createElement('div');
+                div.className = 'robot-item';
+
+                div.innerHTML = `
+                    <span class="robot-icon">${rtype.icon}</span>
+                    <div class="robot-details">
+                        <div class="robot-name">${rtype.name}</div>
+                        <div class="robot-desc">${rtype.desc}</div>
+                        <div class="robot-stats">HP: ${rtype.health} | DMG: ${rtype.damage} | SPD: ${(rtype.speed * 100).toFixed(0)}</div>
+                    </div>
+                    <span class="robot-price">${rtype.price}</span>
+                    <button class="recruit-btn" onclick="recruitRobot('${rtype.id}')" ${!canAfford ? 'disabled' : ''}>RECRUIT</button>
+                `;
+                robotList.appendChild(div);
+            });
+        }
+
+        let currentPlayerType = null;
+        let ownedRobotTypes = [];
+
+        function recruitRobot(robotTypeId) {
+            const rtype = robotTypes.find(r => r.id === robotTypeId);
+            if (!rtype) return;
+
+            // Check if already owned
+            if (ownedRobotTypes.includes(robotTypeId)) {
+                // Just transform into it
+                transformPlayer(rtype);
+                return;
+            }
+
+            // Buy and transform
+            if (coins >= rtype.price) {
+                coins -= rtype.price;
+                ownedRobotTypes.push(robotTypeId);
+                updateCoinsDisplay();
+                updateRobotShopUI();
+                transformPlayer(rtype);
+            }
+        }
+
+        function transformPlayer(rtype) {
+            currentPlayerType = rtype;
+
+            // Save position and rotation
+            const pos = robot.position.clone();
+            const rot = robot.rotation.y;
+
+            // Remove old robot
+            scene.remove(robot);
+
+            // Create new player robot with the selected type's appearance
+            const newRobot = createPlayerRobot(rtype);
+            robot = newRobot.mesh;
+            robot.position.copy(pos);
+            robot.rotation.y = rot;
+
+            // Update references for animation
+            leftArm = newRobot.leftArm;
+            rightArm = newRobot.rightArm;
+            leftLeg = newRobot.leftLeg;
+            rightLeg = newRobot.rightLeg;
+            antennaBall = newRobot.antennaBall;
+
+            scene.add(robot);
+
+            // Update player stats
+            playerSpeed = rtype.speed + 0.05; // Player is slightly faster
+            playerMaxHealth = rtype.health;
+            health = Math.min(health, playerMaxHealth);
+            document.getElementById('health-fill').style.width = (health / playerMaxHealth * 100) + '%';
+
+            // Update weapon if not equipped
+            if (!equippedWeapon) {
+                equippedWeapon = {
+                    id: 'builtin',
+                    name: rtype.name + ' Blaster',
+                    damage: rtype.damage,
+                    cooldown: rtype.cooldown,
+                    speed: 0.8,
+                    color: rtype.color
+                };
+                document.getElementById('current-weapon').textContent = rtype.icon + ' Built-in';
+            }
+
+            toggleRobotShop();
+        }
+
+        function createCustomAlly(rtype) {
+            const npcRobot = new THREE.Group();
+            const bodyColor = rtype.color;
+            const glowColor = rtype.color;
+
+            // Different designs based on robot type
+            let bodyWidth = 1, bodyHeight = 1.2, bodyDepth = 0.6;
+            let headSize = 0.7, headShape = 'box';
+            let armSize = 0.25, legSize = 0.3;
+            let extraParts = [];
+            let eyeColor = 0x00ffff;
+            let scale = 1;
+
+            switch(rtype.id) {
+                case 'scout':
+                    // Small, sleek robot
+                    scale = 0.8;
+                    bodyWidth = 0.7; bodyHeight = 0.9; bodyDepth = 0.4;
+                    headShape = 'sphere';
+                    headSize = 0.4;
+                    eyeColor = 0x00ff00;
+                    break;
+                case 'soldier':
+                    // Standard military look with helmet
+                    bodyWidth = 1.1; bodyHeight = 1.3;
+                    headShape = 'box';
+                    eyeColor = 0x4488ff;
+                    break;
+                case 'tank':
+                    // Big, bulky robot
+                    scale = 1.4;
+                    bodyWidth = 1.6; bodyHeight = 1.5; bodyDepth = 1;
+                    headSize = 0.6;
+                    armSize = 0.4; legSize = 0.5;
+                    eyeColor = 0xff0000;
+                    break;
+                case 'sniper':
+                    // Tall, thin robot with visor
+                    scale = 1.1;
+                    bodyWidth = 0.8; bodyHeight = 1.5; bodyDepth = 0.5;
+                    headShape = 'visor';
+                    eyeColor = 0xff8800;
+                    break;
+                case 'healer':
+                    // Round, friendly robot with cross symbol
+                    bodyWidth = 1; bodyHeight = 1.1;
+                    headShape = 'sphere';
+                    headSize = 0.5;
+                    eyeColor = 0x00ffaa;
+                    break;
+                case 'berserker':
+                    // Spiky, aggressive robot
+                    scale = 1.15;
+                    bodyWidth = 1.3; bodyHeight = 1.2;
+                    headShape = 'spike';
+                    eyeColor = 0xff0000;
+                    break;
+                case 'freezer':
+                    // Crystal-like robot
+                    bodyWidth = 0.9; bodyHeight = 1.2;
+                    headShape = 'crystal';
+                    eyeColor = 0x88ffff;
+                    break;
+                case 'bomber':
+                    // Round body, bomb-shaped
+                    bodyWidth = 1.2; bodyHeight = 1.0; bodyDepth = 1.2;
+                    headShape = 'dome';
+                    headSize = 0.5;
+                    eyeColor = 0xffff00;
+                    break;
+                case 'elite':
+                    // Sleek, advanced design
+                    scale = 1.1;
+                    bodyWidth = 1; bodyHeight = 1.4;
+                    headShape = 'angular';
+                    eyeColor = 0xffdd00;
+                    break;
+                case 'commander':
+                    // Large, regal robot with crown
+                    scale = 1.3;
+                    bodyWidth = 1.4; bodyHeight = 1.6; bodyDepth = 0.9;
+                    headShape = 'crown';
+                    eyeColor = 0xff00ff;
+                    break;
+            }
+
+            // Apply scale
+            bodyWidth *= scale; bodyHeight *= scale; bodyDepth *= scale;
+            headSize *= scale; armSize *= scale; legSize *= scale;
+
+            // NPC body
+            const npcBodyGeometry = new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyDepth);
+            const npcBodyMaterial = new THREE.MeshStandardMaterial({
+                color: bodyColor,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const npcBody = new THREE.Mesh(npcBodyGeometry, npcBodyMaterial);
+            npcBody.position.y = bodyHeight / 2 + 0.6 * scale;
+            npcBody.castShadow = true;
+            npcRobot.add(npcBody);
+
+            // NPC chest plate / details based on type
+            if (rtype.id === 'healer') {
+                // Cross symbol
+                const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.15 * scale, 0.5 * scale, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00ff88, emissiveIntensity: 0.8 }));
+                crossV.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.05);
+                npcRobot.add(crossV);
+                const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.4 * scale, 0.15 * scale, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00ff88, emissiveIntensity: 0.8 }));
+                crossH.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.05);
+                npcRobot.add(crossH);
+            } else if (rtype.id === 'tank') {
+                // Armor plates
+                const plate = new THREE.Mesh(new THREE.BoxGeometry(bodyWidth * 0.9, bodyHeight * 0.4, 0.15),
+                    new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9 }));
+                plate.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.08);
+                npcRobot.add(plate);
+            } else if (rtype.id === 'berserker') {
+                // Spikes on shoulders
+                for (let side of [-1, 1]) {
+                    for (let i = 0; i < 3; i++) {
+                        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08 * scale, 0.3 * scale, 4),
+                            new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xff4400, emissiveIntensity: 0.3 }));
+                        spike.position.set(side * (bodyWidth / 2 + 0.1), bodyHeight + 0.3 * scale + i * 0.15, 0);
+                        spike.rotation.z = side * -0.3;
+                        npcRobot.add(spike);
+                    }
+                }
+            } else {
+                // Default chest plate
+                const npcChestGeometry = new THREE.BoxGeometry(bodyWidth * 0.6, bodyHeight * 0.4, 0.1);
+                const npcChestMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    emissive: glowColor,
+                    emissiveIntensity: 0.5
+                });
+                const npcChest = new THREE.Mesh(npcChestGeometry, npcChestMaterial);
+                npcChest.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.05);
+                npcRobot.add(npcChest);
+            }
+
+            // NPC head - different shapes
+            let npcHead;
+            const headY = bodyHeight + 0.9 * scale;
+
+            if (headShape === 'sphere') {
+                npcHead = new THREE.Mesh(
+                    new THREE.SphereGeometry(headSize, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 })
+                );
+            } else if (headShape === 'visor') {
+                npcHead = new THREE.Mesh(
+                    new THREE.BoxGeometry(headSize * 1.2, headSize * 0.5, headSize),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 })
+                );
+                // Visor
+                const visor = new THREE.Mesh(
+                    new THREE.BoxGeometry(headSize * 1.1, headSize * 0.25, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0x000000, emissive: eyeColor, emissiveIntensity: 0.5 })
+                );
+                visor.position.set(0, 0, headSize / 2);
+                npcHead.add(visor);
+            } else if (headShape === 'spike') {
+                npcHead = new THREE.Mesh(
+                    new THREE.ConeGeometry(headSize * 0.6, headSize * 1.2, 4),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 })
+                );
+                npcHead.rotation.y = Math.PI / 4;
+            } else if (headShape === 'crystal') {
+                npcHead = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(headSize * 0.6),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.8 })
+                );
+            } else if (headShape === 'dome') {
+                npcHead = new THREE.Mesh(
+                    new THREE.SphereGeometry(headSize, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 })
+                );
+                npcHead.rotation.x = Math.PI;
+            } else if (headShape === 'angular') {
+                npcHead = new THREE.Mesh(
+                    new THREE.BoxGeometry(headSize, headSize * 0.8, headSize * 0.9),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.9 })
+                );
+                // Fins
+                const fin = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.05, headSize * 0.5, headSize * 0.8),
+                    new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 0.5 })
+                );
+                fin.position.set(0, headSize * 0.4, 0);
+                npcHead.add(fin);
+            } else if (headShape === 'crown') {
+                npcHead = new THREE.Mesh(
+                    new THREE.BoxGeometry(headSize, headSize * 0.8, headSize * 0.8),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.9 })
+                );
+                // Crown
+                for (let i = 0; i < 5; i++) {
+                    const point = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.06 * scale, 0.25 * scale, 4),
+                        new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.5 })
+                    );
+                    point.position.set((i - 2) * 0.12 * scale, headSize * 0.6, 0);
+                    npcHead.add(point);
+                }
+            } else {
+                // Default box head
+                npcHead = new THREE.Mesh(
+                    new THREE.BoxGeometry(headSize, headSize * 0.85, headSize * 0.85),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 })
+                );
+            }
+            npcHead.position.y = headY;
+            npcHead.castShadow = true;
+            npcRobot.add(npcHead);
+
+            // Eyes (skip for visor types)
+            if (headShape !== 'visor') {
+                const npcEyeGeometry = new THREE.SphereGeometry(0.08 * scale, 16, 16);
+                const npcEyeMaterial = new THREE.MeshStandardMaterial({
+                    color: eyeColor,
+                    emissive: eyeColor,
+                    emissiveIntensity: 0.8
+                });
+
+                if (headShape === 'sphere' || headShape === 'dome') {
+                    const leftEye = new THREE.Mesh(npcEyeGeometry, npcEyeMaterial);
+                    leftEye.position.set(-0.12 * scale, headY, headSize * 0.85);
+                    npcRobot.add(leftEye);
+                    const rightEye = new THREE.Mesh(npcEyeGeometry, npcEyeMaterial);
+                    rightEye.position.set(0.12 * scale, headY, headSize * 0.85);
+                    npcRobot.add(rightEye);
+                } else if (headShape !== 'crystal') {
+                    const leftEye = new THREE.Mesh(npcEyeGeometry, npcEyeMaterial);
+                    leftEye.position.set(-0.15 * scale, headY, headSize * 0.5);
+                    npcRobot.add(leftEye);
+                    const rightEye = new THREE.Mesh(npcEyeGeometry, npcEyeMaterial);
+                    rightEye.position.set(0.15 * scale, headY, headSize * 0.5);
+                    npcRobot.add(rightEye);
+                }
+            }
+
+            // Antenna (different per type)
+            let npcAntennaBall;
+            if (rtype.id === 'tank') {
+                // No antenna, has radar dish instead
+                const dish = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.2 * scale, 0.3 * scale, 0.1 * scale, 16),
+                    new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.9 })
+                );
+                dish.position.set(0.4 * scale, headY + 0.3 * scale, 0);
+                dish.rotation.x = -0.5;
+                npcRobot.add(dish);
+                npcAntennaBall = dish;
+            } else if (rtype.id === 'freezer') {
+                // Ice crystal antenna
+                const crystal = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(0.15 * scale),
+                    new THREE.MeshStandardMaterial({ color: 0x88ffff, emissive: 0x88ffff, emissiveIntensity: 0.6, transparent: true, opacity: 0.8 })
+                );
+                crystal.position.set(0, headY + headSize * 0.8, 0);
+                npcRobot.add(crystal);
+                npcAntennaBall = crystal;
+            } else if (rtype.id === 'bomber') {
+                // Fuse antenna
+                const fuse = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.4 * scale, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x333333 })
+                );
+                fuse.position.set(0, headY + 0.3 * scale, 0);
+                npcRobot.add(fuse);
+                const spark = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.1 * scale, 8, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 1 })
+                );
+                spark.position.set(0, headY + 0.55 * scale, 0);
+                npcRobot.add(spark);
+                npcAntennaBall = spark;
+            } else {
+                const antenna = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.02 * scale, 0.02 * scale, 0.3 * scale, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9 })
+                );
+                antenna.position.set(0, headY + headSize * 0.5 + 0.15 * scale, 0);
+                npcRobot.add(antenna);
+
+                npcAntennaBall = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.08 * scale, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 0.6 })
+                );
+                npcAntennaBall.position.set(0, headY + headSize * 0.5 + 0.35 * scale, 0);
+                npcRobot.add(npcAntennaBall);
+            }
+
+            // Arms - vary by type
+            let armWidth = armSize, armHeight = 0.8 * scale, armDepth = armSize;
+            if (rtype.id === 'tank') {
+                armWidth = 0.35 * scale; armHeight = 0.9 * scale;
+            } else if (rtype.id === 'scout') {
+                armWidth = 0.15 * scale; armHeight = 0.5 * scale;
+            }
+
+            const npcArmGeometry = new THREE.BoxGeometry(armWidth, armHeight, armDepth);
+            const npcArmMaterial = new THREE.MeshStandardMaterial({
+                color: rtype.id === 'tank' ? 0x444444 : 0x636e72,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            const npcLeftArm = new THREE.Mesh(npcArmGeometry, npcArmMaterial);
+            npcLeftArm.position.set(-(bodyWidth / 2 + armWidth / 2 + 0.05), bodyHeight / 2 + 0.5 * scale, 0);
+            npcLeftArm.castShadow = true;
+            npcRobot.add(npcLeftArm);
+
+            const npcRightArm = new THREE.Mesh(npcArmGeometry, npcArmMaterial);
+            npcRightArm.position.set(bodyWidth / 2 + armWidth / 2 + 0.05, bodyHeight / 2 + 0.5 * scale, 0);
+            npcRightArm.castShadow = true;
+            npcRobot.add(npcRightArm);
+
+            // Weapon attachments for certain types
+            if (rtype.id === 'sniper') {
+                const scope = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.05 * scale, 0.08 * scale, 0.6 * scale, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9 })
+                );
+                scope.rotation.x = Math.PI / 2;
+                scope.position.set(bodyWidth / 2 + 0.3 * scale, bodyHeight / 2 + 0.3 * scale, 0.4 * scale);
+                npcRobot.add(scope);
+            } else if (rtype.id === 'bomber') {
+                // Bomb pack on back
+                const pack = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.25 * scale, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 })
+                );
+                pack.position.set(0, bodyHeight / 2 + 0.6 * scale, -bodyDepth / 2 - 0.2 * scale);
+                npcRobot.add(pack);
+            }
+
+            // Legs - vary by type
+            let legWidth = legSize, legHeight = 0.6 * scale, legDepth = legSize;
+            if (rtype.id === 'tank') {
+                legWidth = 0.4 * scale; legHeight = 0.5 * scale; legDepth = 0.5 * scale;
+            } else if (rtype.id === 'scout') {
+                legWidth = 0.2 * scale; legHeight = 0.7 * scale;
+            }
+
+            const npcLegGeometry = new THREE.BoxGeometry(legWidth, legHeight, legDepth);
+            const npcLegMaterial = new THREE.MeshStandardMaterial({
+                color: rtype.id === 'tank' ? 0x444444 : 0x636e72,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            const npcLeftLeg = new THREE.Mesh(npcLegGeometry, npcLegMaterial);
+            npcLeftLeg.position.set(-bodyWidth * 0.25, legHeight / 2, 0);
+            npcLeftLeg.castShadow = true;
+            npcRobot.add(npcLeftLeg);
+
+            const npcRightLeg = new THREE.Mesh(npcLegGeometry, npcLegMaterial);
+            npcRightLeg.position.set(bodyWidth * 0.25, legHeight / 2, 0);
+            npcRightLeg.castShadow = true;
+            npcRobot.add(npcRightLeg);
+
+            // Special feet for tank (treads look)
+            if (rtype.id === 'tank') {
+                for (let side of [-1, 1]) {
+                    const tread = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.5 * scale, 0.15 * scale, 0.8 * scale),
+                        new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6 })
+                    );
+                    tread.position.set(side * bodyWidth * 0.25, 0.08 * scale, 0);
+                    npcRobot.add(tread);
+                }
+            }
+
+            return {
+                mesh: npcRobot,
+                isAlly: true,
+                leftArm: npcLeftArm,
+                rightArm: npcRightArm,
+                leftLeg: npcLeftLeg,
+                rightLeg: npcRightLeg,
+                antennaBall: npcAntennaBall,
+                bobAngle: Math.random() * Math.PI * 2,
+                targetOrb: null,
+                speed: rtype.speed,
+                health: rtype.health,
+                maxHealth: rtype.health,
+                lastShotTime: 0,
+                weaponCooldown: rtype.cooldown,
+                weaponDamage: rtype.damage,
+                weaponColor: rtype.color,
+                weaponSpeed: 0.6,
+                robotType: rtype.id
+            };
+        }
+
+        // Create player robot with specific type appearance
+        function createPlayerRobot(rtype) {
+            const npcRobot = new THREE.Group();
+            const bodyColor = rtype.color;
+            const glowColor = rtype.color;
+
+            let bodyWidth = 1, bodyHeight = 1.2, bodyDepth = 0.6;
+            let headSize = 0.7, headShape = 'box';
+            let armSize = 0.25, legSize = 0.3;
+            let eyeColor = 0x00ffff;
+            let scale = 1;
+
+            switch(rtype.id) {
+                case 'scout': scale = 0.85; bodyWidth = 0.7; bodyHeight = 0.9; bodyDepth = 0.4; headShape = 'sphere'; headSize = 0.4; eyeColor = 0x00ff00; break;
+                case 'soldier': bodyWidth = 1.1; bodyHeight = 1.3; headShape = 'box'; eyeColor = 0x4488ff; break;
+                case 'tank': scale = 1.4; bodyWidth = 1.6; bodyHeight = 1.5; bodyDepth = 1; headSize = 0.6; armSize = 0.4; legSize = 0.5; eyeColor = 0xff0000; break;
+                case 'sniper': scale = 1.1; bodyWidth = 0.8; bodyHeight = 1.5; bodyDepth = 0.5; headShape = 'visor'; eyeColor = 0xff8800; break;
+                case 'healer': bodyWidth = 1; bodyHeight = 1.1; headShape = 'sphere'; headSize = 0.5; eyeColor = 0x00ffaa; break;
+                case 'berserker': scale = 1.15; bodyWidth = 1.3; bodyHeight = 1.2; headShape = 'spike'; eyeColor = 0xff0000; break;
+                case 'freezer': bodyWidth = 0.9; bodyHeight = 1.2; headShape = 'crystal'; eyeColor = 0x88ffff; break;
+                case 'bomber': bodyWidth = 1.2; bodyHeight = 1.0; bodyDepth = 1.2; headShape = 'dome'; headSize = 0.5; eyeColor = 0xffff00; break;
+                case 'elite': scale = 1.1; bodyWidth = 1; bodyHeight = 1.4; headShape = 'angular'; eyeColor = 0xffdd00; break;
+                case 'commander': scale = 1.3; bodyWidth = 1.4; bodyHeight = 1.6; bodyDepth = 0.9; headShape = 'crown'; eyeColor = 0xff00ff; break;
+            }
+
+            bodyWidth *= scale; bodyHeight *= scale; bodyDepth *= scale;
+            headSize *= scale; armSize *= scale; legSize *= scale;
+
+            // Body
+            const npcBody = new THREE.Mesh(
+                new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyDepth),
+                new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 })
+            );
+            npcBody.position.y = bodyHeight / 2 + 0.6 * scale;
+            npcBody.castShadow = true;
+            npcRobot.add(npcBody);
+
+            // Chest details
+            if (rtype.id === 'healer') {
+                const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.15 * scale, 0.5 * scale, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00ff88, emissiveIntensity: 0.8 }));
+                crossV.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.05);
+                npcRobot.add(crossV);
+                const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.4 * scale, 0.15 * scale, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00ff88, emissiveIntensity: 0.8 }));
+                crossH.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.05);
+                npcRobot.add(crossH);
+            } else if (rtype.id === 'tank') {
+                const plate = new THREE.Mesh(new THREE.BoxGeometry(bodyWidth * 0.9, bodyHeight * 0.4, 0.15),
+                    new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9 }));
+                plate.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.08);
+                npcRobot.add(plate);
+            } else if (rtype.id === 'berserker') {
+                for (let side of [-1, 1]) {
+                    for (let i = 0; i < 3; i++) {
+                        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08 * scale, 0.3 * scale, 4),
+                            new THREE.MeshStandardMaterial({ color: 0xff2200, emissive: 0xff4400, emissiveIntensity: 0.3 }));
+                        spike.position.set(side * (bodyWidth / 2 + 0.1), bodyHeight + 0.3 * scale + i * 0.15, 0);
+                        spike.rotation.z = side * -0.3;
+                        npcRobot.add(spike);
+                    }
+                }
+            } else {
+                const npcChest = new THREE.Mesh(
+                    new THREE.BoxGeometry(bodyWidth * 0.6, bodyHeight * 0.4, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: glowColor, emissiveIntensity: 0.5 })
+                );
+                npcChest.position.set(0, bodyHeight / 2 + 0.6 * scale, bodyDepth / 2 + 0.05);
+                npcRobot.add(npcChest);
+            }
+
+            // Head
+            let npcHead;
+            const headY = bodyHeight + 0.9 * scale;
+
+            if (headShape === 'sphere') {
+                npcHead = new THREE.Mesh(new THREE.SphereGeometry(headSize, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 }));
+            } else if (headShape === 'visor') {
+                npcHead = new THREE.Mesh(new THREE.BoxGeometry(headSize * 1.2, headSize * 0.5, headSize),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 }));
+                const visor = new THREE.Mesh(new THREE.BoxGeometry(headSize * 1.1, headSize * 0.25, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0x000000, emissive: eyeColor, emissiveIntensity: 0.5 }));
+                visor.position.set(0, 0, headSize / 2);
+                npcHead.add(visor);
+            } else if (headShape === 'spike') {
+                npcHead = new THREE.Mesh(new THREE.ConeGeometry(headSize * 0.6, headSize * 1.2, 4),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 }));
+                npcHead.rotation.y = Math.PI / 4;
+            } else if (headShape === 'crystal') {
+                npcHead = new THREE.Mesh(new THREE.OctahedronGeometry(headSize * 0.6),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.8 }));
+            } else if (headShape === 'dome') {
+                npcHead = new THREE.Mesh(new THREE.SphereGeometry(headSize, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 }));
+                npcHead.rotation.x = Math.PI;
+            } else if (headShape === 'angular') {
+                npcHead = new THREE.Mesh(new THREE.BoxGeometry(headSize, headSize * 0.8, headSize * 0.9),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.9 }));
+                const fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, headSize * 0.5, headSize * 0.8),
+                    new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 0.5 }));
+                fin.position.set(0, headSize * 0.4, 0);
+                npcHead.add(fin);
+            } else if (headShape === 'crown') {
+                npcHead = new THREE.Mesh(new THREE.BoxGeometry(headSize, headSize * 0.8, headSize * 0.8),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.9 }));
+                for (let i = 0; i < 5; i++) {
+                    const point = new THREE.Mesh(new THREE.ConeGeometry(0.06 * scale, 0.25 * scale, 4),
+                        new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.5 }));
+                    point.position.set((i - 2) * 0.12 * scale, headSize * 0.6, 0);
+                    npcHead.add(point);
+                }
+            } else {
+                npcHead = new THREE.Mesh(new THREE.BoxGeometry(headSize, headSize * 0.85, headSize * 0.85),
+                    new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.3, metalness: 0.8 }));
+            }
+            npcHead.position.y = headY;
+            npcHead.castShadow = true;
+            npcRobot.add(npcHead);
+
+            // Eyes
+            if (headShape !== 'visor' && headShape !== 'crystal') {
+                const eyeGeom = new THREE.SphereGeometry(0.1 * scale, 16, 16);
+                const eyeMat = new THREE.MeshStandardMaterial({ color: eyeColor, emissive: eyeColor, emissiveIntensity: 0.8 });
+                const eyeZ = (headShape === 'sphere' || headShape === 'dome') ? headSize * 0.85 : headSize * 0.5;
+                const leftEye = new THREE.Mesh(eyeGeom, eyeMat);
+                leftEye.position.set(-0.15 * scale, headY, eyeZ);
+                npcRobot.add(leftEye);
+                const rightEye = new THREE.Mesh(eyeGeom, eyeMat);
+                rightEye.position.set(0.15 * scale, headY, eyeZ);
+                npcRobot.add(rightEye);
+            }
+
+            // Antenna
+            let npcAntennaBall;
+            if (rtype.id === 'tank') {
+                const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * scale, 0.3 * scale, 0.1 * scale, 16),
+                    new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.9 }));
+                dish.position.set(0.4 * scale, headY + 0.3 * scale, 0);
+                dish.rotation.x = -0.5;
+                npcRobot.add(dish);
+                npcAntennaBall = dish;
+            } else if (rtype.id === 'freezer') {
+                npcAntennaBall = new THREE.Mesh(new THREE.OctahedronGeometry(0.15 * scale),
+                    new THREE.MeshStandardMaterial({ color: 0x88ffff, emissive: 0x88ffff, emissiveIntensity: 0.6, transparent: true, opacity: 0.8 }));
+                npcAntennaBall.position.set(0, headY + headSize * 0.8, 0);
+                npcRobot.add(npcAntennaBall);
+            } else if (rtype.id === 'bomber') {
+                const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.4 * scale, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                fuse.position.set(0, headY + 0.3 * scale, 0);
+                npcRobot.add(fuse);
+                npcAntennaBall = new THREE.Mesh(new THREE.SphereGeometry(0.1 * scale, 8, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 1 }));
+                npcAntennaBall.position.set(0, headY + 0.55 * scale, 0);
+                npcRobot.add(npcAntennaBall);
+            } else {
+                const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * scale, 0.02 * scale, 0.3 * scale, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9 }));
+                antenna.position.set(0, headY + headSize * 0.5 + 0.15 * scale, 0);
+                npcRobot.add(antenna);
+                npcAntennaBall = new THREE.Mesh(new THREE.SphereGeometry(0.08 * scale, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 0.6 }));
+                npcAntennaBall.position.set(0, headY + headSize * 0.5 + 0.35 * scale, 0);
+                npcRobot.add(npcAntennaBall);
+            }
+
+            // Arms
+            let armHeight = 0.8 * scale;
+            if (rtype.id === 'tank') armSize = 0.35 * scale;
+            if (rtype.id === 'scout') { armSize = 0.15 * scale; armHeight = 0.5 * scale; }
+
+            const armGeom = new THREE.BoxGeometry(armSize, armHeight, armSize);
+            const armMat = new THREE.MeshStandardMaterial({ color: rtype.id === 'tank' ? 0x444444 : 0x636e72, roughness: 0.4, metalness: 0.7 });
+            const npcLeftArm = new THREE.Mesh(armGeom, armMat);
+            npcLeftArm.position.set(-(bodyWidth / 2 + armSize / 2 + 0.05), bodyHeight / 2 + 0.5 * scale, 0);
+            npcLeftArm.castShadow = true;
+            npcRobot.add(npcLeftArm);
+            const npcRightArm = new THREE.Mesh(armGeom, armMat);
+            npcRightArm.position.set(bodyWidth / 2 + armSize / 2 + 0.05, bodyHeight / 2 + 0.5 * scale, 0);
+            npcRightArm.castShadow = true;
+            npcRobot.add(npcRightArm);
+
+            // Weapon attachments
+            if (rtype.id === 'sniper') {
+                const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.05 * scale, 0.08 * scale, 0.6 * scale, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9 }));
+                scope.rotation.x = Math.PI / 2;
+                scope.position.set(bodyWidth / 2 + 0.3 * scale, bodyHeight / 2 + 0.3 * scale, 0.4 * scale);
+                npcRobot.add(scope);
+            } else if (rtype.id === 'bomber') {
+                const pack = new THREE.Mesh(new THREE.SphereGeometry(0.25 * scale, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8 }));
+                pack.position.set(0, bodyHeight / 2 + 0.6 * scale, -bodyDepth / 2 - 0.2 * scale);
+                npcRobot.add(pack);
+            }
+
+            // Legs
+            let legHeight = 0.6 * scale;
+            if (rtype.id === 'tank') { legSize = 0.4 * scale; legHeight = 0.5 * scale; }
+            if (rtype.id === 'scout') { legSize = 0.2 * scale; legHeight = 0.7 * scale; }
+
+            const legGeom = new THREE.BoxGeometry(legSize, legHeight, legSize);
+            const legMat = new THREE.MeshStandardMaterial({ color: rtype.id === 'tank' ? 0x444444 : 0x636e72, roughness: 0.4, metalness: 0.7 });
+            const npcLeftLeg = new THREE.Mesh(legGeom, legMat);
+            npcLeftLeg.position.set(-bodyWidth * 0.25, legHeight / 2, 0);
+            npcLeftLeg.castShadow = true;
+            npcRobot.add(npcLeftLeg);
+            const npcRightLeg = new THREE.Mesh(legGeom, legMat);
+            npcRightLeg.position.set(bodyWidth * 0.25, legHeight / 2, 0);
+            npcRightLeg.castShadow = true;
+            npcRobot.add(npcRightLeg);
+
+            if (rtype.id === 'tank') {
+                for (let side of [-1, 1]) {
+                    const tread = new THREE.Mesh(new THREE.BoxGeometry(0.5 * scale, 0.15 * scale, 0.8 * scale),
+                        new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6 }));
+                    tread.position.set(side * bodyWidth * 0.25, 0.08 * scale, 0);
+                    npcRobot.add(tread);
+                }
+            }
+
+            return { mesh: npcRobot, leftArm: npcLeftArm, rightArm: npcRightArm, leftLeg: npcLeftLeg, rightLeg: npcRightLeg, antennaBall: npcAntennaBall };
+        }
+
+        window.toggleRobotShop = toggleRobotShop;
+        window.recruitRobot = recruitRobot;
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        scene.fog = new THREE.Fog(0x1a1a2e, 20, 80);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 100;
+        directionalLight.shadow.camera.left = -30;
+        directionalLight.shadow.camera.right = 30;
+        directionalLight.shadow.camera.top = 30;
+        directionalLight.shadow.camera.bottom = -30;
+        scene.add(directionalLight);
+
+        // Point lights for atmosphere
+        const pointLight1 = new THREE.PointLight(0x00ff88, 0.5, 50);
+        pointLight1.position.set(-15, 10, -15);
+        scene.add(pointLight1);
+
+        const pointLight2 = new THREE.PointLight(0xff0088, 0.5, 50);
+        pointLight2.position.set(15, 10, 15);
+        scene.add(pointLight2);
+
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2d3436,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Grid helper
+        const gridHelper = new THREE.GridHelper(100, 50, 0x00ff88, 0x333333);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        // Create Robot
+        const robot = new THREE.Group();
+
+        // Robot body
+        const bodyGeometry = new THREE.BoxGeometry(1.2, 1.5, 0.8);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: 0x4a69bd,
+            roughness: 0.3,
+            metalness: 0.8
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 1.5;
+        body.castShadow = true;
+        robot.add(body);
+
+        // Chest plate
+        const chestGeometry = new THREE.BoxGeometry(0.8, 0.6, 0.1);
+        const chestMaterial = new THREE.MeshStandardMaterial({
+            color: 0x00ff88,
+            emissive: 0x00ff88,
+            emissiveIntensity: 0.3
+        });
+        const chest = new THREE.Mesh(chestGeometry, chestMaterial);
+        chest.position.set(0, 1.6, 0.45);
+        robot.add(chest);
+
+        // Robot head
+        const headGeometry = new THREE.BoxGeometry(0.8, 0.7, 0.7);
+        const headMaterial = new THREE.MeshStandardMaterial({
+            color: 0x4a69bd,
+            roughness: 0.3,
+            metalness: 0.8
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 2.6;
+        head.castShadow = true;
+        robot.add(head);
+
+        // Robot eyes
+        const eyeGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+        const eyeMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.8
+        });
+        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        leftEye.position.set(-0.2, 2.65, 0.35);
+        robot.add(leftEye);
+
+        const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        rightEye.position.set(0.2, 2.65, 0.35);
+        robot.add(rightEye);
+
+        // Antenna
+        const antennaGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+        const antennaMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9 });
+        const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+        antenna.position.set(0, 3.15, 0);
+        robot.add(antenna);
+
+        const antennaBallGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+        const antennaBallMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            emissiveIntensity: 0.5
+        });
+        const antennaBall = new THREE.Mesh(antennaBallGeometry, antennaBallMaterial);
+        antennaBall.position.set(0, 3.4, 0);
+        robot.add(antennaBall);
+
+        // Arms
+        const armGeometry = new THREE.BoxGeometry(0.3, 1, 0.3);
+        const armMaterial = new THREE.MeshStandardMaterial({
+            color: 0x636e72,
+            roughness: 0.4,
+            metalness: 0.7
+        });
+
+        const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+        leftArm.position.set(-0.85, 1.4, 0);
+        leftArm.castShadow = true;
+        robot.add(leftArm);
+
+        const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+        rightArm.position.set(0.85, 1.4, 0);
+        rightArm.castShadow = true;
+        robot.add(rightArm);
+
+        // Hands
+        const handGeometry = new THREE.SphereGeometry(0.18, 16, 16);
+        const handMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 });
+
+        const leftHand = new THREE.Mesh(handGeometry, handMaterial);
+        leftHand.position.set(-0.85, 0.8, 0);
+        robot.add(leftHand);
+
+        const rightHand = new THREE.Mesh(handGeometry, handMaterial);
+        rightHand.position.set(0.85, 0.8, 0);
+        robot.add(rightHand);
+
+        // Legs
+        const legGeometry = new THREE.BoxGeometry(0.35, 0.8, 0.35);
+        const legMaterial = new THREE.MeshStandardMaterial({
+            color: 0x636e72,
+            roughness: 0.4,
+            metalness: 0.7
+        });
+
+        const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+        leftLeg.position.set(-0.3, 0.4, 0);
+        leftLeg.castShadow = true;
+        robot.add(leftLeg);
+
+        const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+        rightLeg.position.set(0.3, 0.4, 0);
+        rightLeg.castShadow = true;
+        robot.add(rightLeg);
+
+        // Feet
+        const footGeometry = new THREE.BoxGeometry(0.4, 0.15, 0.5);
+        const footMaterial = new THREE.MeshStandardMaterial({ color: 0x2d3436, metalness: 0.6 });
+
+        const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
+        leftFoot.position.set(-0.3, 0.075, 0.08);
+        robot.add(leftFoot);
+
+        const rightFoot = new THREE.Mesh(footGeometry, footMaterial);
+        rightFoot.position.set(0.3, 0.075, 0.08);
+        robot.add(rightFoot);
+
+        scene.add(robot);
+
+        // Create NPC Robot function
+        function createNPCRobot(isAlly) {
+            const npcRobot = new THREE.Group();
+            const bodyColor = isAlly ? 0x00aa44 : 0xaa2222;
+            const glowColor = isAlly ? 0x00ff88 : 0xff4444;
+            const eyeColor = isAlly ? 0x00ffff : 0xffff00;
+
+            // NPC body (slightly smaller than player)
+            const npcBodyGeometry = new THREE.BoxGeometry(1, 1.2, 0.6);
+            const npcBodyMaterial = new THREE.MeshStandardMaterial({
+                color: bodyColor,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const npcBody = new THREE.Mesh(npcBodyGeometry, npcBodyMaterial);
+            npcBody.position.y = 1.2;
+            npcBody.castShadow = true;
+            npcRobot.add(npcBody);
+
+            // NPC chest plate
+            const npcChestGeometry = new THREE.BoxGeometry(0.6, 0.5, 0.1);
+            const npcChestMaterial = new THREE.MeshStandardMaterial({
+                color: glowColor,
+                emissive: glowColor,
+                emissiveIntensity: 0.4
+            });
+            const npcChest = new THREE.Mesh(npcChestGeometry, npcChestMaterial);
+            npcChest.position.set(0, 1.3, 0.35);
+            npcRobot.add(npcChest);
+
+            // NPC head
+            const npcHeadGeometry = new THREE.BoxGeometry(0.7, 0.6, 0.6);
+            const npcHeadMaterial = new THREE.MeshStandardMaterial({
+                color: bodyColor,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const npcHead = new THREE.Mesh(npcHeadGeometry, npcHeadMaterial);
+            npcHead.position.y = 2.1;
+            npcHead.castShadow = true;
+            npcRobot.add(npcHead);
+
+            // NPC eyes
+            const npcEyeGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+            const npcEyeMaterial = new THREE.MeshStandardMaterial({
+                color: eyeColor,
+                emissive: eyeColor,
+                emissiveIntensity: 0.8
+            });
+            const npcLeftEye = new THREE.Mesh(npcEyeGeometry, npcEyeMaterial);
+            npcLeftEye.position.set(-0.15, 2.15, 0.3);
+            npcRobot.add(npcLeftEye);
+
+            const npcRightEye = new THREE.Mesh(npcEyeGeometry, npcEyeMaterial);
+            npcRightEye.position.set(0.15, 2.15, 0.3);
+            npcRobot.add(npcRightEye);
+
+            // NPC antenna
+            const npcAntennaGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+            const npcAntennaMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9 });
+            const npcAntenna = new THREE.Mesh(npcAntennaGeometry, npcAntennaMaterial);
+            npcAntenna.position.set(0, 2.55, 0);
+            npcRobot.add(npcAntenna);
+
+            const npcAntennaBallGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+            const npcAntennaBallMaterial = new THREE.MeshStandardMaterial({
+                color: glowColor,
+                emissive: glowColor,
+                emissiveIntensity: 0.6
+            });
+            const npcAntennaBall = new THREE.Mesh(npcAntennaBallGeometry, npcAntennaBallMaterial);
+            npcAntennaBall.position.set(0, 2.75, 0);
+            npcRobot.add(npcAntennaBall);
+
+            // NPC arms
+            const npcArmGeometry = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+            const npcArmMaterial = new THREE.MeshStandardMaterial({
+                color: 0x636e72,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            const npcLeftArm = new THREE.Mesh(npcArmGeometry, npcArmMaterial);
+            npcLeftArm.position.set(-0.7, 1.1, 0);
+            npcLeftArm.castShadow = true;
+            npcRobot.add(npcLeftArm);
+
+            const npcRightArm = new THREE.Mesh(npcArmGeometry, npcArmMaterial);
+            npcRightArm.position.set(0.7, 1.1, 0);
+            npcRightArm.castShadow = true;
+            npcRobot.add(npcRightArm);
+
+            // NPC legs
+            const npcLegGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.3);
+            const npcLegMaterial = new THREE.MeshStandardMaterial({
+                color: 0x636e72,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            const npcLeftLeg = new THREE.Mesh(npcLegGeometry, npcLegMaterial);
+            npcLeftLeg.position.set(-0.25, 0.3, 0);
+            npcLeftLeg.castShadow = true;
+            npcRobot.add(npcLeftLeg);
+
+            const npcRightLeg = new THREE.Mesh(npcLegGeometry, npcLegMaterial);
+            npcRightLeg.position.set(0.25, 0.3, 0);
+            npcRightLeg.castShadow = true;
+            npcRobot.add(npcRightLeg);
+
+            return {
+                mesh: npcRobot,
+                isAlly: isAlly,
+                leftArm: npcLeftArm,
+                rightArm: npcRightArm,
+                leftLeg: npcLeftLeg,
+                rightLeg: npcRightLeg,
+                antennaBall: npcAntennaBall,
+                bobAngle: Math.random() * Math.PI * 2,
+                targetOrb: null,
+                speed: isAlly ? 0.06 : 0.04,
+                health: isAlly ? 100 : 50,
+                // NPC weapon stats
+                lastShotTime: 0,
+                weaponCooldown: isAlly ? 1.2 : 1.5,
+                weaponDamage: isAlly ? 20 : 10,
+                weaponColor: isAlly ? 0x00ff88 : 0xff4444,
+                weaponSpeed: 0.5
+            };
+        }
+
+        // NPC shooting function
+        function npcShoot(npc, targetX, targetZ, time) {
+            if (time - npc.lastShotTime < npc.weaponCooldown) return;
+            npc.lastShotTime = time;
+
+            const dx = targetX - npc.mesh.position.x;
+            const dz = targetZ - npc.mesh.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist === 0) return;
+
+            const direction = new THREE.Vector3(dx / dist, 0, dz / dist);
+
+            const projectileGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+            const projectileMaterial = new THREE.MeshStandardMaterial({
+                color: npc.weaponColor,
+                emissive: npc.weaponColor,
+                emissiveIntensity: 0.8
+            });
+            const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+
+            projectile.position.set(
+                npc.mesh.position.x + direction.x * 1.2,
+                npc.mesh.position.y + 1.3,
+                npc.mesh.position.z + direction.z * 1.2
+            );
+
+            const light = new THREE.PointLight(npc.weaponColor, 0.3, 4);
+            light.position.copy(projectile.position);
+            scene.add(light);
+            scene.add(projectile);
+
+            projectiles.push({
+                mesh: projectile,
+                light: light,
+                direction: direction,
+                speed: npc.weaponSpeed,
+                damage: npc.weaponDamage,
+                isAllyShot: npc.isAlly,
+                isNPCShot: true,
+                life: 2.5
+            });
+        }
+
+        // Spawn NPC robots
+        function spawnNPCRobots() {
+            // Clear existing NPCs
+            allies.forEach(a => scene.remove(a.mesh));
+            enemies.forEach(e => scene.remove(e.mesh));
+            allies = [];
+            enemies = [];
+
+            // Spawn allies
+            const allyPositions = [
+                { x: -8, z: 5 },
+                { x: 8, z: -8 }
+            ];
+            for (let i = 0; i < numAllies; i++) {
+                const ally = createNPCRobot(true);
+                ally.mesh.position.set(allyPositions[i].x, 0, allyPositions[i].z);
+                scene.add(ally.mesh);
+                allies.push(ally);
+            }
+
+            // Spawn enemies - 6 enemies spread around the map
+            const enemyPositions = [
+                { x: 18, z: 18 },
+                { x: -18, z: -15 },
+                { x: 15, z: -18 },
+                { x: -20, z: 10 },
+                { x: 20, z: -5 },
+                { x: -10, z: 20 }
+            ];
+            for (let i = 0; i < numEnemies; i++) {
+                const enemy = createNPCRobot(false);
+                enemy.mesh.position.set(enemyPositions[i].x, 0, enemyPositions[i].z);
+                scene.add(enemy.mesh);
+                enemies.push(enemy);
+            }
+
+            document.getElementById('ally-count').textContent = allies.length;
+            document.getElementById('enemy-count').textContent = enemies.length;
+        }
+
+        // Update NPC robots
+        function updateNPCRobots(time) {
+            // Update allies - they seek uncollected orbs AND shoot enemies
+            allies.forEach(ally => {
+                // Find nearest enemy to shoot at
+                let nearestEnemy = null;
+                let nearestEnemyDist = Infinity;
+                enemies.forEach(enemy => {
+                    const dx = ally.mesh.position.x - enemy.mesh.position.x;
+                    const dz = ally.mesh.position.z - enemy.mesh.position.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    if (dist < nearestEnemyDist) {
+                        nearestEnemyDist = dist;
+                        nearestEnemy = enemy;
+                    }
+                });
+
+                // Shoot at nearby enemies (range 15)
+                if (nearestEnemy && nearestEnemyDist < 15) {
+                    // Face the enemy when shooting
+                    const shootDx = nearestEnemy.mesh.position.x - ally.mesh.position.x;
+                    const shootDz = nearestEnemy.mesh.position.z - ally.mesh.position.z;
+                    ally.mesh.rotation.y = Math.atan2(shootDx, shootDz);
+                    npcShoot(ally, nearestEnemy.mesh.position.x, nearestEnemy.mesh.position.z, time);
+                }
+
+                // Find nearest uncollected orb
+                let nearestOrb = null;
+                let nearestDist = Infinity;
+                orbs.forEach(orb => {
+                    if (!orb.collected) {
+                        const dx = ally.mesh.position.x - orb.group.position.x;
+                        const dz = ally.mesh.position.z - orb.group.position.z;
+                        const dist = Math.sqrt(dx * dx + dz * dz);
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearestOrb = orb;
+                        }
+                    }
+                });
+
+                if (nearestOrb) {
+                    // Move towards orb
+                    const dx = nearestOrb.group.position.x - ally.mesh.position.x;
+                    const dz = nearestOrb.group.position.z - ally.mesh.position.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    if (dist > 0.5) {
+                        ally.mesh.position.x += (dx / dist) * ally.speed;
+                        ally.mesh.position.z += (dz / dist) * ally.speed;
+                        if (!nearestEnemy || nearestEnemyDist > 15) {
+                            ally.mesh.rotation.y = Math.atan2(dx, dz);
+                        }
+
+                        // Walking animation
+                        ally.bobAngle += 0.15;
+                        ally.mesh.position.y = Math.abs(Math.sin(ally.bobAngle) * 0.08);
+                        ally.leftArm.rotation.x = Math.sin(ally.bobAngle) * 0.4;
+                        ally.rightArm.rotation.x = -Math.sin(ally.bobAngle) * 0.4;
+                        ally.leftLeg.rotation.x = -Math.sin(ally.bobAngle) * 0.25;
+                        ally.rightLeg.rotation.x = Math.sin(ally.bobAngle) * 0.25;
+                    }
+
+                    // Collect orb for player
+                    if (dist < 1.2 && !nearestOrb.collected) {
+                        nearestOrb.collected = true;
+                        scene.remove(nearestOrb.group);
+                        scene.remove(nearestOrb.light);
+                        score++;
+                        coins += 2; // Allies earn coins too
+                        updateCoinsDisplay();
+                        document.getElementById('score').textContent = `Score: ${score} / ${totalOrbs}`;
+                        if (score >= totalOrbs) {
+                            document.getElementById('win-screen').style.display = 'block';
+                        }
+                    }
+                }
+
+                // Animate antenna
+                ally.antennaBall.material.emissiveIntensity = 0.4 + Math.sin(time * 4) * 0.3;
+            });
+
+            // Update enemies - they chase the player AND shoot
+            enemies.forEach(enemy => {
+                const dx = robot.position.x - enemy.mesh.position.x;
+                const dz = robot.position.z - enemy.mesh.position.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                // Shoot at player if in range (range 12)
+                if (dist < 12) {
+                    npcShoot(enemy, robot.position.x, robot.position.z, time);
+                }
+
+                if (dist > 1.5) {
+                    // Chase player
+                    enemy.mesh.position.x += (dx / dist) * enemy.speed;
+                    enemy.mesh.position.z += (dz / dist) * enemy.speed;
+                    enemy.mesh.rotation.y = Math.atan2(dx, dz);
+
+                    // Walking animation
+                    enemy.bobAngle += 0.12;
+                    enemy.mesh.position.y = Math.abs(Math.sin(enemy.bobAngle) * 0.08);
+                    enemy.leftArm.rotation.x = Math.sin(enemy.bobAngle) * 0.4;
+                    enemy.rightArm.rotation.x = -Math.sin(enemy.bobAngle) * 0.4;
+                    enemy.leftLeg.rotation.x = -Math.sin(enemy.bobAngle) * 0.25;
+                    enemy.rightLeg.rotation.x = Math.sin(enemy.bobAngle) * 0.25;
+                }
+
+                // Damage player if close (melee)
+                if (dist < 1.8 && time - lastDamageTime > 1) {
+                    lastDamageTime = time;
+                    health -= 15;
+                    document.getElementById('health-fill').style.width = health + '%';
+
+                    // Flash screen red
+                    document.body.style.backgroundColor = '#ff0000';
+                    setTimeout(() => { document.body.style.backgroundColor = ''; }, 100);
+
+                    if (health <= 0) {
+                        health = 0;
+                        gameOver = true;
+                        document.getElementById('game-over-screen').style.display = 'block';
+                    }
+                }
+
+                // Animate antenna (angrier pulsing)
+                enemy.antennaBall.material.emissiveIntensity = 0.5 + Math.sin(time * 8) * 0.4;
+            });
+        }
+
+        // Create obstacles
+        function createObstacle(x, z, width, height, depth) {
+            const geometry = new THREE.BoxGeometry(width, height, depth);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x6c5ce7,
+                roughness: 0.5,
+                metalness: 0.5
+            });
+            const obstacle = new THREE.Mesh(geometry, material);
+            obstacle.position.set(x, height / 2, z);
+            obstacle.castShadow = true;
+            obstacle.receiveShadow = true;
+            scene.add(obstacle);
+            return obstacle;
+        }
+
+        const obstacles = [
+            createObstacle(-8, -8, 3, 2, 3),
+            createObstacle(10, 5, 2, 3, 2),
+            createObstacle(-5, 12, 4, 1.5, 2),
+            createObstacle(8, -10, 2, 2.5, 4),
+            createObstacle(-12, 3, 3, 2, 3),
+            createObstacle(15, -5, 2, 4, 2),
+            createObstacle(0, -15, 5, 1, 2),
+        ];
+
+        // Create collectible orbs
+        function createOrb(x, z) {
+            const orbGroup = new THREE.Group();
+
+            const orbGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+            const orbMaterial = new THREE.MeshStandardMaterial({
+                color: 0x00ff88,
+                emissive: 0x00ff88,
+                emissiveIntensity: 0.5,
+                transparent: true,
+                opacity: 0.9
+            });
+            const orb = new THREE.Mesh(orbGeometry, orbMaterial);
+            orbGroup.add(orb);
+
+            // Outer glow ring
+            const ringGeometry = new THREE.TorusGeometry(0.5, 0.05, 16, 32);
+            const ringMaterial = new THREE.MeshStandardMaterial({
+                color: 0x00ff88,
+                emissive: 0x00ff88,
+                emissiveIntensity: 0.8
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            orbGroup.add(ring);
+
+            orbGroup.position.set(x, 1.5, z);
+            scene.add(orbGroup);
+
+            // Point light for glow effect
+            const orbLight = new THREE.PointLight(0x00ff88, 0.5, 5);
+            orbLight.position.set(x, 1.5, z);
+            scene.add(orbLight);
+
+            return { group: orbGroup, light: orbLight, collected: false };
+        }
+
+        // Spawn orbs at random positions
+        function spawnOrbs() {
+            orbs = [];
+            // Generate 25 orbs spread across the map
+            for (let i = 0; i < totalOrbs; i++) {
+                const angle = (i / totalOrbs) * Math.PI * 2;
+                const radius = 5 + Math.random() * 20;
+                const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 8;
+                const z = Math.sin(angle) * radius + (Math.random() - 0.5) * 8;
+                orbs.push(createOrb(x, z));
+            }
+        }
+
+        spawnOrbs();
+        spawnNPCRobots();
+
+        // Camera position
+        camera.position.set(0, 10, 15);
+        camera.lookAt(robot.position);
+
+        // Controls
+        const keys = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            jump: false
+        };
+
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'KeyW':
+                case 'ArrowUp':
+                    keys.forward = true;
+                    break;
+                case 'KeyS':
+                case 'ArrowDown':
+                    keys.backward = true;
+                    break;
+                case 'KeyA':
+                case 'ArrowLeft':
+                    keys.left = true;
+                    break;
+                case 'KeyD':
+                case 'ArrowRight':
+                    keys.right = true;
+                    break;
+                case 'Space':
+                    if (!isJumping) {
+                        isJumping = true;
+                        velocityY = jumpForce;
+                    }
+                    break;
+                case 'KeyE':
+                    shoot();
+                    break;
+                case 'KeyB':
+                    toggleShop();
+                    break;
+                case 'KeyR':
+                    toggleRobotShop();
+                    break;
+            }
+        });
+
+        // Mouse click to shoot
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON' && !shopOpen && !robotShopOpen) {
+                shoot();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.code) {
+                case 'KeyW':
+                case 'ArrowUp':
+                    keys.forward = false;
+                    break;
+                case 'KeyS':
+                case 'ArrowDown':
+                    keys.backward = false;
+                    break;
+                case 'KeyA':
+                case 'ArrowLeft':
+                    keys.left = false;
+                    break;
+                case 'KeyD':
+                case 'ArrowRight':
+                    keys.right = false;
+                    break;
+            }
+        });
+
+        // Movement speed
+        const moveSpeed = 0.15;
+        let bobAngle = 0;
+
+        // Check collision with obstacles
+        function checkCollision(newX, newZ) {
+            const robotRadius = 0.8;
+
+            for (let obstacle of obstacles) {
+                const box = new THREE.Box3().setFromObject(obstacle);
+                const robotBox = new THREE.Box3(
+                    new THREE.Vector3(newX - robotRadius, 0, newZ - robotRadius),
+                    new THREE.Vector3(newX + robotRadius, 3, newZ + robotRadius)
+                );
+
+                if (box.intersectsBox(robotBox)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Check orb collection
+        function checkOrbCollection() {
+            const collectDistance = 1.5;
+
+            orbs.forEach((orb, index) => {
+                if (!orb.collected) {
+                    const dx = robot.position.x - orb.group.position.x;
+                    const dz = robot.position.z - orb.group.position.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+
+                    if (distance < collectDistance) {
+                        orb.collected = true;
+                        scene.remove(orb.group);
+                        scene.remove(orb.light);
+                        score++;
+                        coins += 2; // Earn coins for collecting orbs
+                        updateCoinsDisplay();
+                        document.getElementById('score').textContent = `Score: ${score} / ${totalOrbs}`;
+
+                        if (score >= totalOrbs) {
+                            document.getElementById('win-screen').style.display = 'block';
+                        }
+                    }
+                }
+            });
+        }
+
+        // Restart game
+        function restartGame() {
+            score = 0;
+            health = 100;
+            gameOver = false;
+            lastDamageTime = 0;
+            coins = 0;
+            ownedWeapons = [];
+            equippedWeapon = null;
+            shopOpen = false;
+
+            document.getElementById('score').textContent = `Score: 0 / ${totalOrbs}`;
+            document.getElementById('health-fill').style.width = '100%';
+            document.getElementById('win-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+            document.getElementById('weapon-store').style.display = 'none';
+            document.getElementById('robot-store').style.display = 'none';
+            document.getElementById('current-weapon').textContent = 'None';
+            robotShopOpen = false;
+            updateCoinsDisplay();
+
+            robot.position.set(0, 0, 0);
+            robot.rotation.y = 0;
+
+            // Remove old orbs
+            orbs.forEach(orb => {
+                scene.remove(orb.group);
+                scene.remove(orb.light);
+            });
+
+            // Remove old projectiles
+            projectiles.forEach(proj => {
+                scene.remove(proj.mesh);
+                scene.remove(proj.light);
+            });
+            projectiles = [];
+
+            // Spawn new orbs and NPCs
+            spawnOrbs();
+            spawnNPCRobots();
+        }
+
+        // Make restart function globally available
+        window.restartGame = restartGame;
+
+        // Animation loop
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+
+            // Stop if game over
+            if (gameOver) {
+                renderer.render(scene, camera);
+                return;
+            }
+
+            // Update NPC robots
+            updateNPCRobots(time);
+
+            // Update projectiles
+            updateProjectiles(0.016);
+
+            // Movement
+            let moved = false;
+            let newX = robot.position.x;
+            let newZ = robot.position.z;
+            let targetRotation = robot.rotation.y;
+
+            if (keys.forward) {
+                newZ -= moveSpeed;
+                targetRotation = 0;
+                moved = true;
+            }
+            if (keys.backward) {
+                newZ += moveSpeed;
+                targetRotation = Math.PI;
+                moved = true;
+            }
+            if (keys.left) {
+                newX -= moveSpeed;
+                targetRotation = Math.PI / 2;
+                moved = true;
+            }
+            if (keys.right) {
+                newX += moveSpeed;
+                targetRotation = -Math.PI / 2;
+                moved = true;
+            }
+
+            // Handle diagonal movement and rotation
+            if (keys.forward && keys.left) targetRotation = Math.PI / 4;
+            if (keys.forward && keys.right) targetRotation = -Math.PI / 4;
+            if (keys.backward && keys.left) targetRotation = Math.PI * 3 / 4;
+            if (keys.backward && keys.right) targetRotation = -Math.PI * 3 / 4;
+
+            // Smooth rotation towards target
+            if (moved) {
+                let rotDiff = targetRotation - robot.rotation.y;
+                while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+                while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+                robot.rotation.y += rotDiff * 0.15;
+            }
+
+            // Apply movement if no collision
+            if (!checkCollision(newX, newZ)) {
+                robot.position.x = newX;
+                robot.position.z = newZ;
+            }
+
+            // Jumping physics
+            if (isJumping) {
+                velocityY += gravity;
+                robot.position.y += velocityY;
+
+                if (robot.position.y <= 0) {
+                    robot.position.y = 0;
+                    isJumping = false;
+                    velocityY = 0;
+                }
+            }
+
+            // Walking bob animation
+            if (moved && !isJumping) {
+                bobAngle += 0.2;
+                robot.position.y = Math.abs(Math.sin(bobAngle) * 0.1);
+                leftArm.rotation.x = Math.sin(bobAngle) * 0.5;
+                rightArm.rotation.x = -Math.sin(bobAngle) * 0.5;
+                leftLeg.rotation.x = -Math.sin(bobAngle) * 0.3;
+                rightLeg.rotation.x = Math.sin(bobAngle) * 0.3;
+            } else if (!isJumping) {
+                leftArm.rotation.x = 0;
+                rightArm.rotation.x = 0;
+                leftLeg.rotation.x = 0;
+                rightLeg.rotation.x = 0;
+            }
+
+            // Animate orbs
+            orbs.forEach((orb, i) => {
+                if (!orb.collected) {
+                    orb.group.position.y = 1.5 + Math.sin(time * 2 + i) * 0.3;
+                    orb.group.rotation.y += 0.02;
+                    orb.group.children[1].rotation.x += 0.03;
+                    orb.light.position.y = orb.group.position.y;
+                }
+            });
+
+            // Animate antenna
+            antennaBall.material.emissiveIntensity = 0.3 + Math.sin(time * 5) * 0.3;
+
+            // Check orb collection
+            checkOrbCollection();
+
+            // Camera follow
+            const cameraTargetX = robot.position.x;
+            const cameraTargetZ = robot.position.z + 15;
+            const cameraTargetY = robot.position.y + 10;
+
+            camera.position.x += (cameraTargetX - camera.position.x) * 0.05;
+            camera.position.z += (cameraTargetZ - camera.position.z) * 0.05;
+            camera.position.y += (cameraTargetY - camera.position.y) * 0.05;
+            camera.lookAt(robot.position.x, robot.position.y + 1.5, robot.position.z);
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

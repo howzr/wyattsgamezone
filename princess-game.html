@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Princess Star Collector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a0033, #330066, #1a0033);
+            font-family: 'Georgia', serif;
+            overflow: hidden;
+        }
+        .game-container {
+            text-align: center;
+        }
+        h1 {
+            color: #ffb6c1;
+            text-shadow: 2px 2px 4px #ff69b4;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 10px;
+            color: white;
+            font-size: 1.2em;
+        }
+        .stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 2px solid #ff69b4;
+        }
+        .hp-bar {
+            width: 150px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        .hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ff6666);
+            transition: width 0.3s;
+        }
+        .power-bar {
+            width: 150px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        .power-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffec8b);
+            transition: width 0.3s;
+        }
+        #gameCanvas {
+            border: 4px solid #ff69b4;
+            border-radius: 10px;
+            box-shadow: 0 0 30px #ff69b4, inset 0 0 50px rgba(255, 105, 180, 0.1);
+            background: linear-gradient(180deg, #0d001a, #1a0033);
+        }
+        .instructions {
+            color: #ffb6c1;
+            margin-top: 15px;
+            font-size: 1em;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ff69b4;
+            color: white;
+            text-align: center;
+            display: none;
+        }
+        .game-over h2 {
+            color: #ff69b4;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        .game-over button {
+            background: linear-gradient(135deg, #ff69b4, #ff1493);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        .game-over button:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Princess Star Collector</h1>
+        <div class="stats">
+            <div class="stat">
+                HP: <span id="hpText">100</span>
+                <div class="hp-bar"><div class="hp-fill" id="hpFill"></div></div>
+            </div>
+            <div class="stat">
+                Power: <span id="powerText">1</span>
+                <div class="power-bar"><div class="power-fill" id="powerFill"></div></div>
+            </div>
+            <div class="stat">
+                Stars: <span id="starsText">0</span>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <p class="instructions">Use Arrow Keys to move. Collect stars to power up! Avoid the dark orbs!</p>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h2>Game Over!</h2>
+        <p>Stars Collected: <span id="finalStars">0</span></p>
+        <p>Final Power Level: <span id="finalPower">1</span></p>
+        <button onclick="restartGame()">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let princess = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            size: 30,
+            speed: 5,
+            hp: 100,
+            maxHp: 100,
+            power: 1,
+            starsCollected: 0
+        };
+
+        let stars = [];
+        let enemies = [];
+        let particles = [];
+        let keys = {};
+        let gameRunning = true;
+
+        // Power level thresholds
+        const powerLevels = [0, 5, 15, 30, 50, 75, 100, 150, 200, 300];
+
+        // Spawn a star
+        function spawnStar() {
+            if (stars.length < 8 + princess.power) {
+                stars.push({
+                    x: Math.random() * (canvas.width - 40) + 20,
+                    y: Math.random() * (canvas.height - 40) + 20,
+                    size: 15 + Math.random() * 10,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed: (Math.random() - 0.5) * 0.1,
+                    twinkle: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        // Spawn enemy orbs
+        function spawnEnemy() {
+            if (enemies.length < 3 + Math.floor(princess.power / 2)) {
+                const side = Math.floor(Math.random() * 4);
+                let x, y;
+                switch(side) {
+                    case 0: x = -20; y = Math.random() * canvas.height; break;
+                    case 1: x = canvas.width + 20; y = Math.random() * canvas.height; break;
+                    case 2: x = Math.random() * canvas.width; y = -20; break;
+                    case 3: x = Math.random() * canvas.width; y = canvas.height + 20; break;
+                }
+                enemies.push({
+                    x: x,
+                    y: y,
+                    size: 20 + Math.random() * 15,
+                    speed: 1 + Math.random() * 1.5 + princess.power * 0.1
+                });
+            }
+        }
+
+        // Create particle effect
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: Math.random() * 5 + 2,
+                    color: color,
+                    life: 1
+                });
+            }
+        }
+
+        // Draw star shape
+        function drawStar(x, y, size, rotation, alpha) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.globalAlpha = alpha;
+
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                const px = Math.cos(angle) * size;
+                const py = Math.sin(angle) * size;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = '#ffd700';
+            ctx.fill();
+            ctx.strokeStyle = '#ffec8b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Inner glow
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = '#fffacd';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Draw princess
+        function drawPrincess() {
+            const x = princess.x;
+            const y = princess.y;
+            const size = princess.size + princess.power * 2;
+
+            ctx.save();
+
+            // Glow effect based on power
+            const glowSize = 10 + princess.power * 3;
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, size + glowSize);
+            gradient.addColorStop(0, `rgba(255, 182, 193, ${0.3 + princess.power * 0.05})`);
+            gradient.addColorStop(1, 'rgba(255, 182, 193, 0)');
+            ctx.beginPath();
+            ctx.arc(x, y, size + glowSize, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Dress (triangle)
+            ctx.beginPath();
+            ctx.moveTo(x, y - size * 0.3);
+            ctx.lineTo(x - size * 0.7, y + size);
+            ctx.lineTo(x + size * 0.7, y + size);
+            ctx.closePath();
+            const dressGradient = ctx.createLinearGradient(x, y - size, x, y + size);
+            dressGradient.addColorStop(0, '#ff69b4');
+            dressGradient.addColorStop(1, '#ff1493');
+            ctx.fillStyle = dressGradient;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Body
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.1, size * 0.4, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffe4c4';
+            ctx.fill();
+
+            // Head
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.5, size * 0.35, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffe4c4';
+            ctx.fill();
+
+            // Hair
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.6, size * 0.4, Math.PI, 0, true);
+            ctx.fillStyle = '#ffd700';
+            ctx.fill();
+
+            // Crown
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.25, y - size * 0.85);
+            ctx.lineTo(x - size * 0.2, y - size * 1.1);
+            ctx.lineTo(x - size * 0.1, y - size * 0.9);
+            ctx.lineTo(x, y - size * 1.15);
+            ctx.lineTo(x + size * 0.1, y - size * 0.9);
+            ctx.lineTo(x + size * 0.2, y - size * 1.1);
+            ctx.lineTo(x + size * 0.25, y - size * 0.85);
+            ctx.closePath();
+            ctx.fillStyle = '#ffd700';
+            ctx.fill();
+            ctx.strokeStyle = '#daa520';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Crown jewel
+            ctx.beginPath();
+            ctx.arc(x, y - size * 1.05, size * 0.08, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff69b4';
+            ctx.fill();
+
+            // Eyes
+            ctx.beginPath();
+            ctx.arc(x - size * 0.12, y - size * 0.5, size * 0.06, 0, Math.PI * 2);
+            ctx.arc(x + size * 0.12, y - size * 0.5, size * 0.06, 0, Math.PI * 2);
+            ctx.fillStyle = '#4169e1';
+            ctx.fill();
+
+            // Smile
+            ctx.beginPath();
+            ctx.arc(x, y - size * 0.4, size * 0.1, 0, Math.PI);
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Draw enemy
+        function drawEnemy(enemy) {
+            ctx.save();
+
+            // Dark glow
+            const gradient = ctx.createRadialGradient(enemy.x, enemy.y, 0, enemy.x, enemy.y, enemy.size * 1.5);
+            gradient.addColorStop(0, 'rgba(75, 0, 130, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(48, 0, 82, 0.4)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, enemy.size * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Main orb
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
+            const orbGradient = ctx.createRadialGradient(
+                enemy.x - enemy.size * 0.3, enemy.y - enemy.size * 0.3, 0,
+                enemy.x, enemy.y, enemy.size
+            );
+            orbGradient.addColorStop(0, '#8b008b');
+            orbGradient.addColorStop(1, '#2d0033');
+            ctx.fillStyle = orbGradient;
+            ctx.fill();
+
+            // Evil eyes
+            ctx.beginPath();
+            ctx.arc(enemy.x - enemy.size * 0.3, enemy.y - enemy.size * 0.1, enemy.size * 0.15, 0, Math.PI * 2);
+            ctx.arc(enemy.x + enemy.size * 0.3, enemy.y - enemy.size * 0.1, enemy.size * 0.15, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff0000';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Update game state
+        function update() {
+            if (!gameRunning) return;
+
+            // Move princess with arrow keys
+            if (keys['ArrowUp'] || keys['KeyW']) princess.y -= princess.speed;
+            if (keys['ArrowDown'] || keys['KeyS']) princess.y += princess.speed;
+            if (keys['ArrowLeft'] || keys['KeyA']) princess.x -= princess.speed;
+            if (keys['ArrowRight'] || keys['KeyD']) princess.x += princess.speed;
+
+            // Keep princess in bounds
+            const size = princess.size + princess.power * 2;
+            princess.x = Math.max(size, Math.min(canvas.width - size, princess.x));
+            princess.y = Math.max(size, Math.min(canvas.height - size, princess.y));
+
+            // Update stars
+            stars.forEach(star => {
+                star.rotation += star.rotationSpeed;
+                star.twinkle += 0.1;
+            });
+
+            // Check star collision
+            for (let i = stars.length - 1; i >= 0; i--) {
+                const star = stars[i];
+                const dx = princess.x - star.x;
+                const dy = princess.y - star.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < size + star.size) {
+                    stars.splice(i, 1);
+                    princess.starsCollected++;
+                    princess.hp = Math.min(princess.maxHp, princess.hp + 5);
+                    createParticles(star.x, star.y, '#ffd700', 15);
+
+                    // Check power level up
+                    for (let p = powerLevels.length - 1; p >= 0; p--) {
+                        if (princess.starsCollected >= powerLevels[p] && princess.power < p + 1) {
+                            princess.power = p + 1;
+                            createParticles(princess.x, princess.y, '#ff69b4', 30);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Update enemies
+            enemies.forEach((enemy, i) => {
+                const dx = princess.x - enemy.x;
+                const dy = princess.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                enemy.x += (dx / dist) * enemy.speed;
+                enemy.y += (dy / dist) * enemy.speed;
+
+                // Check collision with princess
+                if (dist < size + enemy.size * 0.8) {
+                    princess.hp -= 1;
+                    createParticles(princess.x, princess.y, '#ff0000', 5);
+
+                    // Knockback
+                    enemy.x -= (dx / dist) * 20;
+                    enemy.y -= (dy / dist) * 20;
+
+                    if (princess.hp <= 0) {
+                        gameOver();
+                    }
+                }
+            });
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Spawn new stars and enemies
+            if (Math.random() < 0.03) spawnStar();
+            if (Math.random() < 0.01) spawnEnemy();
+
+            // Update UI
+            document.getElementById('hpText').textContent = Math.ceil(princess.hp);
+            document.getElementById('hpFill').style.width = (princess.hp / princess.maxHp * 100) + '%';
+            document.getElementById('powerText').textContent = princess.power;
+            document.getElementById('powerFill').style.width = Math.min(100, princess.power * 10) + '%';
+            document.getElementById('starsText').textContent = princess.starsCollected;
+        }
+
+        // Render game
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = 'rgba(13, 0, 26, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background stars (decorative)
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 123.456) % canvas.width;
+                const y = (i * 78.901) % canvas.height;
+                const twinkle = Math.sin(Date.now() * 0.003 + i) * 0.5 + 0.5;
+                ctx.beginPath();
+                ctx.arc(x, y, 1 + twinkle, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + twinkle * 0.4})`;
+                ctx.fill();
+            }
+
+            // Draw particles
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+
+            // Draw stars
+            stars.forEach(star => {
+                const twinkle = Math.sin(star.twinkle) * 0.2 + 0.8;
+                drawStar(star.x, star.y, star.size, star.rotation, twinkle);
+            });
+
+            // Draw enemies
+            enemies.forEach(enemy => drawEnemy(enemy));
+
+            // Draw princess
+            drawPrincess();
+        }
+
+        // Game over
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalStars').textContent = princess.starsCollected;
+            document.getElementById('finalPower').textContent = princess.power;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Restart game
+        function restartGame() {
+            princess = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                size: 30,
+                speed: 5,
+                hp: 100,
+                maxHp: 100,
+                power: 1,
+                starsCollected: 0
+            };
+            stars = [];
+            enemies = [];
+            particles = [];
+            gameRunning = true;
+            document.getElementById('gameOver').style.display = 'none';
+
+            // Spawn initial stars
+            for (let i = 0; i < 5; i++) spawnStar();
+        }
+
+        // Game loop
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Start game
+        for (let i = 0; i < 5; i++) spawnStar();
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Box</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #0a0a0a;
+            font-family: 'Courier New', monospace;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        #gameCanvas {
+            border: 3px solid #00ff00;
+            box-shadow: 0 0 20px #00ff00, inset 0 0 50px rgba(0, 255, 0, 0.1);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ff00;
+            font-size: 18px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        #ui div {
+            margin-bottom: 5px;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff0000;
+            font-size: 48px;
+            text-shadow: 0 0 20px #ff0000;
+            display: none;
+            text-align: center;
+        }
+        #gameOver button {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 24px;
+            background: #00ff00;
+            border: none;
+            color: #000;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+        #gameOver button:hover {
+            background: #00cc00;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #888;
+            font-size: 12px;
+        }
+        #storeBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            background: #00ff00;
+            border: none;
+            color: #000;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        #storeBtn:hover {
+            background: #00cc00;
+        }
+        #store {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #store.open {
+            display: flex;
+        }
+        #storeContent {
+            background: #111;
+            border: 2px solid #00ff00;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80%;
+            overflow-y: auto;
+            box-shadow: 0 0 30px #00ff00;
+        }
+        #storeContent h2 {
+            color: #00ff00;
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        #storeBalance {
+            text-align: center;
+            color: #ffff00;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        #storeTabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .storeTab {
+            flex: 1;
+            padding: 10px;
+            background: #222;
+            border: 1px solid #444;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+        }
+        .storeTab.active {
+            background: #00ff00;
+            color: #000;
+            border-color: #00ff00;
+        }
+        .tabContent {
+            display: none;
+        }
+        .tabContent.active {
+            display: block;
+        }
+        .storeItem {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+        }
+        .storeItem.equipped {
+            border-color: #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+        }
+        .itemPreview {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .laserPreview {
+            height: 6px;
+            width: 40px;
+            border-radius: 3px;
+        }
+        .laserPreview.green { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .laserPreview.red { background: #ff4444; box-shadow: 0 0 10px #ff4444; }
+        .laserPreview.blue { background: #44ffff; box-shadow: 0 0 10px #44ffff; }
+        .laserPreview.gold { background: #ffdd00; box-shadow: 0 0 10px #ffdd00; }
+        .laserPreview.pink { background: #ff44ff; box-shadow: 0 0 10px #ff44ff; }
+        .laserPreview.orange { background: #ff8800; box-shadow: 0 0 10px #ff8800; }
+        .laserPreview.purple { background: #aa44ff; box-shadow: 0 0 10px #aa44ff; }
+        .laserPreview.white { background: #ffffff; box-shadow: 0 0 15px #ffffff; height: 10px; }
+        .laserPreview.sniper { background: #ff0088; box-shadow: 0 0 10px #ff0088; height: 4px; }
+        .laserPreview.shotgun { background: #ffaa44; box-shadow: 0 0 10px #ffaa44; height: 8px; }
+        .laserPreview.chain { background: #88ff88; box-shadow: 0 0 10px #88ff88; }
+        .laserPreview.nova { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; height: 8px; }
+        .laserPreview.void { background: #220033; box-shadow: 0 0 20px #660066; height: 12px; border: 1px solid #660066; }
+        .laserPreview.rainbowlaser { background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff); box-shadow: 0 0 10px #ffffff; height: 8px; }
+        .skinPreview {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+        .skinPreview.blue { background: #4488ff; border-color: #88ccff; }
+        .skinPreview.red { background: #ff4444; border-color: #ff8888; }
+        .skinPreview.purple { background: #aa44ff; border-color: #dd88ff; }
+        .skinPreview.gold { background: #ffaa00; border-color: #ffdd44; }
+        .skinPreview.stealth { background: #333333; border-color: #666666; }
+        .skinPreview.rainbow { background: linear-gradient(45deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #aa44ff); border-color: #ffffff; }
+        .skinPreview.camo { background: linear-gradient(135deg, #2d4a1c 25%, #4a6b2a 25%, #4a6b2a 50%, #3d5c23 50%, #3d5c23 75%, #2d4a1c 75%); background-size: 10px 10px; border-color: #5a7a3a; }
+        .skinPreview.ice { background: linear-gradient(180deg, #88ddff, #44aaff); border-color: #aaeeff; box-shadow: 0 0 8px #44aaff; }
+        .skinPreview.toxic { background: #44ff44; border-color: #88ff88; box-shadow: 0 0 10px #44ff44; }
+        .skinPreview.lava { background: linear-gradient(180deg, #ff4400, #ff8800); border-color: #ffaa00; box-shadow: 0 0 8px #ff4400; }
+        .skinPreview.ocean { background: linear-gradient(180deg, #0066aa, #00aaff); border-color: #00ffff; }
+        .skinPreview.sunset { background: linear-gradient(180deg, #ff6644, #ffaa88); border-color: #ffdd00; }
+        .skinPreview.midnight { background: #1a1a4a; border-color: #4444aa; box-shadow: 0 0 8px #4444aa; }
+        .skinPreview.cherry { background: #cc2255; border-color: #ff6699; }
+        .skinPreview.mint { background: #44ddaa; border-color: #88ffcc; }
+        .skinPreview.galaxy { background: linear-gradient(135deg, #220044, #8844ff); border-color: #ff44ff; box-shadow: 0 0 10px #8844ff; }
+        .skinPreview.diamond { background: linear-gradient(135deg, #88ddff, #ffffff, #88ddff); border-color: #ffffff; box-shadow: 0 0 10px #88ddff; }
+        .skinPreview.voidskin { background: #110011; border-color: #330033; box-shadow: 0 0 10px #ff00ff; }
+        .upgradePreview {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            background: #222;
+            border-radius: 8px;
+        }
+        .itemInfo {
+            flex: 1;
+        }
+        .itemName {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
+        .itemDesc {
+            color: #888;
+            font-size: 11px;
+        }
+        .itemBtn {
+            padding: 8px 12px;
+            background: #ff00ff;
+            border: none;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .itemBtn:hover:not(:disabled) {
+            background: #cc00cc;
+        }
+        .itemBtn.owned {
+            background: #00ff00;
+            color: #000;
+        }
+        .itemBtn:disabled {
+            cursor: default;
+            opacity: 0.8;
+        }
+        #closeStore {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: #ff0000;
+            border: none;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #closeStore:hover {
+            background: #cc0000;
+        }
+        #dailyEvent, #dailyBonus, #activeModifiers {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .eventHeader {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .eventIcon {
+            font-size: 24px;
+        }
+        .eventTitle {
+            color: #ffff00;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .eventName {
+            color: #00ff00;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .eventDesc {
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        .eventReward {
+            color: #ffaa00;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .eventProgress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .progressBar {
+            flex: 1;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progressFill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #88ff00);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        #eventProgressText {
+            color: #fff;
+            font-size: 12px;
+            min-width: 50px;
+        }
+        .eventDivider {
+            height: 1px;
+            background: #333;
+            margin: 15px 0;
+        }
+        .streakInfo {
+            color: #ff8800;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .modifierItem {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #222;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .modifierIcon {
+            font-size: 20px;
+        }
+        .modifierText {
+            color: #88ff88;
+            font-size: 12px;
+        }
+        #claimReward, #claimDaily {
+            width: 100%;
+            margin-top: 5px;
+        }
+        .statsSection {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .statsHeader {
+            color: #ffff00;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .statRow {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+        .statRow:last-child {
+            border-bottom: none;
+        }
+        .statLabel {
+            color: #aaa;
+            font-size: 13px;
+        }
+        .statValue {
+            color: #00ff00;
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div>HEALTH: <span id="playerPoints">16</span></div>
+            <div>MONEY: $<span id="playerMoney">0</span></div>
+            <div>ENEMIES DESTROYED: <span id="enemiesDestroyed">0</span></div>
+            <div>NEXT ENEMY IN: <span id="nextSpawn">20</span>s</div>
+        </div>
+        <div id="gameOver">
+            GAME OVER
+            <div style="font-size: 24px; margin-top: 10px;">Enemies Destroyed: <span id="finalScore">0</span></div>
+            <button onclick="restartGame()">PLAY AGAIN</button>
+        </div>
+        <div id="instructions">
+            Arrow Keys: Move | Space: Shoot Laser | S: Store
+        </div>
+        <button id="storeBtn" onclick="toggleStore()">STORE</button>
+        <div id="store">
+            <div id="storeContent">
+                <h2>ROBOT STORE</h2>
+                <div id="storeBalance">Your Money: $<span id="storeMoney">0</span></div>
+                <div id="storeTabs">
+                    <button class="storeTab active" onclick="showTab('lasers')">LASERS</button>
+                    <button class="storeTab" onclick="showTab('skins')">SKINS</button>
+                    <button class="storeTab" onclick="showTab('upgrades')">UPGRADES</button>
+                    <button class="storeTab" onclick="showTab('events')">EVENTS</button>
+                    <button class="storeTab" onclick="showTab('stats')">STATS</button>
+                </div>
+                <div id="lasersTab" class="tabContent active">
+                    <div class="storeItem" data-id="laser_default">
+                        <div class="itemPreview laserPreview green"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Standard Laser</div>
+                            <div class="itemDesc">Basic green laser</div>
+                        </div>
+                        <button class="itemBtn owned" disabled>EQUIPPED</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_red">
+                        <div class="itemPreview laserPreview red"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Plasma Beam</div>
+                            <div class="itemDesc">+50% speed, +25% damage</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_red', 500)">$500</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_blue">
+                        <div class="itemPreview laserPreview blue"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Ice Ray</div>
+                            <div class="itemDesc">Pierces through enemies</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_blue', 1000)">$1000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_gold">
+                        <div class="itemPreview laserPreview gold"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Lightning Bolt</div>
+                            <div class="itemDesc">+100% damage, wider beam</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_gold', 2000)">$2000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_spread">
+                        <div class="itemPreview laserPreview pink"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Spread Shot</div>
+                            <div class="itemDesc">Fires 3 lasers at once</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_spread', 3000)">$3000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_rapid">
+                        <div class="itemPreview laserPreview orange"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Rapid Fire</div>
+                            <div class="itemDesc">3x faster fire rate</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_rapid', 2500)">$2500</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_homing">
+                        <div class="itemPreview laserPreview purple"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Homing Missile</div>
+                            <div class="itemDesc">Tracks nearest enemy</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_homing', 5000)">$5000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_mega">
+                        <div class="itemPreview laserPreview white"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Mega Cannon</div>
+                            <div class="itemDesc">5x damage, piercing, slow</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_mega', 7500)">$7500</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_sniper">
+                        <div class="itemPreview laserPreview sniper"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Sniper Beam</div>
+                            <div class="itemDesc">Ultra fast, 4x damage</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_sniper', 6000)">$6000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_shotgun">
+                        <div class="itemPreview laserPreview shotgun"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Shotgun Blast</div>
+                            <div class="itemDesc">5 spread, close range</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_shotgun', 4000)">$4000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_chain">
+                        <div class="itemPreview laserPreview chain"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Chain Lightning</div>
+                            <div class="itemDesc">Pierce + homing + fast</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_chain', 10000)">$10000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_nova">
+                        <div class="itemPreview laserPreview nova"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Nova Burst</div>
+                            <div class="itemDesc">8 piercing shots!</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_nova', 15000)">$15000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_void">
+                        <div class="itemPreview laserPreview void"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Void Cannon</div>
+                            <div class="itemDesc">10x damage, massive beam</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_void', 25000)">$25000</button>
+                    </div>
+                    <div class="storeItem" data-id="laser_rainbow">
+                        <div class="itemPreview laserPreview rainbowlaser"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Rainbow Beam</div>
+                            <div class="itemDesc">3x damage, pierce, style</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('laser_rainbow', 20000)">$20000</button>
+                    </div>
+                </div>
+                <div id="skinsTab" class="tabContent">
+                    <div class="storeItem" data-id="skin_default">
+                        <div class="itemPreview skinPreview blue"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Classic Blue</div>
+                            <div class="itemDesc">The original robot</div>
+                        </div>
+                        <button class="itemBtn owned" disabled>EQUIPPED</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_red">
+                        <div class="itemPreview skinPreview red"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Fire Warrior</div>
+                            <div class="itemDesc">Red hot robot</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_red', 750)">$750</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_purple">
+                        <div class="itemPreview skinPreview purple"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Cyber Purple</div>
+                            <div class="itemDesc">Neon cyberpunk style</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_purple', 1000)">$1000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_gold">
+                        <div class="itemPreview skinPreview gold"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Gold Elite</div>
+                            <div class="itemDesc">Premium golden finish</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_gold', 2000)">$2000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_stealth">
+                        <div class="itemPreview skinPreview stealth"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Stealth Black</div>
+                            <div class="itemDesc">Dark ops robot</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_stealth', 2500)">$2500</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_camo">
+                        <div class="itemPreview skinPreview camo"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Military Camo</div>
+                            <div class="itemDesc">Tactical warfare</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_camo', 1500)">$1500</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_ice">
+                        <div class="itemPreview skinPreview ice"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Ice Crystal</div>
+                            <div class="itemDesc">Frozen warrior</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_ice', 1800)">$1800</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_toxic">
+                        <div class="itemPreview skinPreview toxic"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Toxic Waste</div>
+                            <div class="itemDesc">Radioactive glow</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_toxic', 3000)">$3000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_lava">
+                        <div class="itemPreview skinPreview lava"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Lava Core</div>
+                            <div class="itemDesc">Molten hot robot</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_lava', 3500)">$3500</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_ocean">
+                        <div class="itemPreview skinPreview ocean"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Ocean Deep</div>
+                            <div class="itemDesc">Aquatic explorer</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_ocean', 3000)">$3000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_sunset">
+                        <div class="itemPreview skinPreview sunset"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Sunset</div>
+                            <div class="itemDesc">Warm evening vibes</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_sunset', 2500)">$2500</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_midnight">
+                        <div class="itemPreview skinPreview midnight"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Midnight</div>
+                            <div class="itemDesc">Night sky robot</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_midnight', 4000)">$4000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_cherry">
+                        <div class="itemPreview skinPreview cherry"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Cherry Blossom</div>
+                            <div class="itemDesc">Elegant pink</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_cherry', 3500)">$3500</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_mint">
+                        <div class="itemPreview skinPreview mint"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Fresh Mint</div>
+                            <div class="itemDesc">Cool and refreshing</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_mint', 2800)">$2800</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_rainbow">
+                        <div class="itemPreview skinPreview rainbow"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Rainbow</div>
+                            <div class="itemDesc">Color shifting robot</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_rainbow', 10000)">$10000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_galaxy">
+                        <div class="itemPreview skinPreview galaxy"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Galaxy</div>
+                            <div class="itemDesc">Cosmic explorer</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_galaxy', 12000)">$12000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_diamond">
+                        <div class="itemPreview skinPreview diamond"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Diamond</div>
+                            <div class="itemDesc">Rare and precious</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_diamond', 18000)">$18000</button>
+                    </div>
+                    <div class="storeItem" data-id="skin_void">
+                        <div class="itemPreview skinPreview voidskin"></div>
+                        <div class="itemInfo">
+                            <div class="itemName">Void Walker</div>
+                            <div class="itemDesc">From the darkness</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('skin_void', 25000)">$25000</button>
+                    </div>
+                </div>
+                <div id="upgradesTab" class="tabContent">
+                    <div class="storeItem" data-id="upgrade_speed">
+                        <div class="itemPreview upgradePreview">⚡</div>
+                        <div class="itemInfo">
+                            <div class="itemName">Speed Boost</div>
+                            <div class="itemDesc">+50% movement speed</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('upgrade_speed', 2500)">$2500</button>
+                    </div>
+                    <div class="storeItem" data-id="upgrade_health">
+                        <div class="itemPreview upgradePreview">❤️</div>
+                        <div class="itemInfo">
+                            <div class="itemName">Extra Health</div>
+                            <div class="itemDesc">Start with +50 health</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('upgrade_health', 3500)">$3500</button>
+                    </div>
+                    <div class="storeItem" data-id="upgrade_magnet">
+                        <div class="itemPreview upgradePreview">🧲</div>
+                        <div class="itemInfo">
+                            <div class="itemName">Money Magnet</div>
+                            <div class="itemDesc">Earn 2x money from kills</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('upgrade_magnet', 5000)">$5000</button>
+                    </div>
+                    <div class="storeItem" data-id="upgrade_shield">
+                        <div class="itemPreview upgradePreview">🛡️</div>
+                        <div class="itemInfo">
+                            <div class="itemName">Shield</div>
+                            <div class="itemDesc">Take 25% less damage</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('upgrade_shield', 7500)">$7500</button>
+                    </div>
+                    <div class="storeItem" data-id="upgrade_regen">
+                        <div class="itemPreview upgradePreview">💚</div>
+                        <div class="itemInfo">
+                            <div class="itemName">Regeneration</div>
+                            <div class="itemDesc">Slowly heal over time</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('upgrade_regen', 10000)">$10000</button>
+                    </div>
+                    <div class="storeItem" data-id="upgrade_vampire">
+                        <div class="itemPreview upgradePreview">🦇</div>
+                        <div class="itemInfo">
+                            <div class="itemName">Vampiric</div>
+                            <div class="itemDesc">Heal 10% of damage dealt</div>
+                        </div>
+                        <button class="itemBtn" onclick="buyItem('upgrade_vampire', 15000)">$15000</button>
+                    </div>
+                </div>
+                <div id="eventsTab" class="tabContent">
+                    <div id="dailyEvent">
+                        <div class="eventHeader">
+                            <span class="eventIcon">📅</span>
+                            <span class="eventTitle">TODAY'S EVENT</span>
+                        </div>
+                        <div class="eventName" id="eventName">Loading...</div>
+                        <div class="eventDesc" id="eventDesc">Loading...</div>
+                        <div class="eventReward" id="eventReward"></div>
+                        <div class="eventProgress">
+                            <div class="progressBar">
+                                <div class="progressFill" id="eventProgress"></div>
+                            </div>
+                            <span id="eventProgressText">0/0</span>
+                        </div>
+                        <button class="itemBtn" id="claimReward" onclick="claimDailyReward()" disabled>COMPLETE CHALLENGE</button>
+                    </div>
+                    <div class="eventDivider"></div>
+                    <div id="dailyBonus">
+                        <div class="eventHeader">
+                            <span class="eventIcon">🎁</span>
+                            <span class="eventTitle">DAILY LOGIN BONUS</span>
+                        </div>
+                        <div class="eventDesc">Come back every day for free rewards!</div>
+                        <div class="streakInfo">Current Streak: <span id="loginStreak">0</span> days</div>
+                        <button class="itemBtn" id="claimDaily" onclick="claimLoginBonus()">CLAIM $50</button>
+                    </div>
+                    <div class="eventDivider"></div>
+                    <div id="activeModifiers">
+                        <div class="eventHeader">
+                            <span class="eventIcon">✨</span>
+                            <span class="eventTitle">ACTIVE MODIFIERS</span>
+                        </div>
+                        <div id="modifiersList"></div>
+                    </div>
+                </div>
+                <div id="statsTab" class="tabContent">
+                    <div class="statsSection">
+                        <div class="statsHeader">🏆 BEST SCORES</div>
+                        <div class="statRow">
+                            <span class="statLabel">Most Enemies Destroyed</span>
+                            <span class="statValue" id="statBestKills">0</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Longest Survival</span>
+                            <span class="statValue" id="statBestTime">0s</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Most Money in One Game</span>
+                            <span class="statValue" id="statBestMoney">$0</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Highest Health Reached</span>
+                            <span class="statValue" id="statBestHealth">0</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Most Hits in One Game</span>
+                            <span class="statValue" id="statBestHits">0</span>
+                        </div>
+                    </div>
+                    <div class="statsSection">
+                        <div class="statsHeader">📊 LIFETIME STATS</div>
+                        <div class="statRow">
+                            <span class="statLabel">Total Enemies Destroyed</span>
+                            <span class="statValue" id="statTotalKills">0</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Total Money Earned</span>
+                            <span class="statValue" id="statTotalMoney">$0</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Total Games Played</span>
+                            <span class="statValue" id="statTotalGames">0</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Total Time Played</span>
+                            <span class="statValue" id="statTotalTime">0m</span>
+                        </div>
+                        <div class="statRow">
+                            <span class="statLabel">Total Lasers Fired</span>
+                            <span class="statValue" id="statTotalShots">0</span>
+                        </div>
+                    </div>
+                    <button class="itemBtn" onclick="resetStats()" style="width:100%;background:#ff4444;margin-top:10px;">RESET ALL STATS</button>
+                </div>
+                <button id="closeStore" onclick="toggleStore()">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Store data
+        const LASER_TYPES = {
+            laser_default: { name: 'Standard', color: '#00ff00', speed: 10, damageMultiplier: 1, pierce: false, width: 3, spread: 1, cooldownMultiplier: 1, homing: false },
+            laser_red: { name: 'Plasma', color: '#ff4444', speed: 15, damageMultiplier: 1.25, pierce: false, width: 3, spread: 1, cooldownMultiplier: 1, homing: false },
+            laser_blue: { name: 'Ice Ray', color: '#44ffff', speed: 10, damageMultiplier: 1, pierce: true, width: 3, spread: 1, cooldownMultiplier: 1, homing: false },
+            laser_gold: { name: 'Lightning', color: '#ffdd00', speed: 10, damageMultiplier: 2, pierce: false, width: 6, spread: 1, cooldownMultiplier: 1, homing: false },
+            laser_spread: { name: 'Spread', color: '#ff44ff', speed: 10, damageMultiplier: 0.6, pierce: false, width: 3, spread: 3, cooldownMultiplier: 1, homing: false },
+            laser_rapid: { name: 'Rapid', color: '#ff8800', speed: 12, damageMultiplier: 0.5, pierce: false, width: 2, spread: 1, cooldownMultiplier: 0.33, homing: false },
+            laser_homing: { name: 'Homing', color: '#aa44ff', speed: 7, damageMultiplier: 1.5, pierce: false, width: 4, spread: 1, cooldownMultiplier: 1.5, homing: true },
+            laser_mega: { name: 'Mega', color: '#ffffff', speed: 6, damageMultiplier: 5, pierce: true, width: 10, spread: 1, cooldownMultiplier: 2, homing: false },
+            laser_sniper: { name: 'Sniper', color: '#ff0088', speed: 25, damageMultiplier: 4, pierce: false, width: 2, spread: 1, cooldownMultiplier: 3, homing: false },
+            laser_shotgun: { name: 'Shotgun', color: '#ffaa44', speed: 8, damageMultiplier: 0.4, pierce: false, width: 4, spread: 5, cooldownMultiplier: 1.5, homing: false },
+            laser_chain: { name: 'Chain', color: '#88ff88', speed: 10, damageMultiplier: 0.8, pierce: true, width: 3, spread: 1, cooldownMultiplier: 0.5, homing: true },
+            laser_nova: { name: 'Nova', color: '#ff00ff', speed: 8, damageMultiplier: 1, pierce: true, width: 5, spread: 8, cooldownMultiplier: 2.5, homing: false },
+            laser_void: { name: 'Void', color: '#220033', speed: 5, damageMultiplier: 10, pierce: true, width: 15, spread: 1, cooldownMultiplier: 4, homing: false },
+            laser_rainbow: { name: 'Rainbow', color: 'rainbow', speed: 12, damageMultiplier: 3, pierce: true, width: 6, spread: 1, cooldownMultiplier: 1.2, homing: false }
+        };
+
+        const SKIN_TYPES = {
+            skin_default: { name: 'Classic', bodyColor: '#4488ff', strokeColor: '#88ccff', antennaColor: '#ff0000', rainbow: false },
+            skin_red: { name: 'Fire', bodyColor: '#ff4444', strokeColor: '#ff8888', antennaColor: '#ffaa00', rainbow: false },
+            skin_purple: { name: 'Cyber', bodyColor: '#aa44ff', strokeColor: '#dd88ff', antennaColor: '#00ffff', rainbow: false },
+            skin_gold: { name: 'Elite', bodyColor: '#ffaa00', strokeColor: '#ffdd44', antennaColor: '#ffffff', rainbow: false },
+            skin_stealth: { name: 'Stealth', bodyColor: '#333333', strokeColor: '#666666', antennaColor: '#ff0000', rainbow: false },
+            skin_rainbow: { name: 'Rainbow', bodyColor: '#ff0000', strokeColor: '#ffffff', antennaColor: '#00ff00', rainbow: true },
+            skin_camo: { name: 'Camo', bodyColor: '#4a6b2a', strokeColor: '#5a7a3a', antennaColor: '#2d4a1c', rainbow: false },
+            skin_ice: { name: 'Ice', bodyColor: '#44aaff', strokeColor: '#aaeeff', antennaColor: '#ffffff', rainbow: false },
+            skin_toxic: { name: 'Toxic', bodyColor: '#44ff44', strokeColor: '#88ff88', antennaColor: '#ffff00', rainbow: false },
+            skin_lava: { name: 'Lava', bodyColor: '#ff4400', strokeColor: '#ffaa00', antennaColor: '#ffff00', rainbow: false },
+            skin_ocean: { name: 'Ocean', bodyColor: '#0066aa', strokeColor: '#00aaff', antennaColor: '#00ffff', rainbow: false },
+            skin_sunset: { name: 'Sunset', bodyColor: '#ff6644', strokeColor: '#ffaa88', antennaColor: '#ffdd00', rainbow: false },
+            skin_midnight: { name: 'Midnight', bodyColor: '#1a1a4a', strokeColor: '#4444aa', antennaColor: '#8888ff', rainbow: false },
+            skin_cherry: { name: 'Cherry', bodyColor: '#cc2255', strokeColor: '#ff6699', antennaColor: '#ffffff', rainbow: false },
+            skin_mint: { name: 'Mint', bodyColor: '#44ddaa', strokeColor: '#88ffcc', antennaColor: '#ffffff', rainbow: false },
+            skin_galaxy: { name: 'Galaxy', bodyColor: '#220044', strokeColor: '#8844ff', antennaColor: '#ff44ff', rainbow: false },
+            skin_diamond: { name: 'Diamond', bodyColor: '#88ddff', strokeColor: '#ffffff', antennaColor: '#44aaff', rainbow: false },
+            skin_void: { name: 'Void', bodyColor: '#110011', strokeColor: '#330033', antennaColor: '#ff00ff', rainbow: false }
+        };
+
+        const UPGRADES = {
+            upgrade_speed: { name: 'Speed Boost', effect: 'speed', value: 1.5 },
+            upgrade_health: { name: 'Extra Health', effect: 'health', value: 50 },
+            upgrade_magnet: { name: 'Money Magnet', effect: 'magnet', value: 2 },
+            upgrade_shield: { name: 'Shield', effect: 'shield', value: 0.75 },
+            upgrade_regen: { name: 'Regeneration', effect: 'regen', value: 0.5 },
+            upgrade_vampire: { name: 'Vampiric', effect: 'vampire', value: 0.1 }
+        };
+
+        // Daily Events System
+        const DAILY_EVENTS = [
+            { name: 'Destroyer', desc: 'Destroy 10 enemies in a single game', goal: 10, type: 'kills', reward: 200, modifier: null },
+            { name: 'Sharpshooter', desc: 'Land 20 laser hits', goal: 20, type: 'hits', reward: 150, modifier: null },
+            { name: 'Survivor', desc: 'Survive for 60 seconds', goal: 60, type: 'time', reward: 175, modifier: null },
+            { name: 'Money Maker', desc: 'Earn $100 in a single game', goal: 100, type: 'money', reward: 250, modifier: null },
+            { name: 'Terminator', desc: 'Destroy 25 enemies total', goal: 25, type: 'kills', reward: 400, modifier: null },
+            { name: 'Double Trouble', desc: 'Play during 2x money day!', goal: 5, type: 'kills', reward: 100, modifier: { type: 'money', value: 2, name: '2x Money' } },
+            { name: 'Speed Demon', desc: 'Fast enemies, fast rewards!', goal: 8, type: 'kills', reward: 300, modifier: { type: 'enemySpeed', value: 1.5, name: 'Fast Enemies' } }
+        ];
+
+        let dailyData = {
+            lastLogin: null,
+            loginStreak: 0,
+            lastEventDay: null,
+            eventProgress: 0,
+            eventClaimed: false,
+            dailyClaimed: false,
+            currentEvent: 0,
+            sessionHits: 0,
+            sessionKills: 0,
+            sessionMoney: 0,
+            sessionTime: 0
+        };
+
+        function getDayString() {
+            return new Date().toDateString();
+        }
+
+        function loadDailyData() {
+            const saved = localStorage.getItem('robotBoxDaily');
+            if (saved) {
+                dailyData = JSON.parse(saved);
+            }
+
+            const today = getDayString();
+
+            // Check if it's a new day
+            if (dailyData.lastEventDay !== today) {
+                // New day - reset event progress
+                dailyData.lastEventDay = today;
+                dailyData.eventProgress = 0;
+                dailyData.eventClaimed = false;
+                dailyData.dailyClaimed = false;
+
+                // Pick event based on day (cycles through events)
+                const dayNum = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+                dailyData.currentEvent = dayNum % DAILY_EVENTS.length;
+
+                // Check login streak
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                if (dailyData.lastLogin === yesterday.toDateString()) {
+                    dailyData.loginStreak++;
+                } else if (dailyData.lastLogin !== today) {
+                    dailyData.loginStreak = 1;
+                }
+                dailyData.lastLogin = today;
+
+                saveDailyData();
+            }
+
+            updateEventUI();
+        }
+
+        function saveDailyData() {
+            localStorage.setItem('robotBoxDaily', JSON.stringify(dailyData));
+        }
+
+        function updateEventUI() {
+            const event = DAILY_EVENTS[dailyData.currentEvent];
+
+            document.getElementById('eventName').textContent = event.name;
+            document.getElementById('eventDesc').textContent = event.desc;
+            document.getElementById('eventReward').textContent = `Reward: $${event.reward}`;
+
+            const progress = Math.min(dailyData.eventProgress, event.goal);
+            const percent = (progress / event.goal) * 100;
+            document.getElementById('eventProgress').style.width = percent + '%';
+            document.getElementById('eventProgressText').textContent = `${progress}/${event.goal}`;
+
+            const claimBtn = document.getElementById('claimReward');
+            if (dailyData.eventClaimed) {
+                claimBtn.textContent = 'CLAIMED!';
+                claimBtn.disabled = true;
+                claimBtn.classList.add('owned');
+            } else if (progress >= event.goal) {
+                claimBtn.textContent = `CLAIM $${event.reward}`;
+                claimBtn.disabled = false;
+            } else {
+                claimBtn.textContent = 'COMPLETE CHALLENGE';
+                claimBtn.disabled = true;
+            }
+
+            document.getElementById('loginStreak').textContent = dailyData.loginStreak;
+
+            const dailyBtn = document.getElementById('claimDaily');
+            const dailyReward = 50 + (dailyData.loginStreak * 10);
+            if (dailyData.dailyClaimed) {
+                dailyBtn.textContent = 'CLAIMED!';
+                dailyBtn.disabled = true;
+                dailyBtn.classList.add('owned');
+            } else {
+                dailyBtn.textContent = `CLAIM $${dailyReward}`;
+                dailyBtn.disabled = false;
+            }
+
+            // Update modifiers
+            const modList = document.getElementById('modifiersList');
+            modList.innerHTML = '';
+            if (event.modifier) {
+                modList.innerHTML = `<div class="modifierItem"><span class="modifierIcon">🔥</span><span class="modifierText">${event.modifier.name} active today!</span></div>`;
+            } else {
+                modList.innerHTML = '<div class="modifierItem"><span class="modifierIcon">📋</span><span class="modifierText">No special modifiers today</span></div>';
+            }
+        }
+
+        function updateEventProgress(type, amount) {
+            const event = DAILY_EVENTS[dailyData.currentEvent];
+            if (event.type === type && !dailyData.eventClaimed) {
+                dailyData.eventProgress += amount;
+                saveDailyData();
+                if (storeOpen) updateEventUI();
+            }
+        }
+
+        function claimDailyReward() {
+            const event = DAILY_EVENTS[dailyData.currentEvent];
+            if (!dailyData.eventClaimed && dailyData.eventProgress >= event.goal) {
+                inventory.money += event.reward;
+                dailyData.eventClaimed = true;
+                saveDailyData();
+                saveInventory();
+                updateMoneyDisplay();
+                updateEventUI();
+            }
+        }
+
+        function claimLoginBonus() {
+            if (!dailyData.dailyClaimed) {
+                const reward = 50 + (dailyData.loginStreak * 10);
+                inventory.money += reward;
+                dailyData.dailyClaimed = true;
+                saveDailyData();
+                saveInventory();
+                updateMoneyDisplay();
+                updateEventUI();
+            }
+        }
+
+        function getActiveModifier() {
+            const event = DAILY_EVENTS[dailyData.currentEvent];
+            return event.modifier;
+        }
+
+        // Stats System
+        let stats = {
+            bestKills: 0,
+            bestTime: 0,
+            bestMoney: 0,
+            bestHealth: 0,
+            bestHits: 0,
+            totalKills: 0,
+            totalMoney: 0,
+            totalGames: 0,
+            totalTime: 0,
+            totalShots: 0
+        };
+
+        // Current game session stats
+        let sessionStats = {
+            kills: 0,
+            time: 0,
+            money: 0,
+            maxHealth: 0,
+            hits: 0,
+            shots: 0
+        };
+
+        function loadStats() {
+            const saved = localStorage.getItem('robotBoxStats');
+            if (saved) {
+                stats = JSON.parse(saved);
+            }
+            updateStatsUI();
+        }
+
+        function saveStats() {
+            localStorage.setItem('robotBoxStats', JSON.stringify(stats));
+        }
+
+        function updateStatsUI() {
+            document.getElementById('statBestKills').textContent = stats.bestKills;
+            document.getElementById('statBestTime').textContent = Math.floor(stats.bestTime) + 's';
+            document.getElementById('statBestMoney').textContent = '$' + stats.bestMoney;
+            document.getElementById('statBestHealth').textContent = Math.floor(stats.bestHealth);
+            document.getElementById('statBestHits').textContent = stats.bestHits;
+            document.getElementById('statTotalKills').textContent = stats.totalKills;
+            document.getElementById('statTotalMoney').textContent = '$' + stats.totalMoney;
+            document.getElementById('statTotalGames').textContent = stats.totalGames;
+            document.getElementById('statTotalTime').textContent = Math.floor(stats.totalTime / 60) + 'm';
+            document.getElementById('statTotalShots').textContent = stats.totalShots;
+        }
+
+        function resetSessionStats() {
+            sessionStats = { kills: 0, time: 0, money: 0, maxHealth: 0, hits: 0, shots: 0 };
+        }
+
+        function endGameStats() {
+            // Update best scores
+            if (sessionStats.kills > stats.bestKills) stats.bestKills = sessionStats.kills;
+            if (sessionStats.time > stats.bestTime) stats.bestTime = sessionStats.time;
+            if (sessionStats.money > stats.bestMoney) stats.bestMoney = sessionStats.money;
+            if (sessionStats.maxHealth > stats.bestHealth) stats.bestHealth = sessionStats.maxHealth;
+            if (sessionStats.hits > stats.bestHits) stats.bestHits = sessionStats.hits;
+
+            // Update totals
+            stats.totalKills += sessionStats.kills;
+            stats.totalMoney += sessionStats.money;
+            stats.totalTime += sessionStats.time;
+            stats.totalShots += sessionStats.shots;
+            stats.totalGames++;
+
+            saveStats();
+            updateStatsUI();
+        }
+
+        function resetStats() {
+            if (confirm('Are you sure you want to reset all stats? This cannot be undone!')) {
+                stats = {
+                    bestKills: 0, bestTime: 0, bestMoney: 0, bestHealth: 0, bestHits: 0,
+                    totalKills: 0, totalMoney: 0, totalGames: 0, totalTime: 0, totalShots: 0
+                };
+                saveStats();
+                updateStatsUI();
+            }
+        }
+
+        // Inventory system
+        let inventory = {
+            owned: ['laser_default', 'skin_default'],
+            equippedLaser: 'laser_default',
+            equippedSkin: 'skin_default',
+            equippedUpgrade: null,
+            money: 0
+        };
+
+        // Load inventory from localStorage
+        function loadInventory() {
+            const saved = localStorage.getItem('robotBoxInventory');
+            if (saved) {
+                inventory = JSON.parse(saved);
+                // Ensure fields exist for older saves
+                if (inventory.money === undefined) inventory.money = 0;
+                if (inventory.equippedUpgrade === undefined) inventory.equippedUpgrade = null;
+            }
+            updateStoreUI();
+            updateMoneyDisplay();
+        }
+
+        // Save inventory to localStorage
+        function saveInventory() {
+            localStorage.setItem('robotBoxInventory', JSON.stringify(inventory));
+        }
+
+        // Update money display
+        function updateMoneyDisplay() {
+            document.getElementById('playerMoney').textContent = inventory.money;
+            if (storeOpen) {
+                document.getElementById('storeMoney').textContent = inventory.money;
+            }
+        }
+
+        // Add money (called when killing enemies)
+        function addMoney(amount) {
+            inventory.money += amount;
+            saveInventory();
+            updateMoneyDisplay();
+        }
+
+        // Store UI functions
+        let storeOpen = false;
+
+        function toggleStore() {
+            storeOpen = !storeOpen;
+            const store = document.getElementById('store');
+            if (storeOpen) {
+                store.classList.add('open');
+                document.getElementById('storeMoney').textContent = inventory.money;
+                updateStoreUI();
+            } else {
+                store.classList.remove('open');
+            }
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tabContent').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.storeTab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function updateStoreUI() {
+            document.querySelectorAll('.storeItem').forEach(item => {
+                const id = item.dataset.id;
+                const btn = item.querySelector('.itemBtn');
+                const isOwned = inventory.owned.includes(id);
+                const isEquipped = inventory.equippedLaser === id || inventory.equippedSkin === id || inventory.equippedUpgrade === id;
+
+                item.classList.toggle('equipped', isEquipped);
+
+                if (isEquipped) {
+                    btn.textContent = 'EQUIPPED';
+                    btn.classList.add('owned');
+                    btn.disabled = true;
+                    btn.onclick = null;
+                } else if (isOwned) {
+                    btn.textContent = 'EQUIP';
+                    btn.classList.add('owned');
+                    btn.disabled = false;
+                    btn.onclick = () => equipItem(id);
+                }
+            });
+        }
+
+        function buyItem(id, cost) {
+            if (inventory.money >= cost && !inventory.owned.includes(id)) {
+                inventory.money -= cost;
+                inventory.owned.push(id);
+                equipItem(id);
+                saveInventory();
+                updateMoneyDisplay();
+            }
+        }
+
+        function equipItem(id) {
+            if (id.startsWith('laser_')) {
+                inventory.equippedLaser = id;
+            } else if (id.startsWith('skin_')) {
+                inventory.equippedSkin = id;
+            } else if (id.startsWith('upgrade_')) {
+                inventory.equippedUpgrade = id;
+            }
+            saveInventory();
+            updateStoreUI();
+        }
+
+        // Game state
+        let player;
+        let enemies = [];
+        let lasers = [];
+        let pellets = [];
+        let stars = [];
+        let boss = null;
+        let gameRunning = true;
+        let enemiesDestroyed = 0;
+        let killsSinceBoss = 0;
+        let lastEnemyPoints = 10;
+        let spawnTimer = 2 + Math.random();
+        let lastTime = 0;
+
+        // Keys pressed
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false,
+            Space: false
+        };
+
+        // Create starfield
+        function createStars() {
+            stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    speed: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+
+        // Helper to check if player has upgrade equipped
+        function hasUpgrade(upgradeId) {
+            return inventory.equippedUpgrade === upgradeId;
+        }
+
+        // Player class
+        class Player {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.width = 40;
+                this.height = 40;
+                this.baseSpeed = 5;
+                this.speed = hasUpgrade('upgrade_speed') ? this.baseSpeed * 1.5 : this.baseSpeed;
+                this.points = 16 + (hasUpgrade('upgrade_health') ? 50 : 0);
+                this.shootCooldown = 0;
+                this.facingAngle = 0;
+                this.rainbowHue = 0;
+            }
+
+            update() {
+                if (keys.ArrowUp && this.y > this.height / 2) this.y -= this.speed;
+                if (keys.ArrowDown && this.y < canvas.height - this.height / 2) this.y += this.speed;
+                if (keys.ArrowLeft && this.x > this.width / 2) this.x -= this.speed;
+                if (keys.ArrowRight && this.x < canvas.width - this.width / 2) this.x += this.speed;
+
+                if (this.shootCooldown > 0) this.shootCooldown--;
+
+                // Find nearest enemy to face
+                if (enemies.length > 0) {
+                    let nearest = enemies[0];
+                    let nearestDist = Infinity;
+                    for (let enemy of enemies) {
+                        let dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearest = enemy;
+                        }
+                    }
+                    this.facingAngle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                }
+            }
+
+            draw() {
+                const skin = SKIN_TYPES[inventory.equippedSkin];
+                this.rainbowHue = (this.rainbowHue + 2) % 360;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Robot box body
+                if (skin.rainbow) {
+                    ctx.fillStyle = `hsl(${this.rainbowHue}, 80%, 50%)`;
+                    ctx.strokeStyle = `hsl(${(this.rainbowHue + 60) % 360}, 80%, 70%)`;
+                } else {
+                    ctx.fillStyle = skin.bodyColor;
+                    ctx.strokeStyle = skin.strokeColor;
+                }
+                ctx.lineWidth = 2;
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+                // Face
+                // Eyes
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-12, -10, 8, 8);
+                ctx.fillRect(4, -10, 8, 8);
+
+                // Pupils (look at facing direction)
+                ctx.fillStyle = '#000000';
+                let pupilOffsetX = Math.cos(this.facingAngle) * 2;
+                let pupilOffsetY = Math.sin(this.facingAngle) * 2;
+                ctx.fillRect(-10 + pupilOffsetX, -8 + pupilOffsetY, 4, 4);
+                ctx.fillRect(6 + pupilOffsetX, -8 + pupilOffsetY, 4, 4);
+
+                // Mouth
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-10, 5, 20, 6);
+                if (skin.rainbow) {
+                    ctx.fillStyle = `hsl(${this.rainbowHue}, 80%, 50%)`;
+                } else {
+                    ctx.fillStyle = skin.bodyColor;
+                }
+                for (let i = 0; i < 4; i++) {
+                    ctx.fillRect(-8 + i * 5, 5, 2, 6);
+                }
+
+                // Antenna
+                if (skin.rainbow) {
+                    ctx.strokeStyle = `hsl(${(this.rainbowHue + 60) % 360}, 80%, 70%)`;
+                } else {
+                    ctx.strokeStyle = skin.strokeColor;
+                }
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height / 2);
+                ctx.lineTo(0, -this.height / 2 - 10);
+                ctx.stroke();
+                if (skin.rainbow) {
+                    ctx.fillStyle = `hsl(${(this.rainbowHue + 120) % 360}, 80%, 50%)`;
+                } else {
+                    ctx.fillStyle = skin.antennaColor;
+                }
+                ctx.beginPath();
+                ctx.arc(0, -this.height / 2 - 12, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                // Points indicator
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '12px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.points, this.x, this.y + this.height / 2 + 15);
+            }
+
+            shoot() {
+                const laserType = LASER_TYPES[inventory.equippedLaser];
+                if (this.shootCooldown <= 0 && this.points > 0) {
+                    if (laserType.spread > 1) {
+                        // Spread shot
+                        const spreadAngle = 0.3; // About 17 degrees
+                        for (let i = 0; i < laserType.spread; i++) {
+                            const offset = (i - (laserType.spread - 1) / 2) * spreadAngle;
+                            lasers.push(new Laser(this.x, this.y, this.facingAngle + offset, this.points));
+                        }
+                        sessionStats.shots += laserType.spread;
+                    } else {
+                        lasers.push(new Laser(this.x, this.y, this.facingAngle, this.points));
+                        sessionStats.shots++;
+                    }
+                    this.shootCooldown = Math.floor(20 * laserType.cooldownMultiplier);
+                }
+            }
+        }
+
+        // Laser class
+        class Laser {
+            constructor(x, y, angle, damage) {
+                const laserType = LASER_TYPES[inventory.equippedLaser];
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.speed = laserType.speed;
+                this.damage = damage * laserType.damageMultiplier;
+                this.length = 30;
+                this.color = laserType.color;
+                this.width = laserType.width;
+                this.pierce = laserType.pierce;
+                this.homing = laserType.homing;
+                this.hitEnemies = []; // Track enemies hit for pierce
+            }
+
+            update() {
+                // Homing behavior
+                if (this.homing && enemies.length > 0) {
+                    let nearest = null;
+                    let nearestDist = Infinity;
+                    for (let enemy of enemies) {
+                        let dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearest = enemy;
+                        }
+                    }
+                    if (nearest) {
+                        let targetAngle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                        let angleDiff = targetAngle - this.angle;
+                        // Normalize angle difference
+                        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                        // Turn toward target (max 0.1 radians per frame)
+                        this.angle += Math.max(-0.1, Math.min(0.1, angleDiff));
+                    }
+                }
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                if (this.color === 'rainbow') {
+                    // Rainbow laser cycles through colors
+                    const hue = (Date.now() / 10) % 360;
+                    ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`;
+                    ctx.shadowColor = `hsl(${hue}, 100%, 50%)`;
+                } else {
+                    ctx.strokeStyle = this.color;
+                    ctx.shadowColor = this.color;
+                }
+                ctx.lineWidth = this.width;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(-this.length / 2, 0);
+                ctx.lineTo(this.length / 2, 0);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            isOffScreen() {
+                return this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height;
+            }
+        }
+
+        // Enemy class
+        class Enemy {
+            constructor(points) {
+                this.points = points;
+                this.maxPoints = points;
+                this.width = 40;
+                this.height = 40;
+                let baseSpeed = 1 + Math.random();
+                // Apply daily event speed modifier
+                const modifier = getActiveModifier();
+                if (modifier && modifier.type === 'enemySpeed') {
+                    baseSpeed *= modifier.value;
+                }
+                this.speed = baseSpeed;
+                this.shootCooldown = Math.random() * 60 + 60;
+                this.type = Math.floor(Math.random() * 4);
+
+                // Spawn from edge
+                let side = Math.floor(Math.random() * 4);
+                if (side === 0) { this.x = Math.random() * canvas.width; this.y = -this.height; }
+                else if (side === 1) { this.x = canvas.width + this.width; this.y = Math.random() * canvas.height; }
+                else if (side === 2) { this.x = Math.random() * canvas.width; this.y = canvas.height + this.height; }
+                else { this.x = -this.width; this.y = Math.random() * canvas.height; }
+
+                this.targetX = Math.random() * (canvas.width - 100) + 50;
+                this.targetY = Math.random() * (canvas.height - 100) + 50;
+                this.wobble = 0;
+            }
+
+            update() {
+                // Move toward target
+                let dx = this.targetX - this.x;
+                let dy = this.targetY - this.y;
+                let dist = Math.hypot(dx, dy);
+
+                if (dist > 5) {
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
+                } else {
+                    this.targetX = Math.random() * (canvas.width - 100) + 50;
+                    this.targetY = Math.random() * (canvas.height - 100) + 50;
+                }
+
+                this.wobble += 0.1;
+
+                // Shooting
+                this.shootCooldown--;
+                if (this.shootCooldown <= 0) {
+                    this.shoot();
+                    this.shootCooldown = 60 + Math.random() * 60;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(Math.sin(this.wobble) * 0.1);
+
+                let hue = (this.type * 60 + 300) % 360;
+                ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+                ctx.strokeStyle = `hsl(${hue}, 70%, 70%)`;
+                ctx.lineWidth = 2;
+
+                // Draw enemy as a box
+                let w = this.width / 2;
+                let h = this.height / 2;
+                ctx.fillRect(-w, -h, this.width, this.height);
+                ctx.strokeRect(-w, -h, this.width, this.height);
+
+                // Evil eyes
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(-w * 0.6, -h * 0.3, 8, 6);
+                ctx.fillRect(w * 0.6 - 8, -h * 0.3, 8, 6);
+
+                ctx.restore();
+
+                // Health bar
+                let healthPercent = this.points / this.maxPoints;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x - 20, this.y - this.height / 2 - 10, 40, 5);
+                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
+                ctx.fillRect(this.x - 20, this.y - this.height / 2 - 10, 40 * healthPercent, 5);
+
+                // Points display
+                ctx.fillStyle = '#ff6666';
+                ctx.font = '10px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.ceil(this.points), this.x, this.y - this.height / 2 - 15);
+            }
+
+            drawClassicAlien() {
+                let w = this.width / 2;
+                let h = this.height / 2;
+
+                ctx.beginPath();
+                ctx.moveTo(0, -h);
+                ctx.lineTo(w, 0);
+                ctx.lineTo(w * 0.6, h);
+                ctx.lineTo(-w * 0.6, h);
+                ctx.lineTo(-w, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Eyes
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(-w * 0.3, -h * 0.2, 4, 0, Math.PI * 2);
+                ctx.arc(w * 0.3, -h * 0.2, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawSquidAlien() {
+                let w = this.width / 2;
+                let h = this.height / 2;
+
+                // Head
+                ctx.beginPath();
+                ctx.arc(0, -h * 0.3, w * 0.7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Tentacles
+                for (let i = -2; i <= 2; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(i * w * 0.3, 0);
+                    ctx.quadraticCurveTo(i * w * 0.4 + Math.sin(this.wobble + i) * 5, h * 0.5, i * w * 0.3, h);
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                // Eyes
+                ctx.fillStyle = '#00ffff';
+                ctx.beginPath();
+                ctx.arc(-w * 0.25, -h * 0.4, 5, 0, Math.PI * 2);
+                ctx.arc(w * 0.25, -h * 0.4, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawBugAlien() {
+                let w = this.width / 2;
+                let h = this.height / 2;
+
+                // Body
+                ctx.beginPath();
+                ctx.ellipse(0, 0, w * 0.8, h * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Antennae
+                ctx.beginPath();
+                ctx.moveTo(-w * 0.3, -h * 0.4);
+                ctx.lineTo(-w * 0.5, -h);
+                ctx.moveTo(w * 0.3, -h * 0.4);
+                ctx.lineTo(w * 0.5, -h);
+                ctx.stroke();
+
+                // Legs
+                for (let i = -1; i <= 1; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(i * w * 0.4, h * 0.3);
+                    ctx.lineTo(i * w * 0.7, h);
+                    ctx.stroke();
+                }
+
+                // Eyes
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(-w * 0.25, -h * 0.1, 6, 0, Math.PI * 2);
+                ctx.arc(w * 0.25, -h * 0.1, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawUFOAlien() {
+                let w = this.width / 2;
+                let h = this.height / 2;
+
+                // Dome
+                ctx.beginPath();
+                ctx.arc(0, -h * 0.2, w * 0.5, Math.PI, 0);
+                ctx.fill();
+                ctx.stroke();
+
+                // Body
+                ctx.beginPath();
+                ctx.ellipse(0, 0, w, h * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Lights
+                ctx.fillStyle = '#ffff00';
+                for (let i = -2; i <= 2; i++) {
+                    ctx.beginPath();
+                    ctx.arc(i * w * 0.35, h * 0.1, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Alien inside
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.arc(0, -h * 0.3, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            shoot() {
+                let target;
+                let otherEnemies = enemies.filter(e => e !== this);
+
+                // 50% chance to target another enemy if any exist
+                if (otherEnemies.length > 0 && Math.random() < 0.5) {
+                    target = otherEnemies[Math.floor(Math.random() * otherEnemies.length)];
+                } else {
+                    target = player;
+                }
+
+                let angle = Math.atan2(target.y - this.y, target.x - this.x);
+                pellets.push(new Pellet(this.x, this.y, angle, this.points, this));
+            }
+        }
+
+        // Pellet class
+        class Pellet {
+            constructor(x, y, angle, damage, owner = null) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.speed = 4;
+                this.damage = damage;
+                this.radius = 5;
+                this.owner = owner; // Track who fired this pellet
+            }
+
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+            }
+
+            draw() {
+                ctx.fillStyle = '#ff00ff';
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            isOffScreen() {
+                return this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height;
+            }
+        }
+
+        // Boss class
+        class Boss {
+            constructor(bossNum) {
+                this.bossNum = bossNum;
+                this.points = 500 * bossNum;
+                this.maxPoints = this.points;
+                this.width = 120;
+                this.height = 120;
+                this.x = canvas.width / 2;
+                this.y = -this.height;
+                this.targetY = 100;
+                this.speed = 1.5;
+                this.shootCooldown = 0;
+                this.phase = 0;
+                this.phaseTimer = 0;
+                this.wobble = 0;
+                this.entering = true;
+            }
+
+            update() {
+                this.wobble += 0.05;
+
+                // Enter from top
+                if (this.entering) {
+                    this.y += 2;
+                    if (this.y >= this.targetY) {
+                        this.entering = false;
+                    }
+                    return;
+                }
+
+                // Movement patterns based on phase
+                this.phaseTimer++;
+                if (this.phaseTimer > 180) {
+                    this.phase = (this.phase + 1) % 3;
+                    this.phaseTimer = 0;
+                }
+
+                switch (this.phase) {
+                    case 0: // Side to side
+                        this.x += Math.sin(this.wobble) * 3;
+                        break;
+                    case 1: // Chase player
+                        let dx = player.x - this.x;
+                        this.x += Math.sign(dx) * this.speed;
+                        break;
+                    case 2: // Circle
+                        this.x = canvas.width / 2 + Math.cos(this.wobble * 2) * 150;
+                        this.y = this.targetY + Math.sin(this.wobble * 2) * 50;
+                        break;
+                }
+
+                // Keep in bounds
+                this.x = Math.max(this.width / 2, Math.min(canvas.width - this.width / 2, this.x));
+
+                // Shooting
+                this.shootCooldown--;
+                if (this.shootCooldown <= 0) {
+                    this.shoot();
+                    this.shootCooldown = 30;
+                }
+            }
+
+            shoot() {
+                // Shoot pattern based on phase
+                if (this.phase === 0) {
+                    // Spread shot
+                    for (let i = -2; i <= 2; i++) {
+                        let angle = Math.PI / 2 + i * 0.3;
+                        pellets.push(new Pellet(this.x, this.y + this.height / 2, angle, 20, this));
+                    }
+                } else if (this.phase === 1) {
+                    // Aimed shot at player
+                    let angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    pellets.push(new Pellet(this.x, this.y + this.height / 2, angle, 30, this));
+                    pellets.push(new Pellet(this.x - 30, this.y + this.height / 2, angle, 30, this));
+                    pellets.push(new Pellet(this.x + 30, this.y + this.height / 2, angle, 30, this));
+                } else {
+                    // Circle shot
+                    for (let i = 0; i < 8; i++) {
+                        let angle = (i / 8) * Math.PI * 2 + this.wobble;
+                        pellets.push(new Pellet(this.x, this.y, angle, 15, this));
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Glow effect
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 30;
+
+                // Main body
+                ctx.fillStyle = '#880000';
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height / 2);
+                ctx.lineTo(this.width / 2, -this.height / 4);
+                ctx.lineTo(this.width / 2, this.height / 4);
+                ctx.lineTo(this.width / 4, this.height / 2);
+                ctx.lineTo(-this.width / 4, this.height / 2);
+                ctx.lineTo(-this.width / 2, this.height / 4);
+                ctx.lineTo(-this.width / 2, -this.height / 4);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Eyes
+                ctx.fillStyle = '#ffff00';
+                ctx.shadowColor = '#ffff00';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(-25, -10, 15, 0, Math.PI * 2);
+                ctx.arc(25, -10, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Pupils that track player
+                ctx.fillStyle = '#000';
+                ctx.shadowBlur = 0;
+                let pupilAngle = Math.atan2(player.y - this.y, player.x - this.x);
+                let pupilX = Math.cos(pupilAngle) * 5;
+                let pupilY = Math.sin(pupilAngle) * 5;
+                ctx.beginPath();
+                ctx.arc(-25 + pupilX, -10 + pupilY, 7, 0, Math.PI * 2);
+                ctx.arc(25 + pupilX, -10 + pupilY, 7, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Mouth
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-30, 25);
+                for (let i = 0; i < 6; i++) {
+                    ctx.lineTo(-30 + i * 12, 25 + (i % 2 === 0 ? 0 : 15));
+                }
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Health bar
+                let healthPercent = this.points / this.maxPoints;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x - 60, this.y - this.height / 2 - 20, 120, 10);
+                ctx.fillStyle = healthPercent > 0.5 ? '#ff0000' : healthPercent > 0.25 ? '#ff8800' : '#ffff00';
+                ctx.fillRect(this.x - 60, this.y - this.height / 2 - 20, 120 * healthPercent, 10);
+
+                // Boss label
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('BOSS', this.x, this.y - this.height / 2 - 25);
+                ctx.font = '12px Courier New';
+                ctx.fillText(Math.ceil(this.points) + ' HP', this.x, this.y - this.height / 2 - 35);
+            }
+        }
+
+        // Collision detection
+        function checkCollisions() {
+            // Lasers hitting enemies
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                let laser = lasers[i];
+                let shouldRemove = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    let enemy = enemies[j];
+                    // Skip if piercing laser already hit this enemy
+                    if (laser.pierce && laser.hitEnemies.includes(enemy)) continue;
+
+                    let dist = Math.hypot(laser.x - enemy.x, laser.y - enemy.y);
+                    if (dist < enemy.width / 2 + 10) {
+                        enemy.points -= laser.damage;
+
+                        if (laser.pierce) {
+                            laser.hitEnemies.push(enemy);
+                        } else {
+                            shouldRemove = true;
+                        }
+
+                        // Vampire upgrade heals on damage
+                        if (hasUpgrade('upgrade_vampire')) {
+                            player.points += laser.damage * 0.1;
+                        }
+
+                        // Track hit for daily event and stats
+                        updateEventProgress('hits', 1);
+                        sessionStats.hits++;
+
+                        if (enemy.points <= 0) {
+                            player.points += enemy.maxPoints;
+                            let moneyEarned = Math.ceil(enemy.maxPoints / 2);
+                            // Money magnet doubles money
+                            if (hasUpgrade('upgrade_magnet')) {
+                                moneyEarned *= 2;
+                            }
+                            // Daily event modifier for money
+                            const modifier = getActiveModifier();
+                            if (modifier && modifier.type === 'money') {
+                                moneyEarned *= modifier.value;
+                            }
+                            addMoney(moneyEarned);
+                            sessionStats.money += moneyEarned;
+                            sessionStats.kills++;
+                            updateEventProgress('money', moneyEarned);
+                            updateEventProgress('kills', 1);
+                            enemies.splice(j, 1);
+                            enemiesDestroyed++;
+                            killsSinceBoss++;
+                            document.getElementById('enemiesDestroyed').textContent = enemiesDestroyed;
+
+                            // Spawn boss every 60 kills
+                            if (killsSinceBoss >= 60 && !boss) {
+                                boss = new Boss(Math.floor(enemiesDestroyed / 60));
+                                killsSinceBoss = 0;
+                            }
+                        }
+                        if (!laser.pierce) break;
+                    }
+                }
+                if (shouldRemove) {
+                    lasers.splice(i, 1);
+                }
+            }
+
+            // Pellets hitting player
+            for (let i = pellets.length - 1; i >= 0; i--) {
+                let pellet = pellets[i];
+                let dist = Math.hypot(pellet.x - player.x, pellet.y - player.y);
+                if (dist < player.width / 2 + pellet.radius) {
+                    let damage = pellet.damage;
+                    // Shield upgrade reduces damage
+                    if (hasUpgrade('upgrade_shield')) {
+                        damage *= 0.75;
+                    }
+                    player.points -= damage;
+                    pellets.splice(i, 1);
+
+                    if (player.points <= 0) {
+                        gameOver();
+                    }
+                }
+            }
+
+            // Pellets hitting enemies
+            for (let i = pellets.length - 1; i >= 0; i--) {
+                let pellet = pellets[i];
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    let enemy = enemies[j];
+                    // Don't hit the enemy that fired this pellet
+                    if (enemy === pellet.owner) continue;
+
+                    let dist = Math.hypot(pellet.x - enemy.x, pellet.y - enemy.y);
+                    if (dist < enemy.width / 2 + pellet.radius) {
+                        enemy.points -= pellet.damage;
+                        pellets.splice(i, 1);
+
+                        if (enemy.points <= 0) {
+                            // Player gets points when enemies kill each other too
+                            player.points += enemy.maxPoints;
+                            let moneyEarned = Math.ceil(enemy.maxPoints / 2);
+                            if (hasUpgrade('upgrade_magnet')) {
+                                moneyEarned *= 2;
+                            }
+                            addMoney(moneyEarned);
+                            enemies.splice(j, 1);
+                            enemiesDestroyed++;
+                            document.getElementById('enemiesDestroyed').textContent = enemiesDestroyed;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Lasers hitting boss
+            if (boss) {
+                for (let i = lasers.length - 1; i >= 0; i--) {
+                    let laser = lasers[i];
+                    let dist = Math.hypot(laser.x - boss.x, laser.y - boss.y);
+                    if (dist < boss.width / 2 + 10) {
+                        boss.points -= laser.damage;
+
+                        if (hasUpgrade('upgrade_vampire')) {
+                            player.points += laser.damage * 0.1;
+                        }
+
+                        sessionStats.hits++;
+
+                        if (!laser.pierce) {
+                            lasers.splice(i, 1);
+                        } else {
+                            if (!laser.hitBoss) {
+                                laser.hitBoss = true;
+                            } else {
+                                continue;
+                            }
+                        }
+
+                        if (boss.points <= 0) {
+                            // Boss defeated!
+                            player.points += boss.maxPoints;
+                            let moneyEarned = boss.maxPoints;
+                            if (hasUpgrade('upgrade_magnet')) {
+                                moneyEarned *= 2;
+                            }
+                            const modifier = getActiveModifier();
+                            if (modifier && modifier.type === 'money') {
+                                moneyEarned *= modifier.value;
+                            }
+                            addMoney(moneyEarned);
+                            sessionStats.money += moneyEarned;
+                            sessionStats.kills++;
+                            enemiesDestroyed++;
+                            document.getElementById('enemiesDestroyed').textContent = enemiesDestroyed;
+                            boss = null;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update stars
+        function updateStars() {
+            for (let star of stars) {
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            }
+        }
+
+        // Draw stars
+        function drawStars() {
+            ctx.fillStyle = '#ffffff';
+            for (let star of stars) {
+                ctx.globalAlpha = 0.3 + Math.random() * 0.7;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Spawn enemy
+        function spawnEnemy() {
+            let count = 1 + Math.floor(Math.random() * 3); // 1-3 enemies
+            for (let i = 0; i < count; i++) {
+                let newPoints = Math.floor(lastEnemyPoints * (1 + Math.random() * 0.5));
+                enemies.push(new Enemy(newPoints));
+                lastEnemyPoints = newPoints;
+            }
+        }
+
+        // Game over
+        function gameOver() {
+            gameRunning = false;
+            endGameStats();
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = enemiesDestroyed;
+        }
+
+        // Restart game
+        function restartGame() {
+            resetSessionStats();
+            player = new Player();
+            enemies = [];
+            lasers = [];
+            pellets = [];
+            boss = null;
+            gameRunning = true;
+            enemiesDestroyed = 0;
+            killsSinceBoss = 0;
+            lastEnemyPoints = 10;
+            spawnTimer = 2 + Math.random();
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('enemiesDestroyed').textContent = '0';
+
+            // Spawn first enemy
+            enemies.push(new Enemy(10));
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Game loop
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+
+            // Pause game when store is open
+            if (storeOpen) {
+                lastTime = timestamp;
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            let deltaTime = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            // Clear canvas
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update and draw stars
+            updateStars();
+            drawStars();
+
+            // Update spawn timer
+            spawnTimer -= deltaTime;
+            if (spawnTimer <= 0) {
+                spawnEnemy();
+                spawnTimer = 2 + Math.random();
+            }
+            document.getElementById('nextSpawn').textContent = Math.ceil(spawnTimer);
+
+            // Handle shooting
+            if (keys.Space) {
+                player.shoot();
+            }
+
+            // Regeneration upgrade
+            if (hasUpgrade('upgrade_regen')) {
+                player.points += 0.05; // Heal 0.05 per frame (about 3 per second)
+            }
+
+            // Track survival time for daily event and stats
+            updateEventProgress('time', deltaTime);
+            sessionStats.time += deltaTime;
+            if (player.points > sessionStats.maxHealth) {
+                sessionStats.maxHealth = player.points;
+            }
+
+            // Update
+            player.update();
+            enemies.forEach(enemy => enemy.update());
+            if (boss) boss.update();
+            lasers.forEach(laser => laser.update());
+            pellets.forEach(pellet => pellet.update());
+
+            // Remove off-screen projectiles
+            lasers = lasers.filter(laser => !laser.isOffScreen());
+            pellets = pellets.filter(pellet => !pellet.isOffScreen());
+
+            // Check collisions
+            checkCollisions();
+
+            // Draw
+            lasers.forEach(laser => laser.draw());
+            pellets.forEach(pellet => pellet.draw());
+            enemies.forEach(enemy => enemy.draw());
+            if (boss) boss.draw();
+            player.draw();
+
+            // Update UI
+            document.getElementById('playerPoints').textContent = Math.ceil(player.points);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code in keys) {
+                keys[e.code] = true;
+                e.preventDefault();
+            }
+            if (e.code === 'Space') {
+                keys.Space = true;
+                e.preventDefault();
+            }
+            if (e.code === 'KeyS') {
+                toggleStore();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code in keys) {
+                keys[e.code] = false;
+            }
+            if (e.code === 'Space') {
+                keys.Space = false;
+            }
+        });
+
+        // Initialize game
+        loadInventory();
+        loadDailyData();
+        loadStats();
+        createStars();
+        player = new Player();
+        enemies.push(new Enemy(10));
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

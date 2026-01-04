@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What a Castle!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Georgia', serif;
+            color: #f0e68c;
+        }
+
+        .game-wrapper {
+            text-align: center;
+        }
+
+        h1 {
+            color: #ffd700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #2d2d44;
+            border: 3px solid #8b7355;
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            width: 800px;
+        }
+
+        .hud-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hearts {
+            font-size: 1.5em;
+        }
+
+        .health-bar-container {
+            width: 150px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            border: 2px solid #555;
+            overflow: hidden;
+        }
+
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(180deg, #4CAF50, #2e7d32);
+            transition: width 0.3s;
+        }
+
+        .enemy-health-bar {
+            background: linear-gradient(180deg, #f44336, #b71c1c);
+        }
+
+        canvas {
+            border: 3px solid #8b7355;
+            display: block;
+        }
+
+        .controls-info {
+            background: #2d2d44;
+            border: 3px solid #8b7355;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            padding: 10px;
+            width: 800px;
+        }
+
+        .controls-info span {
+            margin: 0 15px;
+            color: #aaa;
+        }
+
+        .controls-info kbd {
+            background: #444;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid #666;
+        }
+
+        /* Castle Map */
+        .castle-mini-map {
+            position: absolute;
+            top: 70px;
+            right: 10px;
+            z-index: 40;
+        }
+
+        .castle-visual {
+            position: relative;
+            width: 180px;
+            height: 220px;
+        }
+
+        /* Sky background */
+        .castle-sky {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, #1a1a3a 0%, #2d2d5a 50%, #3d3d6a 100%);
+            border-radius: 10px;
+            border: 2px solid #8b7355;
+        }
+
+        /* Stars */
+        .castle-sky::before {
+            content: '✦ ✧ ✦';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 8px;
+            letter-spacing: 15px;
+            opacity: 0.6;
+        }
+
+        /* Moon */
+        .moon {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            width: 20px;
+            height: 20px;
+            background: #ffffcc;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ffffcc;
+        }
+
+        /* Ground */
+        .castle-ground {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(180deg, #2d5a27 0%, #1a3a17 100%);
+            border-radius: 0 0 8px 8px;
+        }
+
+        /* Main castle structure */
+        .castle-structure {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Left tower */
+        .tower-left {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 35px;
+            height: 140px;
+            background: linear-gradient(90deg, #4a4a5a 0%, #6a6a7a 50%, #5a5a6a 100%);
+            border: 2px solid #3a3a4a;
+        }
+
+        .tower-left::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -5px;
+            width: 0;
+            height: 0;
+            border-left: 22px solid transparent;
+            border-right: 22px solid transparent;
+            border-bottom: 25px solid #8b4513;
+        }
+
+        /* Right tower (Princess tower - taller) */
+        .tower-right {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 35px;
+            height: 170px;
+            background: linear-gradient(90deg, #5a5a6a 0%, #7a7a8a 50%, #6a6a7a 100%);
+            border: 2px solid #3a3a4a;
+        }
+
+        .tower-right::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -5px;
+            width: 0;
+            height: 0;
+            border-left: 22px solid transparent;
+            border-right: 22px solid transparent;
+            border-bottom: 25px solid #8b4513;
+        }
+
+        /* Princess at top */
+        .princess {
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            z-index: 5;
+        }
+
+        /* Main building */
+        .castle-main {
+            position: absolute;
+            left: 30px;
+            bottom: 0;
+            width: 90px;
+            height: 110px;
+            background: linear-gradient(90deg, #5a5a6a 0%, #7a7a8a 30%, #6a6a7a 70%, #5a5a6a 100%);
+            border: 2px solid #3a3a4a;
+        }
+
+        /* Castle door */
+        .castle-door {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 30px;
+            background: #3a2a1a;
+            border-radius: 10px 10px 0 0;
+            border: 2px solid #2a1a0a;
+        }
+
+        /* Room windows */
+        .room-window {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: #1a1a2a;
+            border: 2px solid #3a3a4a;
+            border-radius: 3px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 9px;
+            color: #444;
+            transition: all 0.3s;
+        }
+
+        .room-window.cleared {
+            background: #1a3a1a;
+            border-color: #4CAF50;
+            box-shadow: inset 0 0 8px #4CAF50, 0 0 5px #4CAF50;
+            color: #4CAF50;
+        }
+
+        .room-window.current {
+            background: #3a3a1a;
+            border-color: #ffd700;
+            box-shadow: inset 0 0 10px #ffd700, 0 0 10px #ffd700;
+            color: #ffd700;
+            animation: window-glow 1s infinite;
+        }
+
+        .room-window.next {
+            background: #3a1a1a;
+            border-color: #ff6b6b;
+            box-shadow: inset 0 0 5px #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        @keyframes window-glow {
+            0%, 100% { box-shadow: inset 0 0 10px #ffd700, 0 0 10px #ffd700; }
+            50% { box-shadow: inset 0 0 15px #ffd700, 0 0 20px #ffd700; }
+        }
+
+        /* Flag on top */
+        .castle-flag {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .flag-pole {
+            width: 3px;
+            height: 20px;
+            background: #8b7355;
+            margin: 0 auto;
+        }
+
+        .flag-cloth {
+            width: 20px;
+            height: 12px;
+            background: linear-gradient(90deg, #c0392b, #e74c3c);
+            position: absolute;
+            top: 0;
+            left: 3px;
+            clip-path: polygon(0 0, 100% 25%, 100% 75%, 0 100%);
+            animation: flag-wave 1s ease-in-out infinite;
+        }
+
+        @keyframes flag-wave {
+            0%, 100% { transform: skewY(0deg); }
+            50% { transform: skewY(-3deg); }
+        }
+
+        .map-label {
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffd700;
+            font-size: 9px;
+            text-shadow: 1px 1px 2px #000;
+            white-space: nowrap;
+        }
+
+        @keyframes princess-wave {
+            from { transform: translateX(-50%) rotate(-5deg); }
+            to { transform: translateX(-50%) rotate(5deg); }
+        }
+
+        /* Bonus Room */
+        .bonus-room-window {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 26px;
+            height: 20px;
+            background: #1a1a2a;
+            border: 2px solid #3a3a4a;
+            border-radius: 3px 3px 0 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            color: #444;
+            transition: all 0.3s;
+        }
+
+        .bonus-room-window.available {
+            background: linear-gradient(180deg, #4a3a00, #2a2000);
+            border-color: #ffd700;
+            box-shadow: 0 0 10px #ffd700, inset 0 0 8px #ffa500;
+            color: #ffd700;
+            animation: bonus-glow 0.8s infinite alternate;
+        }
+
+        .bonus-room-window.cleared {
+            background: #1a3a1a;
+            border-color: #4CAF50;
+            box-shadow: inset 0 0 8px #4CAF50;
+            color: #4CAF50;
+        }
+
+        @keyframes bonus-glow {
+            from { box-shadow: 0 0 10px #ffd700, inset 0 0 8px #ffa500; }
+            to { box-shadow: 0 0 20px #ffd700, inset 0 0 15px #ffa500; }
+        }
+
+        /* Treasure */
+        .treasure {
+            position: absolute;
+            transition: all 0.3s;
+        }
+
+        .treasure-chest {
+            font-size: 30px;
+            cursor: pointer;
+        }
+
+        .coin {
+            font-size: 20px;
+            animation: coin-float 1s ease-in-out infinite;
+        }
+
+        @keyframes coin-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .bonus-banner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(180deg, #4a3a00, #2a2000);
+            padding: 30px 60px;
+            border: 3px solid #ffd700;
+            border-radius: 10px;
+            z-index: 50;
+            text-align: center;
+            box-shadow: 0 0 30px #ffd700;
+        }
+
+        .bonus-banner h2 {
+            color: #ffd700;
+            font-size: 2em;
+            text-shadow: 0 0 10px #ffa500;
+        }
+
+        .bonus-banner p {
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .score-display {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            font-size: 1.1em;
+            z-index: 40;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 600px;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .overlay h2 {
+            font-size: 3em;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 1.3em;
+            margin: 10px 0;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .overlay .emoji {
+            font-size: 4em;
+            margin: 20px 0;
+        }
+
+        .start-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.3em;
+            background: linear-gradient(180deg, #27ae60, #1e8449);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Georgia', serif;
+            transition: transform 0.2s;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .game-container {
+            position: relative;
+        }
+
+        .room-banner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 30px 60px;
+            border: 3px solid #ffd700;
+            border-radius: 10px;
+            z-index: 50;
+            text-align: center;
+        }
+
+        .room-banner h2 {
+            color: #ffd700;
+            font-size: 2em;
+        }
+
+        .room-banner p {
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .room-banner .monster-count {
+            color: #ff6b6b;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+
+        /* Castle Map Overlay */
+        .map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 600px;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .map-overlay h2 {
+            color: #ffd700;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .castle-map {
+            display: grid;
+            grid-template-columns: repeat(5, 80px);
+            grid-template-rows: repeat(2, 80px);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .map-room {
+            width: 80px;
+            height: 80px;
+            background: #333;
+            border: 3px solid #555;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            color: #888;
+            position: relative;
+        }
+
+        .map-room.cleared {
+            background: #2d5a27;
+            border-color: #4CAF50;
+            color: #4CAF50;
+        }
+
+        .map-room.current {
+            background: #5a4a27;
+            border-color: #ffd700;
+            color: #ffd700;
+            animation: pulse 1s infinite;
+        }
+
+        .map-room.next {
+            background: #5a2727;
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+            animation: glow 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px #ff6b6b; }
+            50% { box-shadow: 0 0 25px #ff6b6b; }
+        }
+
+        .map-room span {
+            font-size: 0.6em;
+            margin-top: 5px;
+        }
+
+        .map-arrow {
+            position: absolute;
+            font-size: 2em;
+            color: #ffd700;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateX(0); }
+            to { transform: translateX(10px); }
+        }
+
+        .map-overlay .continue-text {
+            color: #aaa;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <h1>⚔️ What a Castle! ⚔️</h1>
+
+        <div class="hud">
+            <div class="hud-section">
+                <span>Lives:</span>
+                <span class="hearts" id="hearts">❤️❤️❤️</span>
+            </div>
+            <div class="hud-section">
+                <span>HP:</span>
+                <div class="health-bar-container">
+                    <div class="health-bar" id="playerHealthBar" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="hud-section">
+                <span>Room: <strong id="roomNum">1</strong>/10</span>
+                <span id="enemyCount" style="color: #ff6b6b;"></span>
+            </div>
+            <div class="hud-section">
+                <span id="knightName">Sir Wobbles</span>
+                <div class="health-bar-container">
+                    <div class="health-bar enemy-health-bar" id="enemyHealthBar" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+            <!-- Castle Mini Map -->
+            <div class="castle-mini-map hidden" id="miniMap">
+                <div class="castle-visual">
+                    <div class="castle-sky">
+                        <div class="moon"></div>
+                    </div>
+                    <div class="castle-ground">
+                            <!-- Secret bonus room - hidden until discovered! -->
+                            <div class="bonus-room-window hidden" id="bonusRoomWindow">🔒</div>
+                        </div>
+                    <div class="castle-structure" style="width: 150px; height: 180px;">
+                        <!-- Left Tower - Rooms 1 and 6 -->
+                        <div class="tower-left">
+                            <div class="room-window" id="room6" style="top: 15px; left: 6px;">6</div>
+                            <div class="room-window" id="room1" style="top: 70px; left: 6px;">1</div>
+                        </div>
+
+                        <!-- Main Building - Rooms 2,3,7,8 -->
+                        <div class="castle-main">
+                            <div class="castle-flag">
+                                <div class="flag-pole"></div>
+                                <div class="flag-cloth"></div>
+                            </div>
+                            <div class="room-window" id="room7" style="top: 15px; left: 10px;">7</div>
+                            <div class="room-window" id="room8" style="top: 15px; left: 58px;">8</div>
+                            <div class="room-window" id="room2" style="top: 50px; left: 10px;">2</div>
+                            <div class="room-window" id="room3" style="top: 50px; left: 58px;">3</div>
+                            <div class="castle-door"></div>
+                        </div>
+
+                        <!-- Right Tower (Princess Tower) - Rooms 4,5,9,10 -->
+                        <div class="tower-right">
+                            <div class="princess" id="princessIcon">👸</div>
+                            <div class="room-window" id="room10" style="top: 25px; left: 6px;">10</div>
+                            <div class="room-window" id="room9" style="top: 55px; left: 6px;">9</div>
+                            <div class="room-window" id="room5" style="top: 85px; left: 6px;">5</div>
+                            <div class="room-window" id="room4" style="top: 115px; left: 6px;">4</div>
+                        </div>
+                    </div>
+                    <div class="map-label">Room <span id="mapRoomNum">1</span> / 10</div>
+                </div>
+            </div>
+
+            <!-- Score Display -->
+            <div class="score-display hidden" id="scoreDisplay">
+                💰 Gold: <span id="goldCount">0</span>
+            </div>
+
+            <!-- Bonus Room Banner -->
+            <div class="bonus-banner hidden" id="bonusBanner">
+                <h2>💎 BONUS ROOM! 💎</h2>
+                <p>Collect the treasure!</p>
+            </div>
+
+            <div class="overlay" id="titleScreen">
+                <h2>What a Castle!</h2>
+                <div class="emoji">🏰</div>
+                <p>The evil Lord Shadowbane has captured Princess Rosalind!</p>
+                <p>Battle through 10 rooms of knights and monsters!</p>
+                <p style="color: #69db7c;">Your lives restore at each new room!</p>
+                <button class="start-btn" id="startBtn">Begin Quest</button>
+            </div>
+
+            <div class="overlay hidden" id="victoryScreen">
+                <h2>Victory!</h2>
+                <div class="emoji">👑</div>
+                <p>You rescued Princess Rosalind!</p>
+                <p>"My hero!" she exclaims.</p>
+                <button class="start-btn" id="restartBtn1">Play Again</button>
+            </div>
+
+            <div class="overlay hidden" id="defeatScreen">
+                <h2>Game Over</h2>
+                <div class="emoji">💀</div>
+                <p>The princess remains imprisoned...</p>
+                <p id="defeatRoom">You reached Room 1</p>
+                <button class="start-btn" id="restartBtn2">Try Again</button>
+            </div>
+
+            <div class="room-banner hidden" id="roomBanner">
+                <h2 id="bannerTitle">Room 1</h2>
+                <p id="bannerKnight">Sir Wobbles the Weak</p>
+                <p class="monster-count" id="bannerMonsters"></p>
+            </div>
+
+            <div class="map-overlay hidden" id="mapOverlay">
+                <h2>🗺️ Castle Map</h2>
+                <p>You've cleared the first floor!</p>
+                <div class="castle-map" id="castleMap"></div>
+                <p style="color: #ff6b6b; font-size: 1.2em;">Room 5 awaits upstairs! →</p>
+                <p class="continue-text">Press SPACE to continue</p>
+            </div>
+        </div>
+
+        <div class="controls-info">
+            <span><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> Move</span>
+            <span><kbd>Space</kbd> Attack</span>
+            <span>Defeat all enemies to proceed!</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Knight data
+        const KNIGHTS = [
+            { name: "Sir Wobbles the Weak", hp: 30, speed: 1.5, damage: 8 },
+            { name: "Sir Clumsy of Clanksalot", hp: 45, speed: 1.8, damage: 10 },
+            { name: "Sir Grumbles the Gray", hp: 60, speed: 2.0, damage: 12 },
+            { name: "Sir Ironhide the Irritable", hp: 80, speed: 2.2, damage: 15 },
+            { name: "Sir Valiant the Vexing", hp: 100, speed: 2.5, damage: 18 },
+            { name: "Sir Brutus the Bold", hp: 120, speed: 2.7, damage: 20 },
+            { name: "Sir Magnus the Mighty", hp: 140, speed: 3.0, damage: 23 },
+            { name: "Sir Dreadmore the Dark", hp: 160, speed: 3.2, damage: 25 },
+            { name: "Sir Goliath the Grim", hp: 180, speed: 3.5, damage: 28 },
+            { name: "Lord Shadowbane", hp: 220, speed: 3.8, damage: 32 }
+        ];
+
+        // Monster types
+        const MONSTER_TYPES = [
+            { name: "Goblin", hp: 15, speed: 2.5, damage: 5, color: '#2ecc71', size: 25 },
+            { name: "Bat", hp: 10, speed: 4, damage: 3, color: '#9b59b6', size: 20 },
+            { name: "Skeleton", hp: 20, speed: 2, damage: 7, color: '#ecf0f1', size: 30 },
+            { name: "Slime", hp: 25, speed: 1.5, damage: 4, color: '#1abc9c', size: 28 },
+            { name: "Demon", hp: 35, speed: 3, damage: 10, color: '#e74c3c', size: 32 }
+        ];
+
+        // Background particles and effects
+        const bgParticles = [];
+        const dustParticles = [];
+        const torchFlames = [];
+
+        // Initialize background particles
+        function initBackgroundEffects() {
+            // Floating dust particles
+            for (let i = 0; i < 30; i++) {
+                dustParticles.push({
+                    x: Math.random() * 800,
+                    y: Math.random() * 600,
+                    size: Math.random() * 3 + 1,
+                    speedX: (Math.random() - 0.5) * 0.5,
+                    speedY: -Math.random() * 0.3 - 0.1,
+                    opacity: Math.random() * 0.5 + 0.2,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            // Torch flame particles
+            for (let i = 0; i < 4; i++) {
+                const x = 100 + i * 200;
+                for (let j = 0; j < 5; j++) {
+                    torchFlames.push({
+                        baseX: x,
+                        x: x,
+                        y: 15,
+                        size: Math.random() * 8 + 4,
+                        speed: Math.random() * 2 + 1,
+                        life: Math.random() * 30,
+                        maxLife: 30
+                    });
+                }
+            }
+        }
+
+        function updateBackgroundEffects() {
+            // Update dust
+            dustParticles.forEach(p => {
+                p.x += p.speedX + Math.sin(Date.now() * 0.001 + p.phase) * 0.3;
+                p.y += p.speedY;
+                p.opacity = 0.3 + Math.sin(Date.now() * 0.002 + p.phase) * 0.2;
+
+                // Wrap around
+                if (p.y < 0) p.y = 600;
+                if (p.x < 0) p.x = 800;
+                if (p.x > 800) p.x = 0;
+            });
+
+            // Update torch flames
+            torchFlames.forEach(p => {
+                p.y -= p.speed;
+                p.x = p.baseX + Math.sin(Date.now() * 0.01 + p.life) * 5;
+                p.life--;
+                p.size *= 0.95;
+
+                if (p.life <= 0) {
+                    p.y = 20;
+                    p.x = p.baseX;
+                    p.life = p.maxLife;
+                    p.size = Math.random() * 8 + 4;
+                }
+            });
+        }
+
+        function drawBackgroundEffects(isBonus = false) {
+            // Draw fog/mist at bottom
+            const gradient = ctx.createLinearGradient(0, canvas.height - 100, 0, canvas.height);
+            if (isBonus) {
+                gradient.addColorStop(0, 'rgba(255, 215, 0, 0)');
+                gradient.addColorStop(1, 'rgba(255, 215, 0, 0.15)');
+            } else {
+                gradient.addColorStop(0, 'rgba(100, 100, 150, 0)');
+                gradient.addColorStop(1, 'rgba(100, 100, 150, 0.2)');
+            }
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+
+            // Draw floating dust
+            dustParticles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                if (isBonus) {
+                    ctx.fillStyle = `rgba(255, 215, 0, ${p.opacity})`;
+                } else {
+                    ctx.fillStyle = `rgba(200, 200, 255, ${p.opacity})`;
+                }
+                ctx.fill();
+            });
+
+            // Draw torch flames
+            if (!isBonus) {
+                torchFlames.forEach(p => {
+                    const alpha = p.life / p.maxLife;
+                    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                    grd.addColorStop(0, `rgba(255, 255, 200, ${alpha})`);
+                    grd.addColorStop(0.5, `rgba(255, 150, 50, ${alpha * 0.8})`);
+                    grd.addColorStop(1, `rgba(255, 50, 0, 0)`);
+                    ctx.fillStyle = grd;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            // Vignette effect
+            const vignette = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, 100,
+                canvas.width / 2, canvas.height / 2, 500
+            );
+            vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            vignette.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawAnimatedWalls(isBonus = false) {
+            // Animated brick pattern with depth
+            const time = Date.now() * 0.001;
+
+            for (let x = 0; x < canvas.width; x += 60) {
+                for (let y = 60; y < canvas.height; y += 40) {
+                    const offsetX = (y % 80 === 0 ? 0 : 30);
+                    const brickX = x + offsetX;
+
+                    // Subtle color variation based on position
+                    const variation = Math.sin(brickX * 0.05 + y * 0.03 + time) * 10;
+
+                    if (isBonus) {
+                        ctx.fillStyle = `rgb(${50 + variation}, ${40 + variation}, ${10})`;
+                    } else {
+                        ctx.fillStyle = `rgb(${55 + variation}, ${55 + variation}, ${75 + variation})`;
+                    }
+                    ctx.fillRect(brickX + 1, y + 1, 58, 38);
+
+                    // Brick highlight
+                    if (isBonus) {
+                        ctx.strokeStyle = `rgba(255, 215, 0, ${0.1 + Math.sin(time + brickX * 0.1) * 0.05})`;
+                    } else {
+                        ctx.strokeStyle = 'rgba(100, 100, 130, 0.3)';
+                    }
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(brickX, y, 60, 40);
+                }
+            }
+        }
+
+        function drawCoolTorches() {
+            for (let x = 100; x < canvas.width; x += 200) {
+                // Torch holder
+                ctx.fillStyle = '#5a4a3a';
+                ctx.fillRect(x - 8, 25, 16, 35);
+
+                // Torch cup
+                ctx.fillStyle = '#8B4513';
+                ctx.beginPath();
+                ctx.moveTo(x - 12, 25);
+                ctx.lineTo(x + 12, 25);
+                ctx.lineTo(x + 8, 35);
+                ctx.lineTo(x - 8, 35);
+                ctx.closePath();
+                ctx.fill();
+
+                // Dynamic glow
+                const glowSize = 40 + Math.sin(Date.now() * 0.01 + x) * 10;
+                const glow = ctx.createRadialGradient(x, 20, 0, x, 20, glowSize);
+                glow.addColorStop(0, 'rgba(255, 200, 100, 0.8)');
+                glow.addColorStop(0.3, 'rgba(255, 150, 50, 0.4)');
+                glow.addColorStop(0.6, 'rgba(255, 100, 0, 0.2)');
+                glow.addColorStop(1, 'rgba(255, 50, 0, 0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(x, 20, glowSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Main flame
+                const flameHeight = 15 + Math.sin(Date.now() * 0.02 + x) * 5;
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.ellipse(x, 15, 8, flameHeight, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.ellipse(x, 18, 4, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawWindowLight() {
+            // Simulated window light beams
+            ctx.save();
+            ctx.globalAlpha = 0.1;
+
+            const beamX = 600 + Math.sin(Date.now() * 0.0005) * 50;
+            const gradient = ctx.createLinearGradient(beamX, 0, beamX + 150, canvas.height);
+            gradient.addColorStop(0, 'rgba(255, 255, 200, 0.3)');
+            gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(beamX, 60);
+            ctx.lineTo(beamX + 50, 60);
+            ctx.lineTo(beamX + 200, canvas.height);
+            ctx.lineTo(beamX + 100, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Initialize effects
+        initBackgroundEffects();
+
+        // Game state
+        let game = {
+            running: false,
+            room: 1,
+            player: null,
+            knight: null,
+            monsters: [],
+            treasures: [],
+            keys: {},
+            attackCooldown: 0,
+            damageFlash: 0,
+            knightDamageFlash: 0,
+            particles: [],
+            showingBanner: false,
+            showingMap: false,
+            inBonusRoom: false,
+            bonusRoomCleared: false,
+            bonusRoomAvailable: false,
+            gold: 0,
+            roomBeforeBonus: 0
+        };
+
+        // Treasure class for bonus room
+        class Treasure {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'coin', 'gem', 'chest'
+                this.collected = false;
+                this.size = type === 'chest' ? 40 : 25;
+                this.value = type === 'chest' ? 50 : (type === 'gem' ? 25 : 10);
+                this.bobOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                if (this.collected) return;
+
+                // Check collection
+                const dx = (this.x + this.size/2) - (game.player.x + game.player.width/2);
+                const dy = (this.y + this.size/2) - (game.player.y + game.player.height/2);
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist < 40) {
+                    this.collected = true;
+                    game.gold += this.value;
+                    updateGoldDisplay();
+                    spawnParticles(this.x + this.size/2, this.y + this.size/2, '#ffd700');
+                }
+            }
+
+            draw() {
+                if (this.collected) return;
+
+                const bob = Math.sin(Date.now() * 0.005 + this.bobOffset) * 5;
+
+                ctx.save();
+                ctx.font = `${this.size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                if (this.type === 'chest') {
+                    ctx.fillText('🎁', this.x + this.size/2, this.y + this.size/2 + bob);
+                } else if (this.type === 'gem') {
+                    ctx.fillText('💎', this.x + this.size/2, this.y + this.size/2 + bob);
+                } else {
+                    ctx.fillText('🪙', this.x + this.size/2, this.y + this.size/2 + bob);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        function spawnBonusRoomTreasures() {
+            game.treasures = [];
+
+            // Add chests
+            game.treasures.push(new Treasure(350, 200, 'chest'));
+            game.treasures.push(new Treasure(450, 350, 'chest'));
+
+            // Add gems
+            for (let i = 0; i < 5; i++) {
+                game.treasures.push(new Treasure(
+                    150 + Math.random() * 500,
+                    150 + Math.random() * 350,
+                    'gem'
+                ));
+            }
+
+            // Add coins
+            for (let i = 0; i < 10; i++) {
+                game.treasures.push(new Treasure(
+                    100 + Math.random() * 600,
+                    120 + Math.random() * 400,
+                    'coin'
+                ));
+            }
+        }
+
+        function updateGoldDisplay() {
+            document.getElementById('goldCount').textContent = game.gold;
+        }
+
+        function getMonstersForRoom(roomNum) {
+            // More monsters as rooms progress
+            const count = Math.min(roomNum, 6); // Max 6 monsters
+            const monsters = [];
+
+            for (let i = 0; i < count; i++) {
+                // Later rooms get tougher monster types
+                const typeIndex = Math.min(Math.floor((roomNum - 1) / 2), MONSTER_TYPES.length - 1);
+                const type = MONSTER_TYPES[Math.floor(Math.random() * (typeIndex + 1))];
+
+                monsters.push(new Monster(type, roomNum));
+            }
+
+            return monsters;
+        }
+
+        class Player {
+            constructor() {
+                this.x = 100;
+                this.y = 300;
+                this.width = 40;
+                this.height = 50;
+                this.speed = 5;
+                this.hp = 100;
+                this.maxHp = 100;
+                this.lives = 3;
+                this.maxLives = 3;
+                this.attacking = false;
+                this.attackFrame = 0;
+                this.facingRight = true;
+                this.invincible = 0;
+            }
+
+            update() {
+                if (game.keys['ArrowUp'] || game.keys['KeyW']) this.y -= this.speed;
+                if (game.keys['ArrowDown'] || game.keys['KeyS']) this.y += this.speed;
+                if (game.keys['ArrowLeft'] || game.keys['KeyA']) {
+                    this.x -= this.speed;
+                    this.facingRight = false;
+                }
+                if (game.keys['ArrowRight'] || game.keys['KeyD']) {
+                    this.x += this.speed;
+                    this.facingRight = true;
+                }
+
+                this.x = Math.max(20, Math.min(canvas.width - this.width - 20, this.x));
+                this.y = Math.max(80, Math.min(canvas.height - this.height - 20, this.y));
+
+                if (this.attacking) {
+                    this.attackFrame++;
+                    if (this.attackFrame > 15) {
+                        this.attacking = false;
+                        this.attackFrame = 0;
+                    }
+                }
+
+                if (this.invincible > 0) this.invincible--;
+            }
+
+            draw() {
+                ctx.save();
+
+                if (game.damageFlash > 0) {
+                    ctx.globalAlpha = 0.5 + Math.sin(game.damageFlash * 0.5) * 0.5;
+                }
+                if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+
+                const x = this.x;
+                const y = this.y;
+
+                // Body
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(x + 10, y + 20, 20, 30);
+
+                // Head
+                ctx.fillStyle = '#DEB887';
+                ctx.beginPath();
+                ctx.arc(x + 20, y + 12, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Hair
+                ctx.fillStyle = '#654321';
+                ctx.beginPath();
+                ctx.arc(x + 20, y + 8, 10, Math.PI, 0);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = '#000';
+                ctx.fillRect(x + 15, y + 10, 3, 3);
+                ctx.fillRect(x + 22, y + 10, 3, 3);
+
+                // Legs
+                ctx.fillStyle = '#4a3728';
+                ctx.fillRect(x + 10, y + 45, 8, 10);
+                ctx.fillRect(x + 22, y + 45, 8, 10);
+
+                // Sword
+                if (this.attacking) {
+                    const swordAngle = (this.attackFrame / 15) * Math.PI - Math.PI / 2;
+                    const swordLength = 45;
+                    const swordX = this.facingRight ? x + 35 : x + 5;
+
+                    ctx.save();
+                    ctx.translate(swordX, y + 25);
+                    if (!this.facingRight) ctx.scale(-1, 1);
+                    ctx.rotate(swordAngle);
+
+                    ctx.fillStyle = '#C0C0C0';
+                    ctx.fillRect(0, -3, swordLength, 6);
+                    ctx.fillStyle = '#ffd700';
+                    ctx.fillRect(-5, -5, 10, 10);
+
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = '#C0C0C0';
+                    const swordX = this.facingRight ? x + 32 : x - 10;
+                    ctx.fillRect(swordX, y + 20, 6, 30);
+                    ctx.fillStyle = '#ffd700';
+                    ctx.fillRect(swordX - 2, y + 18, 10, 6);
+                }
+
+                ctx.restore();
+            }
+
+            attack() {
+                if (!this.attacking && game.attackCooldown <= 0) {
+                    this.attacking = true;
+                    this.attackFrame = 0;
+                    game.attackCooldown = 25;
+
+                    const attackRange = 60;
+                    const attackX = this.facingRight ? this.x + this.width : this.x - attackRange;
+
+                    // Check hit on knight
+                    if (game.knight && game.knight.hp > 0) {
+                        if (attackX < game.knight.x + game.knight.width &&
+                            attackX + attackRange > game.knight.x &&
+                            this.y < game.knight.y + game.knight.height &&
+                            this.y + this.height > game.knight.y) {
+
+                            const damage = 15 + Math.floor(Math.random() * 10);
+                            game.knight.hp -= damage;
+                            game.knightDamageFlash = 10;
+                            spawnParticles(game.knight.x + game.knight.width / 2, game.knight.y + game.knight.height / 2, '#ff6b6b');
+                        }
+                    }
+
+                    // Check hit on monsters
+                    game.monsters.forEach(monster => {
+                        if (monster.hp > 0 &&
+                            attackX < monster.x + monster.size &&
+                            attackX + attackRange > monster.x &&
+                            this.y < monster.y + monster.size &&
+                            this.y + this.height > monster.y) {
+
+                            const damage = 12 + Math.floor(Math.random() * 8);
+                            monster.hp -= damage;
+                            monster.damageFlash = 10;
+                            spawnParticles(monster.x + monster.size / 2, monster.y + monster.size / 2, monster.color);
+                        }
+                    });
+                }
+            }
+
+            takeDamage(amount) {
+                if (this.invincible <= 0) {
+                    this.hp -= amount;
+                    game.damageFlash = 20;
+                    this.invincible = 60;
+
+                    if (this.hp <= 0) {
+                        this.lives--;
+                        if (this.lives > 0) {
+                            this.hp = this.maxHp;
+                            this.x = 100;
+                            this.y = 300;
+                        }
+                    }
+                    updateHUD();
+                }
+            }
+        }
+
+        class Monster {
+            constructor(type, roomNum) {
+                this.x = 200 + Math.random() * 400;
+                this.y = 150 + Math.random() * 350;
+                this.size = type.size;
+                this.hp = type.hp + (roomNum * 2);
+                this.maxHp = this.hp;
+                this.speed = type.speed + (roomNum * 0.1);
+                this.damage = type.damage + Math.floor(roomNum / 2);
+                this.name = type.name;
+                this.color = type.color;
+                this.attackCooldown = 0;
+                this.moveTimer = 0;
+                this.moveDir = { x: 0, y: 0 };
+                this.damageFlash = 0;
+                this.animOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                this.moveTimer++;
+                if (this.moveTimer > 20) {
+                    this.moveTimer = 0;
+                    const dx = game.player.x - this.x;
+                    const dy = game.player.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0) {
+                        this.moveDir.x = (dx / dist) * this.speed;
+                        this.moveDir.y = (dy / dist) * this.speed;
+                    }
+                }
+
+                this.x += this.moveDir.x;
+                this.y += this.moveDir.y;
+
+                this.x = Math.max(20, Math.min(canvas.width - this.size - 20, this.x));
+                this.y = Math.max(80, Math.min(canvas.height - this.size - 20, this.y));
+
+                if (this.attackCooldown <= 0) {
+                    if (this.x < game.player.x + game.player.width &&
+                        this.x + this.size > game.player.x &&
+                        this.y < game.player.y + game.player.height &&
+                        this.y + this.size > game.player.y) {
+
+                        game.player.takeDamage(this.damage);
+                        this.attackCooldown = 45;
+
+                        const dx = game.player.x - this.x;
+                        const dy = game.player.y - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        game.player.x += (dx / dist) * 20;
+                        game.player.y += (dy / dist) * 20;
+                    }
+                }
+
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.damageFlash > 0) this.damageFlash--;
+            }
+
+            draw() {
+                ctx.save();
+
+                const bounce = Math.sin(Date.now() * 0.01 + this.animOffset) * 3;
+
+                if (this.damageFlash > 0) {
+                    ctx.fillStyle = '#ffffff';
+                } else {
+                    ctx.fillStyle = this.color;
+                }
+
+                // Body
+                ctx.beginPath();
+                ctx.arc(this.x + this.size / 2, this.y + this.size / 2 + bounce, this.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = this.damageFlash > 0 ? '#ff0000' : '#000';
+                const eyeOffset = this.size / 5;
+                ctx.beginPath();
+                ctx.arc(this.x + this.size / 2 - eyeOffset, this.y + this.size / 2 - 3 + bounce, 3, 0, Math.PI * 2);
+                ctx.arc(this.x + this.size / 2 + eyeOffset, this.y + this.size / 2 - 3 + bounce, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Health bar
+                if (this.hp < this.maxHp) {
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(this.x, this.y - 10, this.size, 5);
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.fillRect(this.x, this.y - 10, (this.hp / this.maxHp) * this.size, 5);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Knight {
+            constructor(roomNum) {
+                const data = KNIGHTS[roomNum - 1];
+                this.x = 600;
+                this.y = 300;
+                this.width = 50;
+                this.height = 60;
+                this.hp = data.hp;
+                this.maxHp = data.hp;
+                this.speed = data.speed;
+                this.damage = data.damage;
+                this.name = data.name;
+                this.attackCooldown = 0;
+                this.moveTimer = 0;
+                this.moveDir = { x: 0, y: 0 };
+            }
+
+            update() {
+                this.moveTimer++;
+                if (this.moveTimer > 30) {
+                    this.moveTimer = 0;
+                    const dx = game.player.x - this.x;
+                    const dy = game.player.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0) {
+                        this.moveDir.x = (dx / dist) * this.speed;
+                        this.moveDir.y = (dy / dist) * this.speed;
+                    }
+                }
+
+                this.x += this.moveDir.x;
+                this.y += this.moveDir.y;
+
+                this.x = Math.max(20, Math.min(canvas.width - this.width - 20, this.x));
+                this.y = Math.max(80, Math.min(canvas.height - this.height - 20, this.y));
+
+                if (this.attackCooldown <= 0) {
+                    if (this.x < game.player.x + game.player.width &&
+                        this.x + this.width > game.player.x &&
+                        this.y < game.player.y + game.player.height &&
+                        this.y + this.height > game.player.y) {
+
+                        game.player.takeDamage(this.damage);
+                        this.attackCooldown = 60;
+
+                        const dx = game.player.x - this.x;
+                        const dy = game.player.y - this.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        game.player.x += (dx / dist) * 30;
+                        game.player.y += (dy / dist) * 30;
+                    }
+                }
+
+                if (this.attackCooldown > 0) this.attackCooldown--;
+            }
+
+            draw() {
+                ctx.save();
+
+                const x = this.x;
+                const y = this.y;
+
+                // Armor body
+                ctx.fillStyle = game.knightDamageFlash > 0 ? '#ff6666' : '#666';
+                ctx.fillRect(x + 5, y + 20, 40, 35);
+
+                // Helmet
+                ctx.fillStyle = game.knightDamageFlash > 0 ? '#ff6666' : '#555';
+                ctx.beginPath();
+                ctx.arc(x + 25, y + 15, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Visor
+                ctx.fillStyle = '#222';
+                ctx.fillRect(x + 15, y + 12, 20, 8);
+
+                // Plume (for later rooms)
+                if (game.room >= 5) {
+                    ctx.fillStyle = '#c0392b';
+                    ctx.beginPath();
+                    ctx.moveTo(x + 25, y);
+                    ctx.lineTo(x + 35, y - 15);
+                    ctx.lineTo(x + 25, y + 5);
+                    ctx.fill();
+                }
+
+                // Shield
+                ctx.fillStyle = game.knightDamageFlash > 0 ? '#ff8888' : '#8B4513';
+                ctx.beginPath();
+                ctx.moveTo(x, y + 25);
+                ctx.lineTo(x - 10, y + 35);
+                ctx.lineTo(x, y + 55);
+                ctx.lineTo(x + 10, y + 35);
+                ctx.closePath();
+                ctx.fill();
+
+                // Sword
+                ctx.fillStyle = '#C0C0C0';
+                ctx.fillRect(x + 45, y + 15, 8, 40);
+                ctx.fillStyle = '#ffd700';
+                ctx.fillRect(x + 42, y + 12, 14, 8);
+
+                // Legs
+                ctx.fillStyle = game.knightDamageFlash > 0 ? '#ff6666' : '#555';
+                ctx.fillRect(x + 10, y + 50, 12, 15);
+                ctx.fillRect(x + 28, y + 50, 12, 15);
+
+                ctx.restore();
+            }
+        }
+
+        function spawnParticles(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                game.particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 20,
+                    color: color
+                });
+            }
+        }
+
+        function drawRoom() {
+            if (game.inBonusRoom) {
+                drawBonusRoom();
+                return;
+            }
+
+            // Update background effects
+            updateBackgroundEffects();
+
+            // Base floor with gradient
+            const floorGradient = ctx.createLinearGradient(0, 60, 0, canvas.height);
+            floorGradient.addColorStop(0, '#2d2d4a');
+            floorGradient.addColorStop(0.5, '#3d3d5c');
+            floorGradient.addColorStop(1, '#25253a');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Animated brick walls
+            drawAnimatedWalls(false);
+
+            // Window light beam effect
+            drawWindowLight();
+
+            // Wall header with gradient
+            const wallGradient = ctx.createLinearGradient(0, 0, 0, 60);
+            wallGradient.addColorStop(0, '#1a1a2e');
+            wallGradient.addColorStop(1, '#2d2d44');
+            ctx.fillStyle = wallGradient;
+            ctx.fillRect(0, 0, canvas.width, 60);
+
+            // Cool animated torches
+            drawCoolTorches();
+
+            // Background effects (dust, fog, vignette)
+            drawBackgroundEffects(false);
+
+            // Room number banner with glow
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#4a3728';
+            ctx.fillRect(canvas.width / 2 - 60, 10, 120, 40);
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#8b7355';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width / 2 - 60, 10, 120, 40);
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 20px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText(`ROOM ${game.room}`, canvas.width / 2, 38);
+
+            // Door (if all enemies defeated)
+            const knightDefeated = !game.knight || game.knight.hp <= 0;
+            const monstersDefeated = game.monsters.length === 0 || game.monsters.every(m => m.hp <= 0);
+            const allDefeated = knightDefeated && monstersDefeated && game.monsters.length > 0;
+
+            if (allDefeated) {
+                ctx.fillStyle = '#654321';
+                ctx.fillRect(canvas.width - 60, canvas.height / 2 - 50, 50, 100);
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(canvas.width - 25, canvas.height / 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#69db7c';
+                ctx.font = '16px Georgia';
+                ctx.fillText('→ EXIT', canvas.width - 35, canvas.height / 2 + 70);
+
+                // Secret bonus room entrance (invisible - walk to bottom left corner to find it!)
+                // No visual indicator - it's a secret!
+            }
+        }
+
+        function drawBonusRoom() {
+            // Update background effects
+            updateBackgroundEffects();
+
+            // Golden dungeon floor with gradient
+            const floorGradient = ctx.createLinearGradient(0, 60, 0, canvas.height);
+            floorGradient.addColorStop(0, '#3a2a00');
+            floorGradient.addColorStop(0.5, '#2a2000');
+            floorGradient.addColorStop(1, '#1a1500');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Animated golden brick pattern
+            drawAnimatedWalls(true);
+
+            // Enhanced sparkle effect
+            for (let i = 0; i < 40; i++) {
+                const time = Date.now() * 0.001;
+                const sparkleX = (Math.sin(time + i * 0.5) * 0.5 + 0.5) * canvas.width;
+                const sparkleY = (Math.cos(time * 0.7 + i * 0.3) * 0.5 + 0.5) * canvas.height;
+                const size = 2 + Math.sin(time * 2 + i) * 2;
+                const alpha = 0.3 + Math.sin(time * 3 + i) * 0.3;
+
+                ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(sparkleX, sparkleY, size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Star sparkle
+                if (i % 5 === 0) {
+                    ctx.save();
+                    ctx.translate(sparkleX, sparkleY);
+                    ctx.rotate(time + i);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.fillRect(-1, -8, 2, 16);
+                    ctx.fillRect(-8, -1, 16, 2);
+                    ctx.restore();
+                }
+            }
+
+            // Wall header with golden gradient
+            const wallGradient = ctx.createLinearGradient(0, 0, 0, 60);
+            wallGradient.addColorStop(0, '#2a1a00');
+            wallGradient.addColorStop(1, '#3a2a00');
+            ctx.fillStyle = wallGradient;
+            ctx.fillRect(0, 0, canvas.width, 60);
+
+            // Golden torches with enhanced glow
+            for (let x = 100; x < canvas.width; x += 200) {
+                // Torch holder
+                ctx.fillStyle = '#8B7355';
+                ctx.fillRect(x - 8, 25, 16, 35);
+
+                // Golden glow
+                const glowSize = 50 + Math.sin(Date.now() * 0.01 + x) * 15;
+                const glow = ctx.createRadialGradient(x, 20, 0, x, 20, glowSize);
+                glow.addColorStop(0, 'rgba(255, 215, 0, 0.9)');
+                glow.addColorStop(0.3, 'rgba(255, 180, 0, 0.5)');
+                glow.addColorStop(0.6, 'rgba(255, 150, 0, 0.2)');
+                glow.addColorStop(1, 'rgba(255, 100, 0, 0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(x, 20, glowSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Golden flame
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.ellipse(x, 15, 10, 18 + Math.sin(Date.now() * 0.02 + x) * 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.ellipse(x, 18, 5, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Background effects for bonus room
+            drawBackgroundEffects(true);
+
+            // Banner with glow
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#4a3a00';
+            ctx.fillRect(canvas.width / 2 - 80, 10, 160, 40);
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(canvas.width / 2 - 80, 10, 160, 40);
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 20px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText('💎 BONUS ROOM 💎', canvas.width / 2, 38);
+
+            // Exit ladder with glow
+            ctx.shadowColor = '#69db7c';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(canvas.width - 60, canvas.height / 2 - 50, 50, 100);
+            ctx.shadowBlur = 0;
+
+            // Ladder rungs
+            ctx.strokeStyle = '#8B7355';
+            ctx.lineWidth = 4;
+            for (let y = canvas.height / 2 - 40; y < canvas.height / 2 + 40; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - 55, y);
+                ctx.lineTo(canvas.width - 15, y);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = '#69db7c';
+            ctx.font = '14px Georgia';
+            ctx.fillText('↑ EXIT', canvas.width - 35, canvas.height / 2 + 70);
+        }
+
+        function enterBonusRoom() {
+            game.inBonusRoom = true;
+            game.roomBeforeBonus = game.room;
+            game.player.x = 100;
+            game.player.y = 300;
+            spawnBonusRoomTreasures();
+
+            document.getElementById('bonusBanner').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('bonusBanner').classList.add('hidden');
+            }, 2000);
+
+            updateMiniMap();
+        }
+
+        function exitBonusRoom() {
+            game.inBonusRoom = false;
+            game.bonusRoomCleared = true;
+            game.player.x = 100;
+            game.player.y = 300;
+            game.treasures = [];
+            updateMiniMap();
+        }
+
+        function updateHUD() {
+            // Lives
+            let hearts = '';
+            for (let i = 0; i < game.player.maxLives; i++) {
+                hearts += i < game.player.lives ? '❤️' : '🖤';
+            }
+            document.getElementById('hearts').textContent = hearts;
+
+            // Player health
+            const playerPercent = (game.player.hp / game.player.maxHp) * 100;
+            document.getElementById('playerHealthBar').style.width = playerPercent + '%';
+
+            // Room
+            document.getElementById('roomNum').textContent = game.room;
+
+            // Enemy count
+            const aliveMonsters = game.monsters.filter(m => m.hp > 0).length;
+            const knightAlive = game.knight && game.knight.hp > 0 ? 1 : 0;
+            document.getElementById('enemyCount').textContent = `Enemies: ${aliveMonsters + knightAlive}`;
+
+            // Knight
+            if (game.knight) {
+                document.getElementById('knightName').textContent = game.knight.name;
+                const knightPercent = Math.max(0, (game.knight.hp / game.knight.maxHp) * 100);
+                document.getElementById('enemyHealthBar').style.width = knightPercent + '%';
+            }
+        }
+
+        function updateMiniMap() {
+            // Update room label
+            if (game.inBonusRoom) {
+                document.getElementById('mapRoomNum').textContent = 'BONUS';
+            } else {
+                document.getElementById('mapRoomNum').textContent = game.room;
+            }
+
+            // Update each room window on the castle
+            for (let i = 1; i <= 10; i++) {
+                const roomEl = document.getElementById('room' + i);
+                if (!roomEl) continue;
+
+                // Remove all state classes
+                roomEl.classList.remove('cleared', 'current', 'next');
+
+                if (i < game.room) {
+                    roomEl.classList.add('cleared');
+                    roomEl.textContent = '✓';
+                } else if (i === game.room && !game.inBonusRoom) {
+                    roomEl.classList.add('current');
+                    roomEl.textContent = '⚔';
+                } else if (i === game.room + 1) {
+                    roomEl.classList.add('next');
+                    roomEl.textContent = i;
+                } else {
+                    roomEl.textContent = i;
+                }
+            }
+
+            // Update bonus room window - only show if discovered
+            const bonusWindow = document.getElementById('bonusRoomWindow');
+            if (bonusWindow) {
+                bonusWindow.classList.remove('available', 'cleared');
+
+                if (game.inBonusRoom) {
+                    // Show on map when inside
+                    bonusWindow.classList.remove('hidden');
+                    bonusWindow.classList.add('available');
+                    bonusWindow.textContent = '⚔';
+                } else if (game.bonusRoomCleared) {
+                    // Show on map after cleared
+                    bonusWindow.classList.remove('hidden');
+                    bonusWindow.classList.add('cleared');
+                    bonusWindow.textContent = '✓';
+                } else {
+                    // Keep hidden until discovered
+                    bonusWindow.classList.add('hidden');
+                }
+            }
+
+            // Show princess waving when close to room 10
+            const princess = document.getElementById('princessIcon');
+            if (game.room >= 8) {
+                princess.style.animation = 'princess-wave 0.5s infinite alternate';
+            } else {
+                princess.style.animation = 'none';
+            }
+        }
+
+        function showRoomBanner() {
+            game.showingBanner = true;
+            const banner = document.getElementById('roomBanner');
+            document.getElementById('bannerTitle').textContent = `Room ${game.room}`;
+            document.getElementById('bannerKnight').textContent = KNIGHTS[game.room - 1].name;
+
+            const monsterCount = Math.min(game.room, 6);
+            document.getElementById('bannerMonsters').textContent = `+ ${monsterCount} monster${monsterCount > 1 ? 's' : ''}!`;
+
+            banner.classList.remove('hidden');
+
+            setTimeout(() => {
+                banner.classList.add('hidden');
+                game.showingBanner = false;
+            }, 2000);
+        }
+
+        function showCastleMap() {
+            game.showingMap = true;
+            const mapOverlay = document.getElementById('mapOverlay');
+            const castleMap = document.getElementById('castleMap');
+
+            // Build the map
+            castleMap.innerHTML = '';
+            for (let i = 1; i <= 10; i++) {
+                const room = document.createElement('div');
+                room.className = 'map-room';
+
+                if (i < game.room) {
+                    room.classList.add('cleared');
+                    room.innerHTML = `✓<span>Room ${i}</span>`;
+                } else if (i === game.room) {
+                    room.classList.add('current');
+                    room.innerHTML = `📍<span>Room ${i}</span>`;
+                } else if (i === game.room + 1) {
+                    room.classList.add('next');
+                    room.innerHTML = `⚔️<span>Room ${i}</span>`;
+                    // Add arrow pointing to next room
+                    if (i === 5) {
+                        const arrow = document.createElement('div');
+                        arrow.className = 'map-arrow';
+                        arrow.textContent = '→';
+                        arrow.style.right = '-30px';
+                        arrow.style.top = '50%';
+                        arrow.style.transform = 'translateY(-50%)';
+                        room.appendChild(arrow);
+                    }
+                } else {
+                    room.innerHTML = `?<span>Room ${i}</span>`;
+                }
+
+                castleMap.appendChild(room);
+            }
+
+            mapOverlay.classList.remove('hidden');
+        }
+
+        function hideCastleMap() {
+            game.showingMap = false;
+            document.getElementById('mapOverlay').classList.add('hidden');
+        }
+
+        function nextRoom() {
+            // Show map after room 4
+            if (game.room === 4) {
+                showCastleMap();
+                return;
+            }
+
+            proceedToNextRoom();
+        }
+
+        function proceedToNextRoom() {
+            game.room++;
+            if (game.room > 10) {
+                victory();
+                return;
+            }
+
+            // Restore player
+            game.player.hp = game.player.maxHp;
+            game.player.lives = game.player.maxLives;
+            game.player.x = 100;
+            game.player.y = 300;
+
+            // Make bonus room available after room 5 (only once)
+            if (game.room === 6 && !game.bonusRoomCleared) {
+                game.bonusRoomAvailable = true;
+            }
+
+            // New enemies
+            game.knight = new Knight(game.room);
+            game.monsters = getMonstersForRoom(game.room);
+
+            updateHUD();
+            updateMiniMap();
+            showRoomBanner();
+        }
+
+        function victory() {
+            game.running = false;
+            document.getElementById('miniMap').classList.add('hidden');
+            document.getElementById('scoreDisplay').classList.add('hidden');
+
+            // Update victory screen with gold
+            const victoryScreen = document.getElementById('victoryScreen');
+            let goldText = victoryScreen.querySelector('.gold-total');
+            if (!goldText) {
+                goldText = document.createElement('p');
+                goldText.className = 'gold-total';
+                goldText.style.color = '#ffd700';
+                goldText.style.fontSize = '1.5em';
+                goldText.style.marginTop = '20px';
+                victoryScreen.querySelector('.emoji').after(goldText);
+            }
+            goldText.textContent = `💰 Total Gold: ${game.gold}`;
+
+            document.getElementById('victoryScreen').classList.remove('hidden');
+        }
+
+        function defeat() {
+            game.running = false;
+            document.getElementById('miniMap').classList.add('hidden');
+            document.getElementById('scoreDisplay').classList.add('hidden');
+            document.getElementById('defeatRoom').textContent = `You reached Room ${game.room} | Gold: ${game.gold}`;
+            document.getElementById('defeatScreen').classList.remove('hidden');
+        }
+
+        function startGame() {
+            game = {
+                running: true,
+                room: 1,
+                player: new Player(),
+                knight: new Knight(1),
+                monsters: getMonstersForRoom(1),
+                keys: {},
+                attackCooldown: 0,
+                damageFlash: 0,
+                knightDamageFlash: 0,
+                particles: [],
+                showingBanner: false,
+                showingMap: false
+            };
+
+            document.getElementById('titleScreen').classList.add('hidden');
+            document.getElementById('victoryScreen').classList.add('hidden');
+            document.getElementById('defeatScreen').classList.add('hidden');
+            document.getElementById('mapOverlay').classList.add('hidden');
+            document.getElementById('miniMap').classList.remove('hidden');
+            document.getElementById('scoreDisplay').classList.remove('hidden');
+            document.getElementById('bonusBanner').classList.add('hidden');
+
+            updateHUD();
+            updateMiniMap();
+            updateGoldDisplay();
+            showRoomBanner();
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!game.running) return;
+
+            // Update
+            if (!game.showingBanner && !game.showingMap) {
+                game.player.update();
+
+                if (game.inBonusRoom) {
+                    // Update treasures in bonus room
+                    game.treasures.forEach(t => t.update());
+                } else {
+                    if (game.knight && game.knight.hp > 0) {
+                        game.knight.update();
+                    }
+
+                    game.monsters.forEach(monster => {
+                        if (monster.hp > 0) {
+                            monster.update();
+                        }
+                    });
+                }
+            }
+
+            if (game.attackCooldown > 0) game.attackCooldown--;
+            if (game.damageFlash > 0) game.damageFlash--;
+            if (game.knightDamageFlash > 0) game.knightDamageFlash--;
+
+            // Update particles
+            game.particles = game.particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                return p.life > 0;
+            });
+
+            if (game.inBonusRoom) {
+                // Check for bonus room exit
+                if (game.player.x > canvas.width - 80 &&
+                    game.player.y > canvas.height / 2 - 60 &&
+                    game.player.y < canvas.height / 2 + 60) {
+                    exitBonusRoom();
+                }
+            } else {
+                // Check for room exit
+                const knightDefeated = !game.knight || game.knight.hp <= 0;
+                const monstersDefeated = game.monsters.length === 0 || game.monsters.every(m => m.hp <= 0);
+                const allDefeated = knightDefeated && monstersDefeated && game.monsters.length > 0;
+
+                if (allDefeated) {
+                    // Check for bonus room entrance
+                    if (game.bonusRoomAvailable && !game.bonusRoomCleared &&
+                        game.player.x > 70 && game.player.x < 160 &&
+                        game.player.y > canvas.height - 80) {
+                        enterBonusRoom();
+                    }
+                    // Check for next room
+                    else if (game.player.x > canvas.width - 80) {
+                        nextRoom();
+                    }
+                }
+            }
+
+            // Check defeat
+            if (game.player.lives <= 0) {
+                defeat();
+                return;
+            }
+
+            // Draw
+            drawRoom();
+            game.player.draw();
+
+            if (game.inBonusRoom) {
+                // Draw treasures
+                game.treasures.forEach(t => t.draw());
+
+                // Instructions
+                const collected = game.treasures.filter(t => t.collected).length;
+                const total = game.treasures.length;
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 18px Georgia';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Collected: ${collected}/${total} - Exit when ready →`, canvas.width / 2, canvas.height - 30);
+            } else {
+                if (game.knight && game.knight.hp > 0) {
+                    game.knight.draw();
+                }
+
+                game.monsters.forEach(monster => {
+                    if (monster.hp > 0) {
+                        monster.draw();
+                    }
+                });
+
+                // Room cleared message
+                const knightDead = !game.knight || game.knight.hp <= 0;
+                const monstersDead = game.monsters.every(m => m.hp <= 0);
+                const roomCleared = knightDead && monstersDead && game.monsters.length > 0;
+
+                if (roomCleared) {
+                    ctx.fillStyle = '#69db7c';
+                    ctx.font = 'bold 20px Georgia';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Room Cleared! Go to the door →', canvas.width / 2, canvas.height - 30);
+                }
+            }
+
+            // Draw particles
+            game.particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 20;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+
+            updateHUD();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            game.keys[e.code] = true;
+
+            if (e.code === 'Space') {
+                e.preventDefault();
+
+                // If showing map, continue to next room
+                if (game.showingMap) {
+                    hideCastleMap();
+                    proceedToNextRoom();
+                    return;
+                }
+
+                if (game.player && game.running && !game.showingBanner) {
+                    game.player.attack();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            game.keys[e.code] = false;
+        });
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn1').addEventListener('click', startGame);
+        document.getElementById('restartBtn2').addEventListener('click', startGame);
+    </script>
+</body>
+</html>

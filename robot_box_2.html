@@ -1,0 +1,2793 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Robot Box 2 - Tower Defense</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #gameContainer {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        #gameCanvas {
+            border: 3px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            cursor: crosshair;
+        }
+        #sidebar {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ffff;
+            padding: 15px;
+            width: 200px;
+            color: #fff;
+        }
+        .stat {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .stat-label {
+            color: #888;
+        }
+        .stat-value {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        #towerSelect {
+            margin-top: 20px;
+        }
+        #towerSelect h3 {
+            color: #00ffff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .towerBtn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #222;
+            border: 2px solid #444;
+            color: #fff;
+            cursor: pointer;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .towerBtn:hover {
+            border-color: #00ffff;
+            background: #333;
+        }
+        .towerBtn.selected {
+            border-color: #00ff00;
+            background: #003300;
+        }
+        .towerBtn .cost {
+            color: #ffff00;
+            float: right;
+        }
+        #waveInfo {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #444;
+        }
+        #startWave {
+            width: 100%;
+            padding: 12px;
+            background: #004400;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        #startWave:hover {
+            background: #006600;
+        }
+        #startWave:disabled {
+            background: #333;
+            border-color: #666;
+            color: #666;
+            cursor: not-allowed;
+        }
+        #upgradePanel {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #444;
+            display: none;
+        }
+        #upgradePanel h3 {
+            color: #ffaa00;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        #upgradeBtn, #sellBtn {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 5px;
+            border: 2px solid;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        #upgradeBtn {
+            background: #442200;
+            border-color: #ffaa00;
+            color: #ffaa00;
+        }
+        #sellBtn {
+            background: #440000;
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+        #gameOver {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        #gameOver h1 {
+            color: #ff0000;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        #gameOver p {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        #restartBtn {
+            padding: 15px 40px;
+            background: #004400;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+        }
+        #instructions {
+            color: #666;
+            font-size: 11px;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+        #levelsBtn {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 30px;
+            background: #002244;
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 50;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+        #levelsBtn:hover {
+            background: #003366;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+        }
+        #levelSelect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 200;
+        }
+        #levelSelect h1 {
+            color: #00ffff;
+            font-size: 36px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        #levelGrid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            max-width: 600px;
+        }
+        .levelBtn {
+            width: 80px;
+            height: 80px;
+            background: #112233;
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .levelBtn:hover {
+            background: #224466;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        .levelBtn.completed {
+            background: #003300;
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+        #closeLevelSelect {
+            margin-top: 30px;
+            padding: 10px 30px;
+            background: #440000;
+            border: 2px solid #ff4444;
+            color: #ff4444;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        #closeLevelSelect:hover {
+            background: #660000;
+        }
+        #currentLevel {
+            color: #ffaa00;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        #farmingBtn {
+            position: fixed;
+            top: 15px;
+            left: calc(50% + 100px);
+            padding: 12px 20px;
+            background: #224400;
+            border: 2px solid #88ff00;
+            color: #88ff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 50;
+            box-shadow: 0 0 15px rgba(136, 255, 0, 0.3);
+        }
+        #farmingBtn:hover {
+            background: #336600;
+            box-shadow: 0 0 25px rgba(136, 255, 0, 0.5);
+        }
+        #farmingMode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a3a1a;
+            display: none;
+            z-index: 300;
+        }
+        #farmCanvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid #88ff00;
+            box-shadow: 0 0 30px rgba(136, 255, 0, 0.3);
+        }
+        #farmSidebar {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #88ff00;
+            padding: 15px;
+            width: 200px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+        #farmSidebar h2 {
+            color: #88ff00;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .farmStat {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .farmStat-label {
+            color: #888;
+        }
+        .farmStat-value {
+            color: #88ff00;
+            font-weight: bold;
+        }
+        #upgradeBtn {
+            width: 100%;
+            padding: 12px;
+            background: #004400;
+            border: 2px solid #88ff00;
+            color: #88ff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        #upgradeBtn:hover {
+            background: #006600;
+        }
+        #upgradeBtn:disabled {
+            background: #333;
+            border-color: #666;
+            color: #666;
+            cursor: not-allowed;
+        }
+        #sellCropsBtn {
+            width: 100%;
+            padding: 10px;
+            background: #444400;
+            border: 2px solid #ffff00;
+            color: #ffff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        #sellCropsBtn:hover:not(:disabled) {
+            background: #666600;
+        }
+        #sellCropsBtn:disabled {
+            background: #333;
+            border-color: #666;
+            color: #666;
+            cursor: not-allowed;
+            font-size: 10px;
+        }
+        #exitFarmBtn {
+            width: 100%;
+            padding: 10px;
+            background: #440000;
+            border: 2px solid #ff4444;
+            color: #ff4444;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        #exitFarmBtn:hover {
+            background: #660000;
+        }
+        #farmInstructions {
+            color: #666;
+            font-size: 10px;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+        #farmWin {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 50, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 400;
+        }
+        #farmWin h1 {
+            color: #88ff00;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(136, 255, 0, 0.8);
+        }
+        #farmWin p {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        #farmWinBtn {
+            padding: 15px 40px;
+            background: #004400;
+            border: 2px solid #88ff00;
+            color: #88ff00;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+        }
+        #farmFail {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(50, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 400;
+        }
+        #farmFail h1 {
+            color: #ff3333;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(255, 50, 50, 0.8);
+        }
+        #farmFail p {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        #farmFailBtn {
+            padding: 15px 40px;
+            background: #440000;
+            border: 2px solid #ff3333;
+            color: #ff3333;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <button id="levelsBtn">LEVELS</button>
+    <button id="farmingBtn">FARMING</button>
+
+    <!-- Farming Mode -->
+    <div id="farmingMode">
+        <canvas id="farmCanvas" width="600" height="500"></canvas>
+        <div id="farmSidebar">
+            <h2>ROBOT FARM</h2>
+            <div class="farmStat">
+                <span class="farmStat-label">COINS:</span>
+                <span class="farmStat-value" id="farmCoins">$0</span>
+            </div>
+            <div class="farmStat">
+                <span class="farmStat-label">GRADE:</span>
+                <span class="farmStat-value" id="farmGrade">1</span>
+            </div>
+            <div class="farmStat">
+                <span class="farmStat-label">TIME:</span>
+                <span class="farmStat-value" id="farmTime" style="color: #ff6666;">60</span>
+            </div>
+            <div class="farmStat">
+                <span class="farmStat-label">CROPS:</span>
+                <span class="farmStat-value" id="farmCrops">0</span>
+            </div>
+            <div class="farmStat">
+                <span class="farmStat-label">FARM BOT:</span>
+                <span class="farmStat-value" id="farmBotStatus">Active</span>
+            </div>
+            <div class="farmStat" id="cowStat" style="display:none;">
+                <span class="farmStat-label">COWS:</span>
+                <span class="farmStat-value" id="farmCowCount">0</span>
+            </div>
+            <div class="farmStat" id="chickenStat" style="display:none;">
+                <span class="farmStat-label">CHICKENS:</span>
+                <span class="farmStat-value" id="farmChickenCount">0</span>
+            </div>
+            <div class="farmStat" id="eggStat" style="display:none;">
+                <span class="farmStat-label">EGGS:</span>
+                <span class="farmStat-value" id="farmEggCount">0</span>
+            </div>
+            <div class="farmStat" id="pigStat" style="display:none;">
+                <span class="farmStat-label">PIGS:</span>
+                <span class="farmStat-value" id="farmPigCount">0</span>
+            </div>
+            <div class="farmStat" id="sheepStat" style="display:none;">
+                <span class="farmStat-label">SHEEP:</span>
+                <span class="farmStat-value" id="farmSheepCount">0</span>
+            </div>
+            <button id="upgradeBtn">UPGRADE $50</button>
+            <button id="sellCropsBtn" disabled>SELL CROPS (Unlock at Grade 2)</button>
+            <button id="exitFarmBtn">EXIT FARM</button>
+            <div id="farmInstructions">
+                WASD or Arrows to move.<br>
+                Walk over crops to collect!<br>
+                Farm Bot auto-plants crops.<br>
+                Grade 2: Sell crops button<br>
+                Grade 3: Milk the cows!<br>
+                Grade 4: Collect eggs!<br>
+                Grade 5: Feed the pigs!<br>
+                Grade 6: Shear the sheep!<br>
+                Upgrade to win!
+            </div>
+        </div>
+    </div>
+
+    <!-- Farm Win Screen -->
+    <div id="farmWin">
+        <h1>YOU WIN!</h1>
+        <p>You maxed out your farm!</p>
+        <button id="farmWinBtn">PLAY AGAIN</button>
+    </div>
+
+    <div id="farmFail">
+        <h1>FAIL</h1>
+        <p>Time ran out!</p>
+        <button id="farmFailBtn">TRY AGAIN</button>
+    </div>
+
+    <div id="levelSelect">
+        <h1>SELECT LEVEL</h1>
+        <div id="levelGrid"></div>
+        <button id="closeLevelSelect">CLOSE</button>
+    </div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="sidebar">
+            <div class="stat">
+                <span class="stat-label">LIVES:</span>
+                <span class="stat-value" id="lives">20</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">MONEY:</span>
+                <span class="stat-value" id="money">$100</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">LEVEL:</span>
+                <span class="stat-value" id="currentLevelDisplay">1</span>
+                <div id="levelName" style="color:#ffaa00;font-size:11px;margin-top:2px;">First Steps</div>
+            </div>
+            <div class="stat">
+                <span class="stat-label">WAVE:</span>
+                <span class="stat-value" id="wave">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">KILLS:</span>
+                <span class="stat-value" id="kills">0</span>
+            </div>
+
+            <div id="towerSelect">
+                <h3>SELECT TOWER</h3>
+                <button class="towerBtn" data-tower="basic">
+                    Basic Tower <span class="cost">$50</span>
+                </button>
+                <button class="towerBtn" data-tower="sniper">
+                    Sniper Tower <span class="cost">$100</span>
+                </button>
+                <button class="towerBtn" data-tower="splash">
+                    Splash Tower <span class="cost">$150</span>
+                </button>
+                <button class="towerBtn" data-tower="slow">
+                    Slow Tower <span class="cost">$75</span>
+                </button>
+                <button class="towerBtn" data-tower="laser">
+                    Laser Tower <span class="cost">$200</span>
+                </button>
+            </div>
+
+            <div id="waveInfo">
+                <div class="stat">
+                    <span class="stat-label">ENEMIES LEFT:</span>
+                    <span class="stat-value" id="enemiesLeft">0</span>
+                </div>
+                <button id="startWave">START WAVE 1</button>
+            </div>
+
+            <div id="upgradePanel">
+                <h3 id="selectedTowerName">TOWER</h3>
+                <div class="stat">
+                    <span class="stat-label">LEVEL:</span>
+                    <span class="stat-value" id="towerLevel">1</span>
+                </div>
+                <button id="upgradeBtn">UPGRADE $50</button>
+                <button id="sellBtn">SELL $25</button>
+            </div>
+
+            <div id="instructions">
+                Click grid to place towers.<br>
+                Place tower on tower to merge!<br>
+                Same type = +2 levels.<br>
+                Don't let enemies reach the end!
+            </div>
+        </div>
+    </div>
+
+    <div id="gameOver">
+        <h1>GAME OVER</h1>
+        <p>You reached: <span id="finalWave">0</span></p>
+        <button id="restartBtn">PLAY AGAIN</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 30 Unique Paths for each level
+        const PATHS = {
+            // Level 1: Simple straight path
+            1: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:13,y:7},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 2: L-shape
+            2: [{x:-1,y:2},{x:0,y:2},{x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},{x:5,y:2},{x:6,y:2},{x:7,y:2},{x:8,y:2},{x:9,y:2},{x:10,y:2},{x:10,y:3},{x:10,y:4},{x:10,y:5},{x:10,y:6},{x:10,y:7},{x:10,y:8},{x:10,y:9},{x:10,y:10},{x:10,y:11},{x:10,y:12},{x:11,y:12},{x:12,y:12},{x:13,y:12},{x:14,y:12},{x:15,y:12},{x:16,y:12},{x:17,y:12},{x:18,y:12},{x:19,y:12},{x:20,y:12}],
+
+            // Level 3: S-curve
+            3: [{x:-1,y:1},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:6,y:1},{x:7,y:1},{x:8,y:1},{x:9,y:1},{x:10,y:1},{x:10,y:2},{x:10,y:3},{x:10,y:4},{x:10,y:5},{x:10,y:6},{x:10,y:7},{x:9,y:7},{x:8,y:7},{x:7,y:7},{x:6,y:7},{x:5,y:7},{x:4,y:7},{x:3,y:7},{x:2,y:7},{x:2,y:8},{x:2,y:9},{x:2,y:10},{x:2,y:11},{x:2,y:12},{x:2,y:13},{x:3,y:13},{x:4,y:13},{x:5,y:13},{x:6,y:13},{x:7,y:13},{x:8,y:13},{x:9,y:13},{x:10,y:13},{x:11,y:13},{x:12,y:13},{x:13,y:13},{x:14,y:13},{x:15,y:13},{x:16,y:13},{x:17,y:13},{x:18,y:13},{x:19,y:13},{x:20,y:13}],
+
+            // Level 4: Zigzag
+            4: [{x:-1,y:1},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:5,y:2},{x:5,y:3},{x:5,y:4},{x:4,y:4},{x:3,y:4},{x:2,y:4},{x:1,y:4},{x:0,y:4},{x:0,y:5},{x:0,y:6},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:5,y:8},{x:5,y:9},{x:5,y:10},{x:4,y:10},{x:3,y:10},{x:2,y:10},{x:1,y:10},{x:0,y:10},{x:0,y:11},{x:0,y:12},{x:0,y:13},{x:1,y:13},{x:2,y:13},{x:3,y:13},{x:4,y:13},{x:5,y:13},{x:6,y:13},{x:7,y:13},{x:8,y:13},{x:9,y:13},{x:10,y:13},{x:11,y:13},{x:12,y:13},{x:13,y:13},{x:14,y:13},{x:15,y:13},{x:16,y:13},{x:17,y:13},{x:18,y:13},{x:19,y:13},{x:20,y:13}],
+
+            // Level 5: Spiral inward
+            5: [{x:-1,y:0},{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:5,y:0},{x:6,y:0},{x:7,y:0},{x:8,y:0},{x:9,y:0},{x:10,y:0},{x:11,y:0},{x:12,y:0},{x:13,y:0},{x:14,y:0},{x:14,y:1},{x:14,y:2},{x:14,y:3},{x:14,y:4},{x:14,y:5},{x:14,y:6},{x:14,y:7},{x:14,y:8},{x:14,y:9},{x:14,y:10},{x:14,y:11},{x:14,y:12},{x:13,y:12},{x:12,y:12},{x:11,y:12},{x:10,y:12},{x:9,y:12},{x:8,y:12},{x:7,y:12},{x:6,y:12},{x:5,y:12},{x:4,y:12},{x:3,y:12},{x:2,y:12},{x:2,y:11},{x:2,y:10},{x:2,y:9},{x:2,y:8},{x:2,y:7},{x:2,y:6},{x:2,y:5},{x:2,y:4},{x:2,y:3},{x:3,y:3},{x:4,y:3},{x:5,y:3},{x:6,y:3},{x:7,y:3},{x:8,y:3},{x:9,y:3},{x:10,y:3},{x:11,y:3},{x:11,y:4},{x:11,y:5},{x:11,y:6},{x:11,y:7},{x:11,y:8},{x:11,y:9},{x:10,y:9},{x:9,y:9},{x:8,y:9},{x:7,y:9},{x:6,y:9},{x:5,y:9},{x:5,y:8},{x:5,y:7},{x:5,y:6},{x:6,y:6},{x:7,y:6},{x:8,y:6},{x:20,y:6}],
+
+            // Level 6: Double loop
+            6: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:3,y:6},{x:3,y:5},{x:3,y:4},{x:3,y:3},{x:4,y:3},{x:5,y:3},{x:6,y:3},{x:6,y:4},{x:6,y:5},{x:6,y:6},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:10,y:8},{x:10,y:9},{x:10,y:10},{x:10,y:11},{x:11,y:11},{x:12,y:11},{x:13,y:11},{x:13,y:10},{x:13,y:9},{x:13,y:8},{x:13,y:7},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 7: Cross pattern
+            7: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:9,y:6},{x:9,y:5},{x:9,y:4},{x:9,y:3},{x:9,y:2},{x:9,y:1},{x:10,y:1},{x:11,y:1},{x:11,y:2},{x:11,y:3},{x:11,y:4},{x:11,y:5},{x:11,y:6},{x:11,y:7},{x:11,y:8},{x:11,y:9},{x:11,y:10},{x:11,y:11},{x:11,y:12},{x:11,y:13},{x:12,y:13},{x:13,y:13},{x:13,y:12},{x:13,y:11},{x:13,y:10},{x:13,y:9},{x:13,y:8},{x:13,y:7},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 8: Winding river
+            8: [{x:-1,y:3},{x:0,y:3},{x:1,y:3},{x:2,y:3},{x:2,y:4},{x:2,y:5},{x:3,y:5},{x:4,y:5},{x:5,y:5},{x:5,y:4},{x:5,y:3},{x:5,y:2},{x:6,y:2},{x:7,y:2},{x:8,y:2},{x:8,y:3},{x:8,y:4},{x:8,y:5},{x:8,y:6},{x:8,y:7},{x:8,y:8},{x:9,y:8},{x:10,y:8},{x:11,y:8},{x:11,y:9},{x:11,y:10},{x:11,y:11},{x:12,y:11},{x:13,y:11},{x:14,y:11},{x:14,y:10},{x:14,y:9},{x:14,y:8},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:17,y:8},{x:17,y:9},{x:17,y:10},{x:18,y:10},{x:19,y:10},{x:20,y:10}],
+
+            // Level 9: Diamond shape
+            9: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:4,y:6},{x:5,y:5},{x:6,y:4},{x:7,y:3},{x:8,y:2},{x:9,y:1},{x:10,y:2},{x:11,y:3},{x:12,y:4},{x:13,y:5},{x:14,y:6},{x:15,y:7},{x:14,y:8},{x:13,y:9},{x:12,y:10},{x:11,y:11},{x:10,y:12},{x:11,y:13},{x:12,y:13},{x:13,y:13},{x:14,y:13},{x:15,y:13},{x:16,y:13},{x:17,y:13},{x:18,y:13},{x:19,y:13},{x:20,y:13}],
+
+            // Level 10: The Gauntlet
+            10: [{x:-1,y:1},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:6,y:1},{x:7,y:1},{x:8,y:1},{x:9,y:1},{x:10,y:1},{x:11,y:1},{x:12,y:1},{x:13,y:1},{x:14,y:1},{x:14,y:2},{x:14,y:3},{x:14,y:4},{x:13,y:4},{x:12,y:4},{x:11,y:4},{x:10,y:4},{x:9,y:4},{x:8,y:4},{x:7,y:4},{x:6,y:4},{x:5,y:4},{x:4,y:4},{x:3,y:4},{x:2,y:4},{x:1,y:4},{x:0,y:4},{x:0,y:5},{x:0,y:6},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:13,y:7},{x:14,y:7},{x:14,y:8},{x:14,y:9},{x:14,y:10},{x:13,y:10},{x:12,y:10},{x:11,y:10},{x:10,y:10},{x:9,y:10},{x:8,y:10},{x:7,y:10},{x:6,y:10},{x:5,y:10},{x:4,y:10},{x:3,y:10},{x:2,y:10},{x:1,y:10},{x:0,y:10},{x:0,y:11},{x:0,y:12},{x:0,y:13},{x:1,y:13},{x:2,y:13},{x:3,y:13},{x:4,y:13},{x:5,y:13},{x:6,y:13},{x:7,y:13},{x:8,y:13},{x:9,y:13},{x:10,y:13},{x:11,y:13},{x:12,y:13},{x:13,y:13},{x:14,y:13},{x:15,y:13},{x:16,y:13},{x:17,y:13},{x:18,y:13},{x:19,y:13},{x:20,y:13}],
+
+            // Level 11: Snake pit
+            11: [{x:-1,y:0},{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:4,y:1},{x:4,y:2},{x:3,y:2},{x:2,y:2},{x:1,y:2},{x:0,y:2},{x:0,y:3},{x:0,y:4},{x:1,y:4},{x:2,y:4},{x:3,y:4},{x:4,y:4},{x:4,y:5},{x:4,y:6},{x:3,y:6},{x:2,y:6},{x:1,y:6},{x:0,y:6},{x:0,y:7},{x:0,y:8},{x:1,y:8},{x:2,y:8},{x:3,y:8},{x:4,y:8},{x:4,y:9},{x:4,y:10},{x:3,y:10},{x:2,y:10},{x:1,y:10},{x:0,y:10},{x:0,y:11},{x:0,y:12},{x:1,y:12},{x:2,y:12},{x:3,y:12},{x:4,y:12},{x:5,y:12},{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:9,y:12},{x:10,y:12},{x:11,y:12},{x:12,y:12},{x:13,y:12},{x:14,y:12},{x:15,y:12},{x:16,y:12},{x:17,y:12},{x:18,y:12},{x:19,y:12},{x:20,y:12}],
+
+            // Level 12: Two paths merge
+            12: [{x:-1,y:2},{x:0,y:2},{x:1,y:2},{x:2,y:2},{x:3,y:2},{x:4,y:2},{x:5,y:2},{x:6,y:2},{x:6,y:3},{x:6,y:4},{x:6,y:5},{x:6,y:6},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:13,y:7},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 13: Maze runner
+            13: [{x:-1,y:1},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:2,y:2},{x:2,y:3},{x:3,y:3},{x:4,y:3},{x:4,y:4},{x:4,y:5},{x:4,y:6},{x:4,y:7},{x:5,y:7},{x:6,y:7},{x:6,y:6},{x:6,y:5},{x:7,y:5},{x:8,y:5},{x:8,y:6},{x:8,y:7},{x:8,y:8},{x:8,y:9},{x:9,y:9},{x:10,y:9},{x:10,y:8},{x:10,y:7},{x:10,y:6},{x:10,y:5},{x:11,y:5},{x:12,y:5},{x:12,y:6},{x:12,y:7},{x:12,y:8},{x:12,y:9},{x:12,y:10},{x:12,y:11},{x:13,y:11},{x:14,y:11},{x:14,y:10},{x:14,y:9},{x:14,y:8},{x:15,y:8},{x:16,y:8},{x:17,y:8},{x:18,y:8},{x:19,y:8},{x:20,y:8}],
+
+            // Level 14: Horseshoe
+            14: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:2,y:6},{x:2,y:5},{x:2,y:4},{x:2,y:3},{x:2,y:2},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:6,y:1},{x:7,y:1},{x:8,y:1},{x:9,y:1},{x:10,y:1},{x:11,y:1},{x:12,y:1},{x:13,y:1},{x:14,y:1},{x:15,y:1},{x:16,y:1},{x:17,y:1},{x:17,y:2},{x:17,y:3},{x:17,y:4},{x:17,y:5},{x:17,y:6},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 15: Boss Arena
+            15: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:5,y:6},{x:5,y:5},{x:5,y:4},{x:6,y:4},{x:7,y:4},{x:8,y:4},{x:9,y:4},{x:10,y:4},{x:10,y:5},{x:10,y:6},{x:10,y:7},{x:10,y:8},{x:10,y:9},{x:10,y:10},{x:9,y:10},{x:8,y:10},{x:7,y:10},{x:6,y:10},{x:5,y:10},{x:5,y:9},{x:5,y:8},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:13,y:7},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 16: Double helix
+            16: [{x:-1,y:3},{x:0,y:3},{x:1,y:4},{x:2,y:5},{x:3,y:6},{x:4,y:7},{x:5,y:8},{x:6,y:9},{x:7,y:10},{x:8,y:9},{x:9,y:8},{x:10,y:7},{x:11,y:6},{x:12,y:5},{x:13,y:4},{x:14,y:5},{x:15,y:6},{x:16,y:7},{x:17,y:8},{x:18,y:9},{x:19,y:10},{x:20,y:10}],
+
+            // Level 17: Castle walls
+            17: [{x:-1,y:13},{x:0,y:13},{x:1,y:13},{x:2,y:13},{x:2,y:12},{x:2,y:11},{x:2,y:10},{x:2,y:9},{x:2,y:8},{x:2,y:7},{x:2,y:6},{x:2,y:5},{x:2,y:4},{x:2,y:3},{x:2,y:2},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:6,y:1},{x:7,y:1},{x:7,y:2},{x:7,y:3},{x:7,y:4},{x:7,y:5},{x:7,y:6},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:12,y:6},{x:12,y:5},{x:12,y:4},{x:12,y:3},{x:12,y:2},{x:12,y:1},{x:13,y:1},{x:14,y:1},{x:15,y:1},{x:16,y:1},{x:17,y:1},{x:17,y:2},{x:17,y:3},{x:17,y:4},{x:17,y:5},{x:17,y:6},{x:17,y:7},{x:17,y:8},{x:17,y:9},{x:17,y:10},{x:17,y:11},{x:17,y:12},{x:17,y:13},{x:18,y:13},{x:19,y:13},{x:20,y:13}],
+
+            // Level 18: Lightning bolt
+            18: [{x:-1,y:0},{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:1},{x:4,y:2},{x:5,y:3},{x:6,y:4},{x:7,y:5},{x:8,y:6},{x:9,y:7},{x:8,y:8},{x:7,y:9},{x:8,y:10},{x:9,y:11},{x:10,y:12},{x:11,y:13},{x:12,y:13},{x:13,y:13},{x:14,y:13},{x:15,y:13},{x:16,y:13},{x:17,y:13},{x:18,y:13},{x:19,y:13},{x:20,y:13}],
+
+            // Level 19: The pit
+            19: [{x:-1,y:1},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:6,y:1},{x:7,y:1},{x:8,y:1},{x:9,y:1},{x:9,y:2},{x:9,y:3},{x:9,y:4},{x:9,y:5},{x:9,y:6},{x:9,y:7},{x:9,y:8},{x:9,y:9},{x:9,y:10},{x:9,y:11},{x:9,y:12},{x:10,y:12},{x:11,y:12},{x:11,y:11},{x:11,y:10},{x:11,y:9},{x:11,y:8},{x:11,y:7},{x:11,y:6},{x:11,y:5},{x:11,y:4},{x:11,y:3},{x:11,y:2},{x:11,y:1},{x:12,y:1},{x:13,y:1},{x:14,y:1},{x:15,y:1},{x:16,y:1},{x:17,y:1},{x:18,y:1},{x:19,y:1},{x:20,y:1}],
+
+            // Level 20: Infinity loop
+            20: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:6},{x:3,y:5},{x:4,y:4},{x:5,y:3},{x:6,y:4},{x:7,y:5},{x:8,y:6},{x:9,y:7},{x:10,y:6},{x:11,y:5},{x:12,y:4},{x:13,y:3},{x:14,y:4},{x:15,y:5},{x:16,y:6},{x:17,y:7},{x:16,y:8},{x:15,y:9},{x:14,y:10},{x:13,y:11},{x:12,y:10},{x:11,y:9},{x:10,y:8},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:13,y:7},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 21: Staircase
+            21: [{x:-1,y:13},{x:0,y:13},{x:1,y:13},{x:2,y:13},{x:2,y:12},{x:2,y:11},{x:3,y:11},{x:4,y:11},{x:4,y:10},{x:4,y:9},{x:5,y:9},{x:6,y:9},{x:6,y:8},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:8,y:6},{x:8,y:5},{x:9,y:5},{x:10,y:5},{x:10,y:4},{x:10,y:3},{x:11,y:3},{x:12,y:3},{x:12,y:2},{x:12,y:1},{x:13,y:1},{x:14,y:1},{x:15,y:1},{x:16,y:1},{x:17,y:1},{x:18,y:1},{x:19,y:1},{x:20,y:1}],
+
+            // Level 22: Whirlpool
+            22: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:3,y:6},{x:3,y:5},{x:3,y:4},{x:4,y:4},{x:5,y:4},{x:6,y:4},{x:7,y:4},{x:8,y:4},{x:9,y:4},{x:10,y:4},{x:11,y:4},{x:11,y:5},{x:11,y:6},{x:11,y:7},{x:11,y:8},{x:11,y:9},{x:11,y:10},{x:10,y:10},{x:9,y:10},{x:8,y:10},{x:7,y:10},{x:6,y:10},{x:5,y:10},{x:5,y:9},{x:5,y:8},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:9,y:8},{x:8,y:8},{x:7,y:8},{x:7,y:7},{x:12,y:7},{x:13,y:7},{x:14,y:7},{x:15,y:7},{x:16,y:7},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 23: DNA strand
+            23: [{x:-1,y:7},{x:0,y:6},{x:1,y:5},{x:2,y:4},{x:3,y:5},{x:4,y:6},{x:5,y:7},{x:6,y:8},{x:7,y:9},{x:8,y:10},{x:9,y:9},{x:10,y:8},{x:11,y:7},{x:12,y:6},{x:13,y:5},{x:14,y:4},{x:15,y:5},{x:16,y:6},{x:17,y:7},{x:18,y:8},{x:19,y:9},{x:20,y:9}],
+
+            // Level 24: The long march
+            24: [{x:-1,y:0},{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:5,y:0},{x:6,y:0},{x:7,y:0},{x:8,y:0},{x:9,y:0},{x:10,y:0},{x:11,y:0},{x:12,y:0},{x:13,y:0},{x:14,y:0},{x:15,y:0},{x:16,y:0},{x:17,y:0},{x:17,y:1},{x:17,y:2},{x:17,y:3},{x:17,y:4},{x:17,y:5},{x:17,y:6},{x:17,y:7},{x:17,y:8},{x:17,y:9},{x:17,y:10},{x:17,y:11},{x:17,y:12},{x:17,y:13},{x:16,y:13},{x:15,y:13},{x:14,y:13},{x:13,y:13},{x:12,y:13},{x:11,y:13},{x:10,y:13},{x:9,y:13},{x:8,y:13},{x:7,y:13},{x:6,y:13},{x:5,y:13},{x:4,y:13},{x:3,y:13},{x:2,y:13},{x:2,y:12},{x:2,y:11},{x:2,y:10},{x:2,y:9},{x:2,y:8},{x:2,y:7},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:13,y:7},{x:14,y:7},{x:14,y:6},{x:14,y:5},{x:14,y:4},{x:14,y:3},{x:13,y:3},{x:12,y:3},{x:11,y:3},{x:10,y:3},{x:9,y:3},{x:8,y:3},{x:7,y:3},{x:6,y:3},{x:5,y:3},{x:5,y:4},{x:5,y:5},{x:6,y:5},{x:7,y:5},{x:8,y:5},{x:9,y:5},{x:10,y:5},{x:11,y:5},{x:20,y:5}],
+
+            // Level 25: Checkered
+            25: [{x:-1,y:1},{x:0,y:1},{x:1,y:1},{x:2,y:1},{x:3,y:1},{x:3,y:2},{x:3,y:3},{x:3,y:4},{x:3,y:5},{x:4,y:5},{x:5,y:5},{x:6,y:5},{x:7,y:5},{x:7,y:4},{x:7,y:3},{x:7,y:2},{x:7,y:1},{x:8,y:1},{x:9,y:1},{x:10,y:1},{x:11,y:1},{x:11,y:2},{x:11,y:3},{x:11,y:4},{x:11,y:5},{x:11,y:6},{x:11,y:7},{x:11,y:8},{x:11,y:9},{x:10,y:9},{x:9,y:9},{x:8,y:9},{x:7,y:9},{x:7,y:10},{x:7,y:11},{x:7,y:12},{x:7,y:13},{x:8,y:13},{x:9,y:13},{x:10,y:13},{x:11,y:13},{x:12,y:13},{x:13,y:13},{x:14,y:13},{x:15,y:13},{x:15,y:12},{x:15,y:11},{x:15,y:10},{x:15,y:9},{x:16,y:9},{x:17,y:9},{x:18,y:9},{x:19,y:9},{x:20,y:9}],
+
+            // Level 26: Switchback
+            26: [{x:-1,y:7},{x:0,y:7},{x:1,y:7},{x:2,y:7},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:5,y:6},{x:5,y:5},{x:5,y:4},{x:5,y:3},{x:6,y:3},{x:7,y:3},{x:8,y:3},{x:9,y:3},{x:10,y:3},{x:10,y:4},{x:10,y:5},{x:10,y:6},{x:10,y:7},{x:10,y:8},{x:10,y:9},{x:10,y:10},{x:10,y:11},{x:11,y:11},{x:12,y:11},{x:13,y:11},{x:14,y:11},{x:15,y:11},{x:15,y:10},{x:15,y:9},{x:15,y:8},{x:15,y:7},{x:15,y:6},{x:15,y:5},{x:15,y:4},{x:15,y:3},{x:16,y:3},{x:17,y:3},{x:18,y:3},{x:19,y:3},{x:20,y:3}],
+
+            // Level 27: Figure eight
+            27: [{x:-1,y:7},{x:0,y:7},{x:1,y:6},{x:2,y:5},{x:3,y:4},{x:4,y:3},{x:5,y:4},{x:6,y:5},{x:7,y:6},{x:8,y:7},{x:9,y:8},{x:10,y:9},{x:11,y:10},{x:12,y:9},{x:13,y:8},{x:14,y:7},{x:13,y:6},{x:12,y:5},{x:11,y:4},{x:12,y:3},{x:13,y:2},{x:14,y:1},{x:15,y:2},{x:16,y:3},{x:17,y:4},{x:18,y:5},{x:19,y:6},{x:20,y:7}],
+
+            // Level 28: The labyrinth
+            28: [{x:-1,y:1},{x:0,y:1},{x:1,y:1},{x:1,y:2},{x:1,y:3},{x:1,y:4},{x:1,y:5},{x:2,y:5},{x:3,y:5},{x:3,y:4},{x:3,y:3},{x:3,y:2},{x:3,y:1},{x:4,y:1},{x:5,y:1},{x:5,y:2},{x:5,y:3},{x:5,y:4},{x:5,y:5},{x:5,y:6},{x:5,y:7},{x:5,y:8},{x:5,y:9},{x:4,y:9},{x:3,y:9},{x:3,y:8},{x:3,y:7},{x:4,y:7},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:7,y:8},{x:7,y:9},{x:7,y:10},{x:7,y:11},{x:8,y:11},{x:9,y:11},{x:9,y:10},{x:9,y:9},{x:9,y:8},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:11,y:6},{x:11,y:5},{x:11,y:4},{x:11,y:3},{x:12,y:3},{x:13,y:3},{x:13,y:4},{x:13,y:5},{x:13,y:6},{x:13,y:7},{x:13,y:8},{x:13,y:9},{x:14,y:9},{x:15,y:9},{x:15,y:8},{x:15,y:7},{x:15,y:6},{x:15,y:5},{x:16,y:5},{x:17,y:5},{x:17,y:6},{x:17,y:7},{x:18,y:7},{x:19,y:7},{x:20,y:7}],
+
+            // Level 29: The gauntlet extreme
+            29: [{x:-1,y:0},{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0},{x:4,y:0},{x:5,y:0},{x:6,y:0},{x:7,y:0},{x:8,y:0},{x:9,y:0},{x:10,y:0},{x:11,y:0},{x:12,y:0},{x:13,y:0},{x:14,y:0},{x:15,y:0},{x:16,y:0},{x:17,y:0},{x:17,y:1},{x:17,y:2},{x:16,y:2},{x:15,y:2},{x:14,y:2},{x:13,y:2},{x:12,y:2},{x:11,y:2},{x:10,y:2},{x:9,y:2},{x:8,y:2},{x:7,y:2},{x:6,y:2},{x:5,y:2},{x:4,y:2},{x:3,y:2},{x:2,y:2},{x:2,y:3},{x:2,y:4},{x:3,y:4},{x:4,y:4},{x:5,y:4},{x:6,y:4},{x:7,y:4},{x:8,y:4},{x:9,y:4},{x:10,y:4},{x:11,y:4},{x:12,y:4},{x:13,y:4},{x:14,y:4},{x:15,y:4},{x:16,y:4},{x:17,y:4},{x:17,y:5},{x:17,y:6},{x:16,y:6},{x:15,y:6},{x:14,y:6},{x:13,y:6},{x:12,y:6},{x:11,y:6},{x:10,y:6},{x:9,y:6},{x:8,y:6},{x:7,y:6},{x:6,y:6},{x:5,y:6},{x:4,y:6},{x:3,y:6},{x:2,y:6},{x:2,y:7},{x:2,y:8},{x:3,y:8},{x:4,y:8},{x:5,y:8},{x:6,y:8},{x:7,y:8},{x:8,y:8},{x:9,y:8},{x:10,y:8},{x:11,y:8},{x:12,y:8},{x:13,y:8},{x:14,y:8},{x:15,y:8},{x:16,y:8},{x:17,y:8},{x:17,y:9},{x:17,y:10},{x:16,y:10},{x:15,y:10},{x:14,y:10},{x:13,y:10},{x:12,y:10},{x:11,y:10},{x:10,y:10},{x:9,y:10},{x:8,y:10},{x:7,y:10},{x:6,y:10},{x:5,y:10},{x:4,y:10},{x:3,y:10},{x:2,y:10},{x:2,y:11},{x:2,y:12},{x:3,y:12},{x:4,y:12},{x:5,y:12},{x:6,y:12},{x:7,y:12},{x:8,y:12},{x:9,y:12},{x:10,y:12},{x:11,y:12},{x:12,y:12},{x:13,y:12},{x:14,y:12},{x:15,y:12},{x:16,y:12},{x:17,y:12},{x:18,y:12},{x:19,y:12},{x:20,y:12}],
+
+            // Level 30: Final Boss - Ultimate path
+            30: [{x:-1,y:7},{x:0,y:7},{x:1,y:6},{x:2,y:5},{x:3,y:4},{x:4,y:3},{x:5,y:2},{x:6,y:1},{x:7,y:1},{x:8,y:1},{x:9,y:2},{x:10,y:3},{x:10,y:4},{x:10,y:5},{x:10,y:6},{x:10,y:7},{x:10,y:8},{x:10,y:9},{x:10,y:10},{x:10,y:11},{x:9,y:12},{x:8,y:13},{x:7,y:13},{x:6,y:13},{x:5,y:12},{x:4,y:11},{x:4,y:10},{x:4,y:9},{x:4,y:8},{x:4,y:7},{x:5,y:7},{x:6,y:7},{x:7,y:7},{x:8,y:7},{x:9,y:7},{x:10,y:7},{x:11,y:7},{x:12,y:7},{x:12,y:6},{x:12,y:5},{x:12,y:4},{x:13,y:3},{x:14,y:2},{x:15,y:1},{x:16,y:1},{x:17,y:2},{x:17,y:3},{x:17,y:4},{x:17,y:5},{x:17,y:6},{x:17,y:7},{x:17,y:8},{x:17,y:9},{x:17,y:10},{x:16,y:11},{x:15,y:12},{x:14,y:13},{x:15,y:13},{x:16,y:13},{x:17,y:13},{x:18,y:13},{x:19,y:13},{x:20,y:13}]
+        };
+
+        // Level configurations (30 unique levels)
+        const LEVELS = [
+            { id: 1, name: "First Steps", waves: 3, startMoney: 150, startLives: 10, enemyHealthMult: 1, enemySpeedMult: 0.8, enemyCountMult: 0.7, rewardMult: 1, theme: '#1a1a2e', pathColor: '#3a5a3a', special: null },
+            { id: 2, name: "The Turn", waves: 3, startMoney: 150, startLives: 10, enemyHealthMult: 1.1, enemySpeedMult: 0.85, enemyCountMult: 0.8, rewardMult: 1, theme: '#1a2a1e', pathColor: '#3a5a5a', special: null },
+            { id: 3, name: "S-Curve", waves: 4, startMoney: 175, startLives: 9, enemyHealthMult: 1.2, enemySpeedMult: 0.9, enemyCountMult: 0.85, rewardMult: 1.1, theme: '#2e1a2e', pathColor: '#5a3a5a', special: null },
+            { id: 4, name: "Zigzag", waves: 4, startMoney: 175, startLives: 9, enemyHealthMult: 1.3, enemySpeedMult: 0.9, enemyCountMult: 0.9, rewardMult: 1.1, theme: '#1a1a3e', pathColor: '#3a3a6a', special: 'fast' },
+            { id: 5, name: "Spiral", waves: 5, startMoney: 200, startLives: 8, enemyHealthMult: 1.4, enemySpeedMult: 0.95, enemyCountMult: 1, rewardMult: 1.2, theme: '#2e2a1a', pathColor: '#6a5a3a', special: null },
+            { id: 6, name: "Double Loop", waves: 5, startMoney: 200, startLives: 8, enemyHealthMult: 1.5, enemySpeedMult: 1, enemyCountMult: 1, rewardMult: 1.2, theme: '#1a2e2e', pathColor: '#3a6a6a', special: 'tank' },
+            { id: 7, name: "Crossroads", waves: 5, startMoney: 225, startLives: 8, enemyHealthMult: 1.6, enemySpeedMult: 1, enemyCountMult: 1.1, rewardMult: 1.3, theme: '#2e1a1a', pathColor: '#6a3a3a', special: null },
+            { id: 8, name: "Winding River", waves: 6, startMoney: 225, startLives: 7, enemyHealthMult: 1.7, enemySpeedMult: 1.05, enemyCountMult: 1.1, rewardMult: 1.3, theme: '#1a3e2e', pathColor: '#3a7a5a', special: 'swarm' },
+            { id: 9, name: "Diamond", waves: 6, startMoney: 250, startLives: 7, enemyHealthMult: 1.8, enemySpeedMult: 1.05, enemyCountMult: 1.2, rewardMult: 1.4, theme: '#3e1a3e', pathColor: '#7a3a7a', special: null },
+            { id: 10, name: "Gauntlet", waves: 7, startMoney: 300, startLives: 7, enemyHealthMult: 2, enemySpeedMult: 1.1, enemyCountMult: 1.3, rewardMult: 1.5, theme: '#3e3e1a', pathColor: '#7a7a3a', special: 'boss' },
+            { id: 11, name: "Snake Pit", waves: 6, startMoney: 275, startLives: 6, enemyHealthMult: 2.1, enemySpeedMult: 1.1, enemyCountMult: 1.2, rewardMult: 1.4, theme: '#1a4e1a', pathColor: '#3a8a3a', special: 'fast' },
+            { id: 12, name: "Convergence", waves: 6, startMoney: 275, startLives: 6, enemyHealthMult: 2.2, enemySpeedMult: 1.15, enemyCountMult: 1.3, rewardMult: 1.5, theme: '#4e1a4e', pathColor: '#8a3a8a', special: null },
+            { id: 13, name: "Maze Runner", waves: 7, startMoney: 300, startLives: 6, enemyHealthMult: 2.4, enemySpeedMult: 1.15, enemyCountMult: 1.3, rewardMult: 1.5, theme: '#1a1a4e', pathColor: '#3a3a8a', special: 'swarm' },
+            { id: 14, name: "Horseshoe", waves: 7, startMoney: 300, startLives: 6, enemyHealthMult: 2.5, enemySpeedMult: 1.2, enemyCountMult: 1.4, rewardMult: 1.6, theme: '#4e4e1a', pathColor: '#8a8a3a', special: 'tank' },
+            { id: 15, name: "Arena", waves: 8, startMoney: 350, startLives: 5, enemyHealthMult: 2.8, enemySpeedMult: 1.2, enemyCountMult: 1.5, rewardMult: 1.7, theme: '#4e1a1a', pathColor: '#8a3a3a', special: 'boss' },
+            { id: 16, name: "Helix", waves: 7, startMoney: 325, startLives: 5, enemyHealthMult: 2.9, enemySpeedMult: 1.25, enemyCountMult: 1.4, rewardMult: 1.6, theme: '#1a4e4e', pathColor: '#3a8a8a', special: 'fast' },
+            { id: 17, name: "Castle", waves: 8, startMoney: 350, startLives: 5, enemyHealthMult: 3, enemySpeedMult: 1.25, enemyCountMult: 1.5, rewardMult: 1.7, theme: '#2e2e2e', pathColor: '#5a5a5a', special: null },
+            { id: 18, name: "Lightning", waves: 7, startMoney: 325, startLives: 5, enemyHealthMult: 3.2, enemySpeedMult: 1.3, enemyCountMult: 1.4, rewardMult: 1.7, theme: '#4e4e4e', pathColor: '#9a9a3a', special: 'fast' },
+            { id: 19, name: "The Pit", waves: 8, startMoney: 375, startLives: 4, enemyHealthMult: 3.4, enemySpeedMult: 1.3, enemyCountMult: 1.6, rewardMult: 1.8, theme: '#1a1a1a', pathColor: '#4a4a4a', special: 'tank' },
+            { id: 20, name: "Infinity", waves: 9, startMoney: 400, startLives: 4, enemyHealthMult: 3.6, enemySpeedMult: 1.35, enemyCountMult: 1.7, rewardMult: 1.9, theme: '#3e1a2e', pathColor: '#7a3a5a', special: 'boss' },
+            { id: 21, name: "Stairway", waves: 8, startMoney: 375, startLives: 4, enemyHealthMult: 3.8, enemySpeedMult: 1.35, enemyCountMult: 1.6, rewardMult: 1.8, theme: '#2e3e1a', pathColor: '#5a7a3a', special: 'swarm' },
+            { id: 22, name: "Whirlpool", waves: 9, startMoney: 400, startLives: 4, enemyHealthMult: 4, enemySpeedMult: 1.4, enemyCountMult: 1.7, rewardMult: 1.9, theme: '#1a2e3e', pathColor: '#3a5a7a', special: null },
+            { id: 23, name: "DNA", waves: 8, startMoney: 400, startLives: 4, enemyHealthMult: 4.2, enemySpeedMult: 1.4, enemyCountMult: 1.6, rewardMult: 1.9, theme: '#3e2e1a', pathColor: '#7a5a3a', special: 'fast' },
+            { id: 24, name: "Marathon", waves: 10, startMoney: 450, startLives: 3, enemyHealthMult: 4.5, enemySpeedMult: 1.45, enemyCountMult: 1.8, rewardMult: 2, theme: '#2e1a3e', pathColor: '#5a3a7a', special: 'tank' },
+            { id: 25, name: "Checkmate", waves: 9, startMoney: 425, startLives: 3, enemyHealthMult: 4.7, enemySpeedMult: 1.45, enemyCountMult: 1.8, rewardMult: 2, theme: '#1a3e1a', pathColor: '#3a7a3a', special: 'boss' },
+            { id: 26, name: "Switchback", waves: 9, startMoney: 450, startLives: 3, enemyHealthMult: 5, enemySpeedMult: 1.5, enemyCountMult: 1.9, rewardMult: 2.1, theme: '#3e3e3e', pathColor: '#7a7a7a', special: 'swarm' },
+            { id: 27, name: "Figure 8", waves: 10, startMoney: 475, startLives: 3, enemyHealthMult: 5.3, enemySpeedMult: 1.5, enemyCountMult: 1.9, rewardMult: 2.1, theme: '#4e2e2e', pathColor: '#9a5a5a', special: 'fast' },
+            { id: 28, name: "Labyrinth", waves: 10, startMoney: 500, startLives: 3, enemyHealthMult: 5.6, enemySpeedMult: 1.55, enemyCountMult: 2, rewardMult: 2.2, theme: '#2e4e2e', pathColor: '#5a9a5a', special: 'tank' },
+            { id: 29, name: "Extreme", waves: 12, startMoney: 550, startLives: 2, enemyHealthMult: 6, enemySpeedMult: 1.6, enemyCountMult: 2.2, rewardMult: 2.3, theme: '#2e2e4e', pathColor: '#5a5a9a', special: 'boss' },
+            { id: 30, name: "FINAL BOSS", waves: 15, startMoney: 600, startLives: 1, enemyHealthMult: 7, enemySpeedMult: 1.7, enemyCountMult: 2.5, rewardMult: 3, theme: '#4e1a2e', pathColor: '#aa3a5a', special: 'ultimate' }
+        ];
+
+        // Current level state
+        let currentLevel = 1;
+        let levelWavesTotal = 3;
+        let levelWavesCurrent = 0;
+        let levelComplete = false;
+        let currentPath = PATHS[1];
+        let currentTheme = '#1a1a2e';
+        let currentPathColor = '#3a3a5a';
+        let currentSpecial = null;
+
+        // Game state
+        let lives = 7;
+        let money = 100;
+        let wave = 0;
+        let kills = 0;
+        let waveInProgress = false;
+        let selectedTowerType = null;
+        let selectedTower = null;
+        let gameRunning = true;
+        let spawnTimer = 0;
+        const SPAWN_INTERVAL = 120; // 2 seconds at 60fps
+
+        // Hide level select initially
+        document.getElementById('levelSelect').style.display = 'none';
+
+        // Grid settings
+        const GRID_SIZE = 40;
+        const COLS = canvas.width / GRID_SIZE;
+        const ROWS = canvas.height / GRID_SIZE;
+
+        // PATH is now dynamic based on level
+        let PATH = currentPath;
+
+        // Tower types (increased damage)
+        const TOWER_TYPES = {
+            basic: {
+                name: 'Basic',
+                cost: 50,
+                range: 100,
+                damage: 18,
+                fireRate: 30,
+                color: '#4488ff',
+                projectileColor: '#88ccff',
+                projectileSpeed: 8
+            },
+            sniper: {
+                name: 'Sniper',
+                cost: 100,
+                range: 200,
+                damage: 85,
+                fireRate: 90,
+                color: '#ff4444',
+                projectileColor: '#ff8888',
+                projectileSpeed: 15
+            },
+            splash: {
+                name: 'Splash',
+                cost: 150,
+                range: 80,
+                damage: 25,
+                fireRate: 60,
+                color: '#ff8800',
+                projectileColor: '#ffaa44',
+                projectileSpeed: 6,
+                splashRadius: 50
+            },
+            slow: {
+                name: 'Slow',
+                cost: 75,
+                range: 90,
+                damage: 10,
+                fireRate: 40,
+                color: '#00ffff',
+                projectileColor: '#88ffff',
+                projectileSpeed: 7,
+                slowAmount: 0.5,
+                slowDuration: 120
+            },
+            laser: {
+                name: 'Laser',
+                cost: 200,
+                range: 150,
+                damage: 4,
+                fireRate: 1,
+                color: '#ff00ff',
+                isLaser: true
+            }
+        };
+
+        // Game objects
+        let towers = [];
+        let enemies = [];
+        let projectiles = [];
+
+        // Tower class
+        class Tower {
+            constructor(gridX, gridY, type) {
+                this.gridX = gridX;
+                this.gridY = gridY;
+                this.x = gridX * GRID_SIZE + GRID_SIZE / 2;
+                this.y = gridY * GRID_SIZE + GRID_SIZE / 2;
+                this.type = type;
+                this.level = 1;
+                this.cooldown = 0;
+                this.target = null;
+                this.angle = 0;
+                this.hp = 500;
+                this.maxHp = 500;
+
+                const stats = TOWER_TYPES[type];
+                this.range = stats.range;
+                this.damage = stats.damage;
+                this.fireRate = stats.fireRate;
+                this.color = stats.color;
+            }
+
+            getStats() {
+                const base = TOWER_TYPES[this.type];
+                return {
+                    range: base.range + (this.level - 1) * 20,
+                    damage: base.damage * (1 + (this.level - 1) * 0.5),
+                    fireRate: Math.max(10, base.fireRate - (this.level - 1) * 5)
+                };
+            }
+
+            getUpgradeCost() {
+                return Math.floor(TOWER_TYPES[this.type].cost * 0.5 * this.level);
+            }
+
+            getSellValue() {
+                let total = TOWER_TYPES[this.type].cost;
+                for (let i = 1; i < this.level; i++) {
+                    total += Math.floor(TOWER_TYPES[this.type].cost * 0.5 * i);
+                }
+                return Math.floor(total * 0.5);
+            }
+
+            findTarget() {
+                const stats = this.getStats();
+                let bestTarget = null;
+                let bestProgress = -1;
+
+                for (const enemy of enemies) {
+                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    if (dist <= stats.range && enemy.pathIndex > bestProgress) {
+                        bestTarget = enemy;
+                        bestProgress = enemy.pathIndex;
+                    }
+                }
+                return bestTarget;
+            }
+
+            update() {
+                const stats = this.getStats();
+                this.target = this.findTarget();
+
+                if (this.target) {
+                    this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                }
+
+                if (this.cooldown > 0) {
+                    this.cooldown--;
+                }
+
+                if (this.target && this.cooldown <= 0) {
+                    this.shoot();
+                    this.cooldown = stats.fireRate;
+                }
+            }
+
+            shoot() {
+                const base = TOWER_TYPES[this.type];
+                const stats = this.getStats();
+
+                if (base.isLaser) {
+                    // Laser does continuous damage
+                    this.target.health -= stats.damage;
+                } else {
+                    projectiles.push(new Projectile(
+                        this.x, this.y,
+                        this.target,
+                        stats.damage,
+                        base.projectileSpeed,
+                        base.projectileColor,
+                        base.splashRadius,
+                        base.slowAmount,
+                        base.slowDuration
+                    ));
+                }
+            }
+
+            draw() {
+                const stats = this.getStats();
+                const base = TOWER_TYPES[this.type];
+
+                // Draw range circle if selected
+                if (selectedTower === this) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, stats.range, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.stroke();
+                }
+
+                // Draw laser beam
+                if (base.isLaser && this.target && this.cooldown <= 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.target.x, this.target.y);
+                    ctx.strokeStyle = '#ff00ff';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                // Tower base (box)
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-15, -15, 30, 30);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-15, -15, 30, 30);
+
+                // Tower turret
+                ctx.rotate(this.angle);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-5, -5, 25, 10);
+
+                ctx.restore();
+
+                // Level indicator
+                if (this.level > 1) {
+                    ctx.fillStyle = '#ffff00';
+                    ctx.font = 'bold 10px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('★'.repeat(Math.min(this.level - 1, 5)), this.x, this.y - 20);
+                }
+
+                // Health bar
+                const barWidth = 30;
+                const healthPercent = this.hp / this.maxHp;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x - barWidth / 2, this.y + 18, barWidth, 4);
+                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
+                ctx.fillRect(this.x - barWidth / 2, this.y + 18, barWidth * healthPercent, 4);
+            }
+        }
+
+        // Enemy class
+        class Enemy {
+            constructor(health, speed, reward, type) {
+                this.health = health;
+                this.maxHealth = health;
+                this.baseSpeed = speed;
+                this.speed = speed;
+                this.reward = reward;
+                this.type = type;
+                this.pathIndex = 0;
+                this.x = PATH[0].x * GRID_SIZE + GRID_SIZE / 2;
+                this.y = PATH[0].y * GRID_SIZE + GRID_SIZE / 2;
+                this.slowTimer = 0;
+                this.attackCooldown = 0;
+                this.attackDamage = 5 + type * 3;
+                this.attackRange = 50;
+            }
+
+            update() {
+                // Handle slow effect
+                if (this.slowTimer > 0) {
+                    this.slowTimer--;
+                    if (this.slowTimer <= 0) {
+                        this.speed = this.baseSpeed;
+                    }
+                }
+
+                // Move along path
+                if (this.pathIndex < PATH.length - 1) {
+                    const target = PATH[this.pathIndex + 1];
+                    const targetX = target.x * GRID_SIZE + GRID_SIZE / 2;
+                    const targetY = target.y * GRID_SIZE + GRID_SIZE / 2;
+
+                    const dx = targetX - this.x;
+                    const dy = targetY - this.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < this.speed) {
+                        this.pathIndex++;
+                        this.x = targetX;
+                        this.y = targetY;
+                    } else {
+                        this.x += (dx / dist) * this.speed;
+                        this.y += (dy / dist) * this.speed;
+                    }
+                }
+
+                // Check if reached end
+                if (this.pathIndex >= PATH.length - 1) {
+                    lives--;
+                    updateUI();
+                    return true; // Remove enemy
+                }
+
+                // Attack nearby towers
+                if (this.attackCooldown > 0) {
+                    this.attackCooldown--;
+                } else {
+                    for (const tower of towers) {
+                        const dist = Math.hypot(tower.x - this.x, tower.y - this.y);
+                        if (dist <= this.attackRange) {
+                            tower.hp -= this.attackDamage;
+                            this.attackCooldown = 30; // Attack every 0.5 seconds
+                            break;
+                        }
+                    }
+                }
+
+                // Check if dead
+                if (this.health <= 0) {
+                    money += this.reward;
+                    kills++;
+                    updateUI();
+                    // Spawn a new enemy to replace this one
+                    if (waveInProgress) {
+                        spawnSingleEnemy();
+                    }
+                    return true; // Remove enemy
+                }
+
+                return false;
+            }
+
+            applySlow(amount, duration) {
+                this.speed = this.baseSpeed * amount;
+                this.slowTimer = duration;
+            }
+
+            draw() {
+                // Enemy box body
+                const size = 15 + this.type * 5;
+                const hue = this.type * 40;
+
+                ctx.fillStyle = `hsl(${hue}, 70%, 40%)`;
+                ctx.fillRect(this.x - size, this.y - size, size * 2, size * 2);
+                ctx.strokeStyle = `hsl(${hue}, 70%, 60%)`;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x - size, this.y - size, size * 2, size * 2);
+
+                // Evil eyes
+                ctx.fillStyle = this.slowTimer > 0 ? '#00ffff' : '#ff0000';
+                ctx.fillRect(this.x - size * 0.5, this.y - size * 0.3, 6, 4);
+                ctx.fillRect(this.x + size * 0.5 - 6, this.y - size * 0.3, 6, 4);
+
+                // Health bar
+                const barWidth = size * 2;
+                const healthPercent = this.health / this.maxHealth;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x - barWidth / 2, this.y - size - 8, barWidth, 4);
+                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
+                ctx.fillRect(this.x - barWidth / 2, this.y - size - 8, barWidth * healthPercent, 4);
+            }
+        }
+
+        // Projectile class
+        class Projectile {
+            constructor(x, y, target, damage, speed, color, splashRadius, slowAmount, slowDuration) {
+                this.x = x;
+                this.y = y;
+                this.target = target;
+                this.damage = damage;
+                this.speed = speed;
+                this.color = color;
+                this.splashRadius = splashRadius;
+                this.slowAmount = slowAmount;
+                this.slowDuration = slowDuration;
+            }
+
+            update() {
+                if (!this.target || this.target.health <= 0) {
+                    return true; // Remove projectile
+                }
+
+                const dx = this.target.x - this.x;
+                const dy = this.target.y - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < this.speed) {
+                    // Hit target
+                    this.target.health -= this.damage;
+
+                    // Apply slow
+                    if (this.slowAmount) {
+                        this.target.applySlow(this.slowAmount, this.slowDuration);
+                    }
+
+                    // Splash damage
+                    if (this.splashRadius) {
+                        for (const enemy of enemies) {
+                            if (enemy !== this.target) {
+                                const splashDist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                                if (splashDist <= this.splashRadius) {
+                                    enemy.health -= this.damage * 0.5;
+                                }
+                            }
+                        }
+                    }
+
+                    return true; // Remove projectile
+                }
+
+                this.x += (dx / dist) * this.speed;
+                this.y += (dy / dist) * this.speed;
+                return false;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        // Check if grid cell is on path
+        function isOnPath(gridX, gridY) {
+            return PATH.some(p => p.x === gridX && p.y === gridY);
+        }
+
+        // Check if grid cell has tower
+        function hasTower(gridX, gridY) {
+            return towers.some(t => t.gridX === gridX && t.gridY === gridY);
+        }
+
+        // Get tower at grid position
+        function getTowerAt(gridX, gridY) {
+            return towers.find(t => t.gridX === gridX && t.gridY === gridY);
+        }
+
+        // Check if in spawn zone (first 36 grid squares - 6 columns)
+        function isSpawnZone(gridX, gridY) {
+            return gridX < 6;
+        }
+
+        // Spawn a single enemy based on current wave (scales with kills)
+        function spawnSingleEnemy() {
+            // Enemies get stronger every 8 kills (faster scaling)
+            const killScale = 1 + Math.floor(kills / 8) * 0.2;
+            const baseHealth = (50 + wave * 30) * killScale;
+            const baseSpeed = Math.min(3.5, (1 + wave * 0.1) * (1 + kills * 0.003));
+
+            // More enemy types unlock as kills increase
+            const maxType = Math.min(4, Math.floor(wave / 3) + 1 + Math.floor(kills / 20));
+            const type = Math.floor(Math.random() * maxType);
+            const healthMult = 1 + type * 0.6;
+            const speedMult = 1 - type * 0.08;
+            const rewardMult = 1 + type * 0.5 + kills * 0.012;
+
+            enemies.push(new Enemy(
+                baseHealth * healthMult,
+                baseSpeed * speedMult,
+                Math.floor((5 + wave) * rewardMult),
+                type
+            ));
+        }
+
+        function spawnWave() {
+            wave++;
+            levelWavesCurrent++;
+            waveInProgress = true;
+            document.getElementById('startWave').disabled = true;
+
+            const levelConfig = LEVELS[currentLevel - 1];
+            let baseHealth = (50 + wave * 30) * levelConfig.enemyHealthMult;
+            let baseSpeed = (1 + wave * 0.1) * levelConfig.enemySpeedMult;
+            let enemyCount = Math.floor((5 + wave * 2) * levelConfig.enemyCountMult);
+
+            // Apply special modifiers
+            if (currentSpecial === 'fast') {
+                baseSpeed *= 1.4;
+                baseHealth *= 0.7;
+            } else if (currentSpecial === 'tank') {
+                baseHealth *= 2;
+                baseSpeed *= 0.7;
+            } else if (currentSpecial === 'swarm') {
+                enemyCount = Math.floor(enemyCount * 2);
+                baseHealth *= 0.5;
+            } else if (currentSpecial === 'boss') {
+                // Spawn a boss every final wave
+                if (levelWavesCurrent === levelWavesTotal) {
+                    baseHealth *= 5;
+                    baseSpeed *= 0.5;
+                    enemyCount = 3;
+                }
+            } else if (currentSpecial === 'ultimate') {
+                // Ultimate mode - everything is harder
+                baseHealth *= 2.5;
+                baseSpeed *= 1.3;
+                enemyCount = Math.floor(enemyCount * 1.5);
+            }
+
+            let spawned = 0;
+            const spawnInterval = setInterval(() => {
+                if (spawned >= enemyCount) {
+                    clearInterval(spawnInterval);
+                    return;
+                }
+
+                // Spawn different enemy types
+                let type = Math.floor(Math.random() * Math.min(4, Math.floor(wave / 3) + 1));
+
+                // Boss levels spawn tougher types
+                if ((currentSpecial === 'boss' && levelWavesCurrent === levelWavesTotal) || currentSpecial === 'ultimate') {
+                    type = Math.min(3, type + 1);
+                }
+
+                const healthMult = 1 + type * 0.6;
+                const speedMult = 1 - type * 0.08;
+                const rewardMult = (1 + type * 0.5) * levelConfig.rewardMult;
+
+                enemies.push(new Enemy(
+                    baseHealth * healthMult,
+                    baseSpeed * speedMult,
+                    Math.floor((5 + wave) * rewardMult),
+                    type
+                ));
+
+                spawned++;
+                updateUI();
+            }, currentSpecial === 'swarm' ? 250 : 500);
+        }
+
+        // Update UI
+        function updateUI() {
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('money').textContent = '$' + money;
+            document.getElementById('wave').textContent = levelWavesCurrent + '/' + levelWavesTotal;
+            document.getElementById('kills').textContent = kills;
+            document.getElementById('enemiesLeft').textContent = enemies.length;
+            document.getElementById('currentLevelDisplay').textContent = currentLevel;
+
+            // Update level name and special indicator
+            const levelConfig = LEVELS[currentLevel - 1];
+            let levelNameText = levelConfig.name;
+            if (currentSpecial) {
+                levelNameText += ' [' + currentSpecial.toUpperCase() + ']';
+            }
+            document.getElementById('levelName').textContent = levelNameText;
+
+            if (levelComplete) {
+                document.getElementById('startWave').disabled = false;
+                document.getElementById('startWave').textContent = 'LEVEL COMPLETE!';
+            } else if (!waveInProgress) {
+                document.getElementById('startWave').disabled = false;
+                document.getElementById('startWave').textContent = 'START WAVE ' + (levelWavesCurrent + 1);
+            } else {
+                document.getElementById('startWave').textContent = 'WAVE ' + levelWavesCurrent + ' IN PROGRESS';
+            }
+
+            // Update tower buttons
+            document.querySelectorAll('.towerBtn').forEach(btn => {
+                const type = btn.dataset.tower;
+                const cost = TOWER_TYPES[type].cost;
+                btn.style.opacity = money >= cost ? '1' : '0.5';
+            });
+
+            // Update upgrade panel
+            if (selectedTower) {
+                document.getElementById('upgradePanel').style.display = 'block';
+                document.getElementById('selectedTowerName').textContent = TOWER_TYPES[selectedTower.type].name.toUpperCase();
+                document.getElementById('towerLevel').textContent = selectedTower.level;
+                document.getElementById('upgradeBtn').textContent = 'UPGRADE $' + selectedTower.getUpgradeCost();
+                document.getElementById('sellBtn').textContent = 'SELL $' + selectedTower.getSellValue();
+            } else {
+                document.getElementById('upgradePanel').style.display = 'none';
+            }
+        }
+
+        // Draw functions
+        function drawPath() {
+            ctx.fillStyle = currentPathColor;
+            for (const p of PATH) {
+                ctx.fillRect(p.x * GRID_SIZE, p.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+            }
+
+            // Draw path direction arrows (lighter version of path color)
+            ctx.fillStyle = currentPathColor + '88';
+            for (let i = 0; i < PATH.length - 1; i += 3) {
+                const p = PATH[i];
+                const next = PATH[Math.min(i + 1, PATH.length - 1)];
+                const angle = Math.atan2(next.y - p.y, next.x - p.x);
+
+                ctx.save();
+                ctx.translate(p.x * GRID_SIZE + GRID_SIZE / 2, p.y * GRID_SIZE + GRID_SIZE / 2);
+                ctx.rotate(angle);
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(-5, -5);
+                ctx.lineTo(-5, 5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function drawGrid() {
+            // Draw spawn zone (no towers allowed)
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, 6 * GRID_SIZE, canvas.height);
+
+            ctx.strokeStyle = '#2a2a4a';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= canvas.width; x += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= canvas.height; y += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Spawn zone border
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(6 * GRID_SIZE, 0);
+            ctx.lineTo(6 * GRID_SIZE, canvas.height);
+            ctx.stroke();
+        }
+
+        function drawPlacementPreview(mouseX, mouseY) {
+            if (!selectedTowerType) return;
+
+            const gridX = Math.floor(mouseX / GRID_SIZE);
+            const gridY = Math.floor(mouseY / GRID_SIZE);
+
+            if (gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) return;
+
+            const existingTower = getTowerAt(gridX, gridY);
+            const canAfford = money >= TOWER_TYPES[selectedTowerType].cost;
+            const inSpawnZone = isSpawnZone(gridX, gridY);
+            const canPlace = !isOnPath(gridX, gridY) && !existingTower && canAfford && !inSpawnZone;
+            const canMerge = existingTower && canAfford && !inSpawnZone;
+
+            // Green = new placement, Yellow = merge, Red = invalid
+            if (canMerge) {
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+            } else if (canPlace) {
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            } else {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+            }
+            ctx.fillRect(gridX * GRID_SIZE, gridY * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+
+            // Show range preview
+            if (canPlace || canMerge) {
+                const centerX = gridX * GRID_SIZE + GRID_SIZE / 2;
+                const centerY = gridY * GRID_SIZE + GRID_SIZE / 2;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, TOWER_TYPES[selectedTowerType].range, 0, Math.PI * 2);
+                ctx.strokeStyle = canMerge ? 'rgba(255, 255, 0, 0.5)' : 'rgba(0, 255, 0, 0.5)';
+                ctx.stroke();
+            }
+        }
+
+        // Mouse handling
+        let mouseX = 0, mouseY = 0;
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const gridX = Math.floor(x / GRID_SIZE);
+            const gridY = Math.floor(y / GRID_SIZE);
+
+            // Check if clicking existing tower
+            const clickedTower = getTowerAt(gridX, gridY);
+            if (clickedTower) {
+                // If we have a tower type selected, try to merge
+                if (selectedTowerType) {
+                    const cost = TOWER_TYPES[selectedTowerType].cost;
+                    if (money >= cost) {
+                        // Merge towers - level up and combine stats
+                        clickedTower.level += 1;
+                        // If merging same type, extra bonus level
+                        if (selectedTowerType === clickedTower.type) {
+                            clickedTower.level += 1;
+                        }
+                        // Increase HP when merging
+                        clickedTower.maxHp += 200;
+                        clickedTower.hp = Math.min(clickedTower.hp + 300, clickedTower.maxHp);
+                        money -= cost;
+                        selectedTower = clickedTower;
+                        updateUI();
+                    }
+                } else {
+                    // Just select the tower
+                    selectedTower = clickedTower;
+                }
+                selectedTowerType = null;
+                document.querySelectorAll('.towerBtn').forEach(b => b.classList.remove('selected'));
+                updateUI();
+                return;
+            }
+
+            // Deselect tower if clicking empty space
+            selectedTower = null;
+            updateUI();
+
+            // Try to place tower (not in spawn zone)
+            if (selectedTowerType && !isOnPath(gridX, gridY) && !isSpawnZone(gridX, gridY)) {
+                const cost = TOWER_TYPES[selectedTowerType].cost;
+                if (money >= cost) {
+                    towers.push(new Tower(gridX, gridY, selectedTowerType));
+                    money -= cost;
+                    updateUI();
+                }
+            }
+        });
+
+        // Tower selection
+        document.querySelectorAll('.towerBtn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.tower;
+                if (selectedTowerType === type) {
+                    selectedTowerType = null;
+                    btn.classList.remove('selected');
+                } else {
+                    selectedTowerType = type;
+                    selectedTower = null;
+                    document.querySelectorAll('.towerBtn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                }
+                updateUI();
+            });
+        });
+
+        // Start wave button
+        document.getElementById('startWave').addEventListener('click', () => {
+            if (levelComplete) {
+                // Open level select when level is complete
+                document.getElementById('levelSelect').style.display = 'flex';
+            } else {
+                spawnWave();
+            }
+        });
+
+        // Upgrade button
+        document.getElementById('upgradeBtn').addEventListener('click', () => {
+            if (selectedTower) {
+                const cost = selectedTower.getUpgradeCost();
+                if (money >= cost) {
+                    money -= cost;
+                    selectedTower.level++;
+                    updateUI();
+                }
+            }
+        });
+
+        // Sell button
+        document.getElementById('sellBtn').addEventListener('click', () => {
+            if (selectedTower) {
+                money += selectedTower.getSellValue();
+                towers = towers.filter(t => t !== selectedTower);
+                selectedTower = null;
+                updateUI();
+            }
+        });
+
+        // Start a specific level
+        function startLevel(levelNum) {
+            const levelConfig = LEVELS[levelNum - 1];
+            currentLevel = levelNum;
+            levelWavesTotal = levelConfig.waves;
+            levelWavesCurrent = 0;
+            levelComplete = false;
+            lives = levelConfig.startLives;
+            money = levelConfig.startMoney;
+            wave = 0;
+            kills = 0;
+            towers = [];
+            enemies = [];
+            projectiles = [];
+            waveInProgress = false;
+            gameRunning = true;
+            selectedTower = null;
+            selectedTowerType = null;
+            spawnTimer = 0;
+
+            // Set level-specific path, theme, and special modifier
+            PATH = PATHS[levelNum];
+            currentPath = PATH;
+            currentTheme = levelConfig.theme;
+            currentPathColor = levelConfig.pathColor;
+            currentSpecial = levelConfig.special;
+
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('levelSelect').style.display = 'none';
+            document.querySelectorAll('.towerBtn').forEach(b => b.classList.remove('selected'));
+            updateUI();
+            if (!gameRunning) {
+                gameRunning = true;
+                gameLoop();
+            }
+        }
+
+        // Generate level select buttons
+        function generateLevelGrid() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 30; i++) {
+                const levelConfig = LEVELS[i - 1];
+                const btn = document.createElement('button');
+                btn.className = 'levelBtn';
+                btn.innerHTML = `<span style="font-size:20px">${i}</span><br><span style="font-size:8px">${levelConfig.name}</span>`;
+                btn.style.background = levelConfig.theme;
+                btn.title = `${levelConfig.name} - ${levelConfig.waves} waves${levelConfig.special ? ' (' + levelConfig.special.toUpperCase() + ')' : ''}`;
+                btn.addEventListener('click', () => startLevel(i));
+                grid.appendChild(btn);
+            }
+        }
+        generateLevelGrid();
+
+        // Level select button
+        document.getElementById('levelsBtn').addEventListener('click', () => {
+            document.getElementById('levelSelect').style.display = 'flex';
+        });
+
+        // Close level select
+        document.getElementById('closeLevelSelect').addEventListener('click', () => {
+            document.getElementById('levelSelect').style.display = 'none';
+        });
+
+        // Restart button
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            startLevel(currentLevel);
+        });
+
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Clear canvas with level theme
+            ctx.fillStyle = currentTheme;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid and path
+            drawGrid();
+            drawPath();
+
+            // Remove dead towers and deselect if selected tower died
+            towers = towers.filter(tower => {
+                if (tower.hp <= 0) {
+                    if (selectedTower === tower) selectedTower = null;
+                    return false;
+                }
+                return true;
+            });
+
+            // Update and draw towers
+            for (const tower of towers) {
+                tower.update();
+                tower.draw();
+            }
+
+            // Spawn enemy every 2 seconds during wave
+            if (waveInProgress) {
+                spawnTimer++;
+                if (spawnTimer >= SPAWN_INTERVAL) {
+                    spawnSingleEnemy();
+                    spawnTimer = 0;
+                }
+            }
+
+            // Update and draw enemies
+            enemies = enemies.filter(enemy => !enemy.update());
+            for (const enemy of enemies) {
+                enemy.draw();
+            }
+
+            // Check if wave is complete
+            if (waveInProgress && enemies.length === 0) {
+                waveInProgress = false;
+                spawnTimer = 0;
+                // Check if level is complete
+                if (levelWavesCurrent >= levelWavesTotal) {
+                    levelComplete = true;
+                }
+            }
+
+            // Update and draw projectiles
+            projectiles = projectiles.filter(proj => !proj.update());
+            for (const proj of projectiles) {
+                proj.draw();
+            }
+
+            // Draw placement preview
+            drawPlacementPreview(mouseX, mouseY);
+
+            // Check game over
+            if (lives <= 0) {
+                gameRunning = false;
+                document.getElementById('finalWave').textContent = 'Level ' + currentLevel + ', Wave ' + levelWavesCurrent;
+                document.getElementById('gameOver').style.display = 'flex';
+            }
+
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game with level 1
+        startLevel(1);
+        gameLoop();
+
+        // ==================== FARMING MODE ====================
+        const farmCanvas = document.getElementById('farmCanvas');
+        const farmCtx = farmCanvas.getContext('2d');
+
+        // Farming state
+        let farmActive = false;
+        let farmCoins = 0;
+        let farmGrade = 1;
+        let farmCrops = [];
+        let farmCows = [];
+        let farmChickens = [];
+        let farmEggs = [];
+        let farmPigs = [];
+        let farmSheep = [];
+        let farmAnimationId = null;
+        let farmTimer = 60; // Seconds to upgrade
+        let farmTimerFrame = 0;
+
+        // Upgrade costs: 50, 100, 150, 200, 250, 300 (6 upgrades, grade 1-7)
+        const UPGRADE_COSTS = [50, 100, 150, 200, 250, 300];
+        const MAX_GRADE = 7;
+
+        // Player (controllable character)
+        const player = {
+            x: 300,
+            y: 250,
+            size: 30,
+            speed: 4,
+            color: '#00aaff'
+        };
+
+        // Farm Bot (auto-plants crops)
+        const farmBot = {
+            x: 100,
+            y: 100,
+            size: 25,
+            speed: 2,
+            targetX: 100,
+            targetY: 100,
+            plantTimer: 0,
+            color: '#ffaa00'
+        };
+
+        // Player movement keys
+        const farmKeys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+
+        // Crop class
+        class Crop {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 20;
+                this.growthStage = 0;
+                this.maxGrowth = 3;
+                this.growthTimer = 0;
+                this.growthTime = 120 - (farmGrade * 10); // Faster growth with higher grade
+                this.value = 5 + farmGrade * 3; // More valuable with higher grade
+            }
+
+            update() {
+                if (this.growthStage < this.maxGrowth) {
+                    this.growthTimer++;
+                    if (this.growthTimer >= this.growthTime) {
+                        this.growthStage++;
+                        this.growthTimer = 0;
+                    }
+                }
+            }
+
+            draw() {
+                // Draw crop based on growth stage
+                const colors = ['#553300', '#558800', '#44aa00', '#ffdd00'];
+                farmCtx.fillStyle = colors[this.growthStage];
+
+                if (this.growthStage === 0) {
+                    // Seed
+                    farmCtx.fillRect(this.x - 5, this.y - 5, 10, 10);
+                } else if (this.growthStage === 1) {
+                    // Sprout
+                    farmCtx.fillRect(this.x - 3, this.y - 10, 6, 15);
+                } else if (this.growthStage === 2) {
+                    // Growing
+                    farmCtx.fillRect(this.x - 5, this.y - 15, 10, 20);
+                    farmCtx.fillStyle = '#88cc00';
+                    farmCtx.fillRect(this.x - 10, this.y - 10, 8, 8);
+                    farmCtx.fillRect(this.x + 2, this.y - 12, 8, 8);
+                } else {
+                    // Ready to harvest (golden)
+                    farmCtx.fillRect(this.x - 6, this.y - 18, 12, 25);
+                    farmCtx.fillStyle = '#ffff00';
+                    farmCtx.beginPath();
+                    farmCtx.arc(this.x, this.y - 20, 10, 0, Math.PI * 2);
+                    farmCtx.fill();
+                }
+            }
+
+            isReadyToHarvest() {
+                return this.growthStage >= this.maxGrowth;
+            }
+        }
+
+        // Cow class
+        class Cow {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 40;
+                this.milkReady = false;
+                this.milkTimer = 0;
+                this.milkTime = 180 - (farmGrade * 15); // Faster milk with higher grade
+                this.milkValue = 15 + farmGrade * 5; // More valuable with higher grade
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.moveTimer = 0;
+                this.speed = 0.5;
+            }
+
+            update() {
+                // Milk production
+                if (!this.milkReady) {
+                    this.milkTimer++;
+                    if (this.milkTimer >= this.milkTime) {
+                        this.milkReady = true;
+                        this.milkTimer = 0;
+                    }
+                }
+
+                // Cow movement (wander around)
+                this.moveTimer++;
+                if (this.moveTimer > 120) {
+                    this.direction = Math.random() > 0.5 ? 1 : -1;
+                    this.moveTimer = 0;
+                }
+
+                this.x += this.speed * this.direction;
+
+                // Keep cow in bounds
+                if (this.x < 50) {
+                    this.x = 50;
+                    this.direction = 1;
+                }
+                if (this.x > farmCanvas.width - 50) {
+                    this.x = farmCanvas.width - 50;
+                    this.direction = -1;
+                }
+            }
+
+            draw() {
+                // Cow body
+                farmCtx.fillStyle = this.milkReady ? '#ffffff' : '#dddddd';
+                farmCtx.fillRect(this.x - 20, this.y - 12, 40, 25);
+
+                // Cow spots
+                farmCtx.fillStyle = '#333';
+                farmCtx.beginPath();
+                farmCtx.arc(this.x - 8, this.y - 5, 6, 0, Math.PI * 2);
+                farmCtx.arc(this.x + 10, this.y + 2, 5, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Cow head
+                farmCtx.fillStyle = this.milkReady ? '#ffffff' : '#dddddd';
+                const headX = this.x + (this.direction * 22);
+                farmCtx.fillRect(headX - 8, this.y - 10, 16, 18);
+
+                // Cow eyes
+                farmCtx.fillStyle = '#000';
+                farmCtx.beginPath();
+                farmCtx.arc(headX - 3, this.y - 5, 2, 0, Math.PI * 2);
+                farmCtx.arc(headX + 3, this.y - 5, 2, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Cow ears
+                farmCtx.fillStyle = '#ffcccc';
+                farmCtx.beginPath();
+                farmCtx.arc(headX - 6, this.y - 12, 4, 0, Math.PI * 2);
+                farmCtx.arc(headX + 6, this.y - 12, 4, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Cow legs
+                farmCtx.fillStyle = '#333';
+                farmCtx.fillRect(this.x - 15, this.y + 13, 5, 10);
+                farmCtx.fillRect(this.x - 5, this.y + 13, 5, 10);
+                farmCtx.fillRect(this.x + 5, this.y + 13, 5, 10);
+                farmCtx.fillRect(this.x + 15, this.y + 13, 5, 10);
+
+                // Milk ready indicator
+                if (this.milkReady) {
+                    farmCtx.fillStyle = '#00ff00';
+                    farmCtx.font = 'bold 12px Courier New';
+                    farmCtx.textAlign = 'center';
+                    farmCtx.fillText('MILK!', this.x, this.y - 20);
+
+                    // Udder indicator
+                    farmCtx.fillStyle = '#ffaaaa';
+                    farmCtx.beginPath();
+                    farmCtx.arc(this.x, this.y + 10, 6, 0, Math.PI * 2);
+                    farmCtx.fill();
+                }
+            }
+
+            milk() {
+                if (this.milkReady) {
+                    this.milkReady = false;
+                    this.milkTimer = 0;
+                    return this.milkValue;
+                }
+                return 0;
+            }
+        }
+
+        // Egg class
+        class Egg {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 12;
+                this.value = 10 + farmGrade * 4;
+            }
+
+            draw() {
+                // Egg shape (oval)
+                farmCtx.fillStyle = '#ffffee';
+                farmCtx.beginPath();
+                farmCtx.ellipse(this.x, this.y, 8, 10, 0, 0, Math.PI * 2);
+                farmCtx.fill();
+                farmCtx.strokeStyle = '#ddddcc';
+                farmCtx.lineWidth = 1;
+                farmCtx.stroke();
+            }
+        }
+
+        // Chicken class
+        class Chicken {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 25;
+                this.eggTimer = 0;
+                this.eggTime = 150 - (farmGrade * 12); // Faster eggs with higher grade
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.moveTimer = 0;
+                this.speed = 1;
+                this.pecking = false;
+                this.peckTimer = 0;
+            }
+
+            update() {
+                // Egg laying
+                this.eggTimer++;
+                if (this.eggTimer >= this.eggTime) {
+                    // Lay an egg!
+                    farmEggs.push(new Egg(this.x, this.y + 15));
+                    this.eggTimer = 0;
+                }
+
+                // Pecking animation
+                if (this.pecking) {
+                    this.peckTimer++;
+                    if (this.peckTimer > 20) {
+                        this.pecking = false;
+                        this.peckTimer = 0;
+                    }
+                } else if (Math.random() < 0.01) {
+                    this.pecking = true;
+                }
+
+                // Chicken movement (wander around)
+                this.moveTimer++;
+                if (this.moveTimer > 80) {
+                    this.direction = Math.random() > 0.5 ? 1 : -1;
+                    this.moveTimer = 0;
+                }
+
+                if (!this.pecking) {
+                    this.x += this.speed * this.direction;
+                }
+
+                // Keep chicken in bounds
+                if (this.x < 50) {
+                    this.x = 50;
+                    this.direction = 1;
+                }
+                if (this.x > farmCanvas.width - 50) {
+                    this.x = farmCanvas.width - 50;
+                    this.direction = -1;
+                }
+            }
+
+            draw() {
+                const headOffset = this.pecking ? 5 : 0;
+
+                // Chicken body (orange/brown)
+                farmCtx.fillStyle = '#dd8833';
+                farmCtx.beginPath();
+                farmCtx.ellipse(this.x, this.y, 15, 12, 0, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Wing
+                farmCtx.fillStyle = '#cc7722';
+                farmCtx.beginPath();
+                farmCtx.ellipse(this.x - 3 * this.direction, this.y + 2, 8, 6, 0.3 * this.direction, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Chicken head
+                farmCtx.fillStyle = '#dd8833';
+                const headX = this.x + (this.direction * 12);
+                const headY = this.y - 8 + headOffset;
+                farmCtx.beginPath();
+                farmCtx.arc(headX, headY, 8, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Beak
+                farmCtx.fillStyle = '#ffaa00';
+                farmCtx.beginPath();
+                farmCtx.moveTo(headX + (this.direction * 8), headY);
+                farmCtx.lineTo(headX + (this.direction * 14), headY + 2);
+                farmCtx.lineTo(headX + (this.direction * 8), headY + 4);
+                farmCtx.closePath();
+                farmCtx.fill();
+
+                // Eye
+                farmCtx.fillStyle = '#000';
+                farmCtx.beginPath();
+                farmCtx.arc(headX + (this.direction * 3), headY - 2, 2, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Comb (red thing on head)
+                farmCtx.fillStyle = '#ff3333';
+                farmCtx.beginPath();
+                farmCtx.arc(headX - (this.direction * 2), headY - 8, 4, 0, Math.PI * 2);
+                farmCtx.arc(headX + (this.direction * 2), headY - 9, 3, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Wattle (under beak)
+                farmCtx.fillStyle = '#ff3333';
+                farmCtx.beginPath();
+                farmCtx.arc(headX + (this.direction * 5), headY + 6, 3, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Legs
+                farmCtx.strokeStyle = '#ffaa00';
+                farmCtx.lineWidth = 2;
+                farmCtx.beginPath();
+                farmCtx.moveTo(this.x - 5, this.y + 10);
+                farmCtx.lineTo(this.x - 5, this.y + 18);
+                farmCtx.moveTo(this.x + 5, this.y + 10);
+                farmCtx.lineTo(this.x + 5, this.y + 18);
+                farmCtx.stroke();
+
+                // Feet
+                farmCtx.beginPath();
+                farmCtx.moveTo(this.x - 8, this.y + 18);
+                farmCtx.lineTo(this.x - 2, this.y + 18);
+                farmCtx.moveTo(this.x + 2, this.y + 18);
+                farmCtx.lineTo(this.x + 8, this.y + 18);
+                farmCtx.stroke();
+            }
+        }
+
+        // Pig class
+        class Pig {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 35;
+                this.fedReady = false;
+                this.fedTimer = 0;
+                this.fedTime = 200 - (farmGrade * 18);
+                this.fedValue = 20 + farmGrade * 6;
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.moveTimer = 0;
+                this.speed = 0.7;
+                this.sniffing = false;
+                this.sniffTimer = 0;
+            }
+
+            update() {
+                // Ready for feeding
+                if (!this.fedReady) {
+                    this.fedTimer++;
+                    if (this.fedTimer >= this.fedTime) {
+                        this.fedReady = true;
+                        this.fedTimer = 0;
+                    }
+                }
+
+                // Sniffing animation
+                if (this.sniffing) {
+                    this.sniffTimer++;
+                    if (this.sniffTimer > 30) {
+                        this.sniffing = false;
+                        this.sniffTimer = 0;
+                    }
+                } else if (Math.random() < 0.008) {
+                    this.sniffing = true;
+                }
+
+                // Pig movement
+                this.moveTimer++;
+                if (this.moveTimer > 100) {
+                    this.direction = Math.random() > 0.5 ? 1 : -1;
+                    this.moveTimer = 0;
+                }
+
+                if (!this.sniffing) {
+                    this.x += this.speed * this.direction;
+                }
+
+                // Keep pig in bounds
+                if (this.x < 60) {
+                    this.x = 60;
+                    this.direction = 1;
+                }
+                if (this.x > farmCanvas.width - 60) {
+                    this.x = farmCanvas.width - 60;
+                    this.direction = -1;
+                }
+            }
+
+            draw() {
+                const sniffOffset = this.sniffing ? Math.sin(this.sniffTimer * 0.5) * 2 : 0;
+
+                // Pig body (pink oval)
+                farmCtx.fillStyle = this.fedReady ? '#ffaaaa' : '#ffcccc';
+                farmCtx.beginPath();
+                farmCtx.ellipse(this.x, this.y, 22, 16, 0, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Pig head
+                const headX = this.x + (this.direction * 20);
+                farmCtx.fillStyle = this.fedReady ? '#ffaaaa' : '#ffcccc';
+                farmCtx.beginPath();
+                farmCtx.ellipse(headX, this.y - 2 + sniffOffset, 14, 12, 0, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Snout
+                farmCtx.fillStyle = '#ffbbbb';
+                farmCtx.beginPath();
+                farmCtx.ellipse(headX + (this.direction * 10), this.y + sniffOffset, 8, 6, 0, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Nostrils
+                farmCtx.fillStyle = '#cc8888';
+                farmCtx.beginPath();
+                farmCtx.arc(headX + (this.direction * 9), this.y - 2 + sniffOffset, 2, 0, Math.PI * 2);
+                farmCtx.arc(headX + (this.direction * 13), this.y - 2 + sniffOffset, 2, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Eyes
+                farmCtx.fillStyle = '#000';
+                farmCtx.beginPath();
+                farmCtx.arc(headX - (this.direction * 2), this.y - 6 + sniffOffset, 3, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Ears
+                farmCtx.fillStyle = '#ffaaaa';
+                farmCtx.beginPath();
+                farmCtx.moveTo(headX - 8, this.y - 10 + sniffOffset);
+                farmCtx.lineTo(headX - 12, this.y - 18 + sniffOffset);
+                farmCtx.lineTo(headX - 4, this.y - 12 + sniffOffset);
+                farmCtx.fill();
+                farmCtx.beginPath();
+                farmCtx.moveTo(headX + 8, this.y - 10 + sniffOffset);
+                farmCtx.lineTo(headX + 12, this.y - 18 + sniffOffset);
+                farmCtx.lineTo(headX + 4, this.y - 12 + sniffOffset);
+                farmCtx.fill();
+
+                // Legs
+                farmCtx.fillStyle = '#ffaaaa';
+                farmCtx.fillRect(this.x - 15, this.y + 12, 6, 10);
+                farmCtx.fillRect(this.x - 5, this.y + 12, 6, 10);
+                farmCtx.fillRect(this.x + 5, this.y + 12, 6, 10);
+                farmCtx.fillRect(this.x + 12, this.y + 12, 6, 10);
+
+                // Curly tail
+                farmCtx.strokeStyle = '#ffaaaa';
+                farmCtx.lineWidth = 3;
+                farmCtx.beginPath();
+                const tailX = this.x - (this.direction * 22);
+                farmCtx.arc(tailX, this.y - 5, 5, 0, Math.PI * 1.5);
+                farmCtx.stroke();
+
+                // Fed ready indicator
+                if (this.fedReady) {
+                    farmCtx.fillStyle = '#00ff00';
+                    farmCtx.font = 'bold 12px Courier New';
+                    farmCtx.textAlign = 'center';
+                    farmCtx.fillText('FEED!', this.x, this.y - 25);
+                }
+            }
+
+            feed() {
+                if (this.fedReady) {
+                    this.fedReady = false;
+                    this.fedTimer = 0;
+                    return this.fedValue;
+                }
+                return 0;
+            }
+        }
+
+        // Sheep class
+        class Sheep {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = 38;
+                this.woolReady = false;
+                this.woolTimer = 0;
+                this.woolTime = 220 - (farmGrade * 20);
+                this.woolValue = 25 + farmGrade * 7;
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.moveTimer = 0;
+                this.speed = 0.4;
+                this.woolAmount = 0; // Visual wool growth
+            }
+
+            update() {
+                // Wool growing
+                if (!this.woolReady) {
+                    this.woolTimer++;
+                    this.woolAmount = Math.min(1, this.woolTimer / this.woolTime);
+                    if (this.woolTimer >= this.woolTime) {
+                        this.woolReady = true;
+                        this.woolTimer = 0;
+                        this.woolAmount = 1;
+                    }
+                }
+
+                // Sheep movement (slow grazing)
+                this.moveTimer++;
+                if (this.moveTimer > 150) {
+                    this.direction = Math.random() > 0.5 ? 1 : -1;
+                    this.moveTimer = 0;
+                }
+
+                this.x += this.speed * this.direction;
+
+                // Keep sheep in bounds
+                if (this.x < 60) {
+                    this.x = 60;
+                    this.direction = 1;
+                }
+                if (this.x > farmCanvas.width - 60) {
+                    this.x = farmCanvas.width - 60;
+                    this.direction = -1;
+                }
+            }
+
+            draw() {
+                const woolSize = 3 + this.woolAmount * 8;
+
+                // Wool body (fluffy white cloud)
+                farmCtx.fillStyle = this.woolReady ? '#ffffff' : '#eeeeee';
+                // Draw multiple circles for fluffy effect
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    const offsetX = Math.cos(angle) * (10 + this.woolAmount * 4);
+                    const offsetY = Math.sin(angle) * (6 + this.woolAmount * 2);
+                    farmCtx.beginPath();
+                    farmCtx.arc(this.x + offsetX, this.y + offsetY, woolSize, 0, Math.PI * 2);
+                    farmCtx.fill();
+                }
+                // Center wool
+                farmCtx.beginPath();
+                farmCtx.arc(this.x, this.y, woolSize + 2, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Sheep head (black face)
+                const headX = this.x + (this.direction * 18);
+                farmCtx.fillStyle = '#333333';
+                farmCtx.beginPath();
+                farmCtx.ellipse(headX, this.y + 2, 10, 12, 0, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Eyes
+                farmCtx.fillStyle = '#ffffff';
+                farmCtx.beginPath();
+                farmCtx.arc(headX - 3, this.y - 2, 3, 0, Math.PI * 2);
+                farmCtx.arc(headX + 3, this.y - 2, 3, 0, Math.PI * 2);
+                farmCtx.fill();
+                farmCtx.fillStyle = '#000';
+                farmCtx.beginPath();
+                farmCtx.arc(headX - 3, this.y - 2, 1.5, 0, Math.PI * 2);
+                farmCtx.arc(headX + 3, this.y - 2, 1.5, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Ears
+                farmCtx.fillStyle = '#333333';
+                farmCtx.beginPath();
+                farmCtx.ellipse(headX - 10, this.y - 4, 6, 4, -0.5, 0, Math.PI * 2);
+                farmCtx.ellipse(headX + 10, this.y - 4, 6, 4, 0.5, 0, Math.PI * 2);
+                farmCtx.fill();
+
+                // Legs
+                farmCtx.fillStyle = '#333333';
+                farmCtx.fillRect(this.x - 12, this.y + 14, 5, 12);
+                farmCtx.fillRect(this.x - 3, this.y + 14, 5, 12);
+                farmCtx.fillRect(this.x + 5, this.y + 14, 5, 12);
+                farmCtx.fillRect(this.x + 12, this.y + 14, 5, 12);
+
+                // Wool ready indicator
+                if (this.woolReady) {
+                    farmCtx.fillStyle = '#00ff00';
+                    farmCtx.font = 'bold 12px Courier New';
+                    farmCtx.textAlign = 'center';
+                    farmCtx.fillText('SHEAR!', this.x, this.y - 25);
+                }
+            }
+
+            shear() {
+                if (this.woolReady) {
+                    this.woolReady = false;
+                    this.woolTimer = 0;
+                    this.woolAmount = 0;
+                    return this.woolValue;
+                }
+                return 0;
+            }
+        }
+
+        // Farm input handlers
+        document.addEventListener('keydown', (e) => {
+            if (!farmActive) return;
+            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') farmKeys.up = true;
+            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') farmKeys.down = true;
+            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') farmKeys.left = true;
+            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') farmKeys.right = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') farmKeys.up = false;
+            if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') farmKeys.down = false;
+            if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') farmKeys.left = false;
+            if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') farmKeys.right = false;
+        });
+
+        // Update farming UI
+        function updateFarmUI() {
+            document.getElementById('farmCoins').textContent = '$' + farmCoins;
+            document.getElementById('farmGrade').textContent = farmGrade + (farmGrade >= MAX_GRADE ? ' (MAX)' : '');
+            document.getElementById('farmCrops').textContent = farmCrops.length;
+
+            const upgradeBtn = document.getElementById('upgradeBtn');
+            if (farmGrade >= MAX_GRADE) {
+                upgradeBtn.textContent = 'MAX GRADE!';
+                upgradeBtn.disabled = true;
+            } else {
+                const cost = UPGRADE_COSTS[farmGrade - 1];
+                upgradeBtn.textContent = 'UPGRADE $' + cost;
+                upgradeBtn.disabled = farmCoins < cost;
+            }
+
+            // Sell crops button - unlocks at Grade 2
+            const sellBtn = document.getElementById('sellCropsBtn');
+            if (farmGrade >= 2) {
+                const readyCrops = farmCrops.filter(c => c.isReadyToHarvest());
+                const sellValue = readyCrops.reduce((sum, c) => sum + c.value, 0);
+                if (readyCrops.length > 0) {
+                    sellBtn.textContent = 'SELL ' + readyCrops.length + ' CROPS ($' + sellValue + ')';
+                    sellBtn.disabled = false;
+                } else {
+                    sellBtn.textContent = 'NO CROPS TO SELL';
+                    sellBtn.disabled = true;
+                }
+            } else {
+                sellBtn.textContent = 'SELL CROPS (Unlock at Grade 2)';
+                sellBtn.disabled = true;
+            }
+
+            // Cow stats - shows at Grade 3+
+            const cowStat = document.getElementById('cowStat');
+            if (farmGrade >= 3) {
+                cowStat.style.display = 'block';
+                const readyMilk = farmCows.filter(c => c.milkReady).length;
+                document.getElementById('farmCowCount').textContent = farmCows.length + ' (' + readyMilk + ' ready)';
+            } else {
+                cowStat.style.display = 'none';
+            }
+
+            // Chicken stats - shows at Grade 4+
+            const chickenStat = document.getElementById('chickenStat');
+            const eggStat = document.getElementById('eggStat');
+            if (farmGrade >= 4) {
+                chickenStat.style.display = 'block';
+                eggStat.style.display = 'block';
+                document.getElementById('farmChickenCount').textContent = farmChickens.length;
+                document.getElementById('farmEggCount').textContent = farmEggs.length;
+            } else {
+                chickenStat.style.display = 'none';
+                eggStat.style.display = 'none';
+            }
+
+            // Pig stats - shows at Grade 5+
+            const pigStat = document.getElementById('pigStat');
+            if (farmGrade >= 5) {
+                pigStat.style.display = 'block';
+                const readyPigs = farmPigs.filter(p => p.fedReady).length;
+                document.getElementById('farmPigCount').textContent = farmPigs.length + ' (' + readyPigs + ' hungry)';
+            } else {
+                pigStat.style.display = 'none';
+            }
+
+            // Sheep stats - shows at Grade 6+
+            const sheepStat = document.getElementById('sheepStat');
+            if (farmGrade >= 6) {
+                sheepStat.style.display = 'block';
+                const readySheep = farmSheep.filter(s => s.woolReady).length;
+                document.getElementById('farmSheepCount').textContent = farmSheep.length + ' (' + readySheep + ' woolly)';
+            } else {
+                sheepStat.style.display = 'none';
+            }
+        }
+
+        // Farm Bot AI
+        function updateFarmBot() {
+            // Move towards target
+            const dx = farmBot.targetX - farmBot.x;
+            const dy = farmBot.targetY - farmBot.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > farmBot.speed) {
+                farmBot.x += (dx / dist) * farmBot.speed;
+                farmBot.y += (dy / dist) * farmBot.speed;
+            } else {
+                // Reached target, pick new target
+                farmBot.x = farmBot.targetX;
+                farmBot.y = farmBot.targetY;
+
+                // Plant crop at current location
+                farmBot.plantTimer++;
+                if (farmBot.plantTimer >= 60) { // Plant every second
+                    const maxCrops = 5 + farmGrade * 3; // More crops with higher grade
+                    if (farmCrops.length < maxCrops) {
+                        // Check if spot is clear
+                        const canPlant = !farmCrops.some(crop =>
+                            Math.hypot(crop.x - farmBot.x, crop.y - farmBot.y) < 40
+                        );
+                        if (canPlant) {
+                            farmCrops.push(new Crop(farmBot.x, farmBot.y));
+                        }
+                    }
+                    farmBot.plantTimer = 0;
+
+                    // Pick new random target
+                    farmBot.targetX = 50 + Math.random() * (farmCanvas.width - 100);
+                    farmBot.targetY = 50 + Math.random() * (farmCanvas.height - 100);
+                }
+            }
+        }
+
+        // Update player
+        function updatePlayer() {
+            if (farmKeys.up && player.y > player.size) player.y -= player.speed;
+            if (farmKeys.down && player.y < farmCanvas.height - player.size) player.y += player.speed;
+            if (farmKeys.left && player.x > player.size) player.x -= player.speed;
+            if (farmKeys.right && player.x < farmCanvas.width - player.size) player.x += player.speed;
+
+            // Check for crop collection
+            for (let i = farmCrops.length - 1; i >= 0; i--) {
+                const crop = farmCrops[i];
+                if (crop.isReadyToHarvest()) {
+                    const dist = Math.hypot(crop.x - player.x, crop.y - player.y);
+                    if (dist < player.size + crop.size) {
+                        farmCoins += crop.value;
+                        farmCrops.splice(i, 1);
+                    }
+                }
+            }
+
+            // Check for cow milking (Grade 3+)
+            if (farmGrade >= 3) {
+                for (const cow of farmCows) {
+                    if (cow.milkReady) {
+                        const dist = Math.hypot(cow.x - player.x, cow.y - player.y);
+                        if (dist < player.size + cow.size) {
+                            const milkValue = cow.milk();
+                            if (milkValue > 0) {
+                                farmCoins += milkValue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check for egg collection (Grade 4+)
+            if (farmGrade >= 4) {
+                for (let i = farmEggs.length - 1; i >= 0; i--) {
+                    const egg = farmEggs[i];
+                    const dist = Math.hypot(egg.x - player.x, egg.y - player.y);
+                    if (dist < player.size + egg.size) {
+                        farmCoins += egg.value;
+                        farmEggs.splice(i, 1);
+                    }
+                }
+            }
+
+            // Check for pig feeding (Grade 5+)
+            if (farmGrade >= 5) {
+                for (const pig of farmPigs) {
+                    if (pig.fedReady) {
+                        const dist = Math.hypot(pig.x - player.x, pig.y - player.y);
+                        if (dist < player.size + pig.size) {
+                            const fedValue = pig.feed();
+                            if (fedValue > 0) {
+                                farmCoins += fedValue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check for sheep shearing (Grade 6+)
+            if (farmGrade >= 6) {
+                for (const sheep of farmSheep) {
+                    if (sheep.woolReady) {
+                        const dist = Math.hypot(sheep.x - player.x, sheep.y - player.y);
+                        if (dist < player.size + sheep.size) {
+                            const woolValue = sheep.shear();
+                            if (woolValue > 0) {
+                                farmCoins += woolValue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Draw farm
+        function drawFarm() {
+            // Background (dirt)
+            farmCtx.fillStyle = '#3d2817';
+            farmCtx.fillRect(0, 0, farmCanvas.width, farmCanvas.height);
+
+            // Draw farm rows
+            farmCtx.strokeStyle = '#2a1a0a';
+            farmCtx.lineWidth = 2;
+            for (let y = 0; y < farmCanvas.height; y += 40) {
+                farmCtx.beginPath();
+                farmCtx.moveTo(0, y);
+                farmCtx.lineTo(farmCanvas.width, y);
+                farmCtx.stroke();
+            }
+
+            // Draw crops
+            for (const crop of farmCrops) {
+                crop.update();
+                crop.draw();
+            }
+
+            // Draw cows (Grade 3+)
+            if (farmGrade >= 3) {
+                for (const cow of farmCows) {
+                    cow.update();
+                    cow.draw();
+                }
+            }
+
+            // Draw chickens and eggs (Grade 4+)
+            if (farmGrade >= 4) {
+                // Draw eggs first (so chickens appear on top)
+                for (const egg of farmEggs) {
+                    egg.draw();
+                }
+                // Draw chickens
+                for (const chicken of farmChickens) {
+                    chicken.update();
+                    chicken.draw();
+                }
+            }
+
+            // Draw pigs (Grade 5+)
+            if (farmGrade >= 5) {
+                for (const pig of farmPigs) {
+                    pig.update();
+                    pig.draw();
+                }
+            }
+
+            // Draw sheep (Grade 6+)
+            if (farmGrade >= 6) {
+                for (const sheep of farmSheep) {
+                    sheep.update();
+                    sheep.draw();
+                }
+            }
+
+            // Draw Farm Bot
+            farmCtx.fillStyle = farmBot.color;
+            farmCtx.fillRect(farmBot.x - farmBot.size / 2, farmBot.y - farmBot.size / 2, farmBot.size, farmBot.size);
+            // Robot eyes
+            farmCtx.fillStyle = '#000';
+            farmCtx.fillRect(farmBot.x - 8, farmBot.y - 5, 5, 5);
+            farmCtx.fillRect(farmBot.x + 3, farmBot.y - 5, 5, 5);
+            // Robot antenna
+            farmCtx.strokeStyle = farmBot.color;
+            farmCtx.lineWidth = 2;
+            farmCtx.beginPath();
+            farmCtx.moveTo(farmBot.x, farmBot.y - farmBot.size / 2);
+            farmCtx.lineTo(farmBot.x, farmBot.y - farmBot.size / 2 - 10);
+            farmCtx.stroke();
+            farmCtx.fillStyle = '#ff0000';
+            farmCtx.beginPath();
+            farmCtx.arc(farmBot.x, farmBot.y - farmBot.size / 2 - 10, 4, 0, Math.PI * 2);
+            farmCtx.fill();
+
+            // Draw Player
+            farmCtx.fillStyle = player.color;
+            farmCtx.beginPath();
+            farmCtx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
+            farmCtx.fill();
+            // Player face
+            farmCtx.fillStyle = '#fff';
+            farmCtx.beginPath();
+            farmCtx.arc(player.x - 5, player.y - 3, 4, 0, Math.PI * 2);
+            farmCtx.arc(player.x + 5, player.y - 3, 4, 0, Math.PI * 2);
+            farmCtx.fill();
+            farmCtx.fillStyle = '#000';
+            farmCtx.beginPath();
+            farmCtx.arc(player.x - 5, player.y - 3, 2, 0, Math.PI * 2);
+            farmCtx.arc(player.x + 5, player.y - 3, 2, 0, Math.PI * 2);
+            farmCtx.fill();
+            // Smile
+            farmCtx.strokeStyle = '#000';
+            farmCtx.lineWidth = 2;
+            farmCtx.beginPath();
+            farmCtx.arc(player.x, player.y + 2, 6, 0, Math.PI);
+            farmCtx.stroke();
+
+            // Draw labels
+            farmCtx.fillStyle = '#88ff00';
+            farmCtx.font = '10px Courier New';
+            farmCtx.textAlign = 'center';
+            farmCtx.fillText('FARM BOT', farmBot.x, farmBot.y + farmBot.size / 2 + 12);
+            farmCtx.fillStyle = '#00aaff';
+            farmCtx.fillText('YOU', player.x, player.y + player.size / 2 + 12);
+        }
+
+        // Farm game loop
+        function farmLoop() {
+            if (!farmActive) return;
+
+            // Timer countdown (60 FPS)
+            farmTimerFrame++;
+            if (farmTimerFrame >= 60) {
+                farmTimerFrame = 0;
+                farmTimer--;
+                document.getElementById('farmTime').textContent = farmTimer;
+
+                // Color changes as time runs low
+                const timeEl = document.getElementById('farmTime');
+                if (farmTimer <= 10) {
+                    timeEl.style.color = '#ff0000';
+                } else if (farmTimer <= 20) {
+                    timeEl.style.color = '#ff6600';
+                } else {
+                    timeEl.style.color = '#ff6666';
+                }
+
+                // Check for fail
+                if (farmTimer <= 0) {
+                    farmActive = false;
+                    document.getElementById('farmFail').style.display = 'flex';
+                    return;
+                }
+            }
+
+            updatePlayer();
+            updateFarmBot();
+            drawFarm();
+            updateFarmUI();
+
+            farmAnimationId = requestAnimationFrame(farmLoop);
+        }
+
+        // Start farming mode
+        function startFarming() {
+            farmActive = true;
+            document.getElementById('farmingMode').style.display = 'block';
+            farmLoop();
+        }
+
+        // Exit farming mode
+        function exitFarming() {
+            farmActive = false;
+            document.getElementById('farmingMode').style.display = 'none';
+            if (farmAnimationId) {
+                cancelAnimationFrame(farmAnimationId);
+            }
+        }
+
+        // Reset farming
+        function resetFarming() {
+            farmCoins = 0;
+            farmGrade = 1;
+            farmCrops = [];
+            farmCows = [];
+            farmChickens = [];
+            farmEggs = [];
+            farmPigs = [];
+            farmSheep = [];
+            farmTimer = 60;
+            farmTimerFrame = 0;
+            player.x = 300;
+            player.y = 250;
+            player.speed = 4;
+            farmBot.x = 100;
+            farmBot.y = 100;
+            farmBot.targetX = 100;
+            farmBot.targetY = 100;
+            farmBot.speed = 2;
+            document.getElementById('farmWin').style.display = 'none';
+            document.getElementById('farmFail').style.display = 'none';
+            document.getElementById('farmTime').textContent = '60';
+            document.getElementById('farmTime').style.color = '#ff6666';
+            updateFarmUI();
+        }
+
+        // Upgrade farm
+        function upgradeFarm() {
+            if (farmGrade >= MAX_GRADE) return;
+
+            const cost = UPGRADE_COSTS[farmGrade - 1];
+            if (farmCoins >= cost) {
+                farmCoins -= cost;
+                farmGrade++;
+                farmTimer = 60; // Reset timer on upgrade
+                farmTimerFrame = 0;
+                document.getElementById('farmTime').textContent = '60';
+                document.getElementById('farmTime').style.color = '#ff6666';
+                farmBot.speed = 2 + farmGrade * 0.3; // Bot gets faster
+                player.speed = 4 + farmGrade * 0.5; // Player gets faster
+
+                // Spawn cows at Grade 3
+                if (farmGrade === 3) {
+                    // Spawn 2 cows
+                    farmCows.push(new Cow(150, 420));
+                    farmCows.push(new Cow(450, 420));
+                }
+
+                // Spawn chickens at Grade 4
+                if (farmGrade === 4) {
+                    // Spawn 3 chickens
+                    farmChickens.push(new Chicken(100, 80));
+                    farmChickens.push(new Chicken(300, 70));
+                    farmChickens.push(new Chicken(500, 85));
+                }
+
+                // Add more cows and spawn pigs at Grade 5
+                if (farmGrade === 5) {
+                    farmCows.push(new Cow(300, 450));
+                    // Spawn 2 pigs
+                    farmPigs.push(new Pig(180, 350));
+                    farmPigs.push(new Pig(420, 340));
+                }
+
+                // Add more chickens and spawn sheep at Grade 6
+                if (farmGrade === 6) {
+                    farmChickens.push(new Chicken(200, 90));
+                    farmChickens.push(new Chicken(400, 75));
+                    // Spawn 2 sheep
+                    farmSheep.push(new Sheep(120, 280));
+                    farmSheep.push(new Sheep(480, 290));
+                }
+
+                // Check for win
+                if (farmGrade >= MAX_GRADE) {
+                    farmActive = false;
+                    document.getElementById('farmWin').style.display = 'flex';
+                }
+
+                updateFarmUI();
+            }
+        }
+
+        // Sell crops function
+        function sellCrops() {
+            if (farmGrade < 2) return; // Must be Grade 2 or higher
+
+            const readyCrops = farmCrops.filter(c => c.isReadyToHarvest());
+            if (readyCrops.length === 0) return;
+
+            // Calculate total value and sell
+            const sellValue = readyCrops.reduce((sum, c) => sum + c.value, 0);
+            farmCoins += sellValue;
+
+            // Remove sold crops
+            farmCrops = farmCrops.filter(c => !c.isReadyToHarvest());
+
+            updateFarmUI();
+        }
+
+        // Farming button handlers
+        document.getElementById('farmingBtn').addEventListener('click', startFarming);
+        document.getElementById('exitFarmBtn').addEventListener('click', exitFarming);
+        document.getElementById('upgradeBtn').addEventListener('click', upgradeFarm);
+        document.getElementById('sellCropsBtn').addEventListener('click', sellCrops);
+        document.getElementById('farmWinBtn').addEventListener('click', () => {
+            resetFarming();
+            startFarming();
+        });
+
+        document.getElementById('farmFailBtn').addEventListener('click', () => {
+            resetFarming();
+            startFarming();
+        });
+
+        // Initialize farm UI
+        updateFarmUI();
+    </script>
+</body>
+</html>

@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Gummy Chairs - Escape the Eater!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            overflow: hidden;
+        }
+
+        h1 {
+            color: #ff4757;
+            text-shadow: 3px 3px 0 #fff, -1px -1px 0 #fff;
+            margin: 20px 0 10px;
+            font-size: 2.5em;
+        }
+
+        .instructions {
+            color: #5f27cd;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        #gameCanvas {
+            border: 5px solid #ff6b81;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: #87ceeb;
+        }
+
+        .controls {
+            margin-top: 15px;
+            color: #2d3436;
+        }
+
+        .controls span {
+            background: #ffeaa7;
+            padding: 5px 15px;
+            border-radius: 10px;
+            margin: 0 5px;
+            border: 2px solid #fdcb6e;
+        }
+
+        #restartBtn {
+            margin-top: 15px;
+            padding: 10px 30px;
+            font-size: 1.2em;
+            background: #00b894;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            display: none;
+        }
+
+        #restartBtn:hover {
+            background: #00a884;
+            transform: scale(1.05);
+        }
+
+        #message {
+            font-size: 1.5em;
+            margin-top: 10px;
+            color: #6c5ce7;
+            min-height: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h1>The Gummy Chairs</h1>
+    <p class="instructions">Jump across the gummy chairs to escape the hungry eater!</p>
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <div class="controls">
+        <span>Arrow Keys</span> to move | <span>Up Arrow</span> to jump
+    </div>
+        <div id="message"></div>
+    <button id="restartBtn" onclick="restartGame()">Play Again!</button>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const message = document.getElementById('message');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // Game state
+        let gameOver = false;
+        let won = false;
+        let cameraX = 0;
+        let currentWorld = 1;
+
+        // World configurations
+        const worlds = {
+            1: {
+                name: "Green Meadow",
+                color: "#55efc4",
+                eaterSpeed: 2,
+                platforms: [
+                    { x: 0, y: 420, width: 200, height: 50, color: '#55efc4' },
+                    { x: 280, y: 400, width: 120, height: 80, color: '#81ecec' },
+                    { x: 480, y: 390, width: 130, height: 90, color: '#55efc4' },
+                    { x: 690, y: 380, width: 120, height: 80, color: '#81ecec' },
+                    { x: 890, y: 370, width: 140, height: 90, color: '#55efc4' },
+                    { x: 1110, y: 360, width: 130, height: 80, color: '#81ecec' },
+                    { x: 1320, y: 350, width: 150, height: 100, color: '#00b894' }
+                ],
+                obstacles: [],
+                finishX: 1340
+            },
+            2: {
+                name: "Blue Ocean",
+                color: "#74b9ff",
+                eaterSpeed: 2.5,
+                platforms: [
+                    { x: 0, y: 420, width: 180, height: 50, color: '#74b9ff' },
+                    { x: 260, y: 400, width: 120, height: 80, color: '#0984e3' },
+                    { x: 460, y: 380, width: 120, height: 90, color: '#74b9ff' },
+                    { x: 660, y: 390, width: 120, height: 80, color: '#0984e3' },
+                    { x: 860, y: 370, width: 120, height: 90, color: '#74b9ff' },
+                    { x: 1060, y: 360, width: 120, height: 80, color: '#0984e3' },
+                    { x: 1260, y: 350, width: 120, height: 90, color: '#74b9ff' },
+                    { x: 1460, y: 340, width: 150, height: 100, color: '#00b894' }
+                ],
+                obstacles: [
+                    { x: 320, y: 375, width: 25, height: 25 },
+                    { x: 710, y: 365, width: 25, height: 25 },
+                    { x: 1110, y: 335, width: 25, height: 25 }
+                ],
+                finishX: 1480
+            },
+            3: {
+                name: "Purple Mountains",
+                color: "#a29bfe",
+                eaterSpeed: 3,
+                platforms: [
+                    { x: 0, y: 420, width: 160, height: 50, color: '#a29bfe' },
+                    { x: 240, y: 400, width: 110, height: 80, color: '#6c5ce7' },
+                    { x: 430, y: 380, width: 110, height: 70, color: '#a29bfe' },
+                    { x: 620, y: 390, width: 110, height: 80, color: '#6c5ce7' },
+                    { x: 810, y: 370, width: 110, height: 70, color: '#a29bfe' },
+                    { x: 1000, y: 360, width: 110, height: 80, color: '#6c5ce7' },
+                    { x: 1190, y: 350, width: 110, height: 70, color: '#a29bfe' },
+                    { x: 1380, y: 340, width: 110, height: 80, color: '#6c5ce7' },
+                    { x: 1570, y: 330, width: 150, height: 100, color: '#00b894' }
+                ],
+                obstacles: [
+                    { x: 280, y: 375, width: 25, height: 25 },
+                    { x: 470, y: 355, width: 25, height: 25 },
+                    { x: 850, y: 345, width: 25, height: 25 },
+                    { x: 1040, y: 335, width: 25, height: 25 },
+                    { x: 1420, y: 315, width: 25, height: 25 }
+                ],
+                finishX: 1590
+            },
+            4: {
+                name: "Pink Candy Land",
+                color: "#fd79a8",
+                eaterSpeed: 3.5,
+                platforms: [
+                    { x: 0, y: 420, width: 150, height: 50, color: '#fd79a8' },
+                    { x: 230, y: 400, width: 100, height: 70, color: '#e84393' },
+                    { x: 410, y: 380, width: 100, height: 60, color: '#fd79a8' },
+                    { x: 590, y: 390, width: 100, height: 70, color: '#e84393' },
+                    { x: 770, y: 370, width: 100, height: 60, color: '#fd79a8' },
+                    { x: 950, y: 360, width: 100, height: 70, color: '#e84393' },
+                    { x: 1130, y: 350, width: 100, height: 60, color: '#fd79a8' },
+                    { x: 1310, y: 340, width: 100, height: 70, color: '#e84393' },
+                    { x: 1490, y: 330, width: 100, height: 60, color: '#fd79a8' },
+                    { x: 1670, y: 320, width: 150, height: 100, color: '#00b894' }
+                ],
+                obstacles: [
+                    { x: 260, y: 375, width: 25, height: 25 },
+                    { x: 440, y: 355, width: 25, height: 25 },
+                    { x: 620, y: 365, width: 25, height: 25 },
+                    { x: 800, y: 345, width: 25, height: 25 },
+                    { x: 980, y: 335, width: 25, height: 25 },
+                    { x: 1160, y: 325, width: 25, height: 25 },
+                    { x: 1520, y: 305, width: 25, height: 25 }
+                ],
+                finishX: 1690
+            },
+            5: {
+                name: "Red Volcano",
+                color: "#d63031",
+                eaterSpeed: 4.5,
+                platforms: [
+                    { x: 0, y: 420, width: 140, height: 50, color: '#d63031' },
+                    { x: 220, y: 400, width: 100, height: 60, color: '#e17055' },
+                    { x: 400, y: 380, width: 100, height: 50, color: '#d63031' },
+                    { x: 580, y: 390, width: 100, height: 60, color: '#e17055' },
+                    { x: 760, y: 370, width: 100, height: 50, color: '#d63031' },
+                    { x: 940, y: 360, width: 100, height: 60, color: '#e17055' },
+                    { x: 1120, y: 350, width: 100, height: 50, color: '#d63031' },
+                    { x: 1300, y: 340, width: 100, height: 60, color: '#e17055' },
+                    { x: 1480, y: 330, width: 100, height: 50, color: '#d63031' },
+                    { x: 1660, y: 320, width: 100, height: 60, color: '#e17055' },
+                    { x: 1840, y: 310, width: 150, height: 100, color: '#00b894' }
+                ],
+                obstacles: [
+                    { x: 250, y: 375, width: 25, height: 25 },
+                    { x: 430, y: 355, width: 25, height: 25 },
+                    { x: 610, y: 365, width: 25, height: 25 },
+                    { x: 790, y: 345, width: 25, height: 25 },
+                    { x: 970, y: 335, width: 25, height: 25 },
+                    { x: 1150, y: 325, width: 25, height: 25 },
+                    { x: 1330, y: 315, width: 25, height: 25 },
+                    { x: 1510, y: 305, width: 25, height: 25 },
+                    { x: 1690, y: 295, width: 25, height: 25 }
+                ],
+                finishX: 1860
+            }
+        };
+
+        // Player
+        const player = {
+            x: 50,
+            y: 350,
+            width: 40,
+            height: 50,
+            velX: 0,
+            velY: 0,
+            speed: 5,
+            jumpForce: -15,
+            onGround: false,
+            color: '#00cec9'
+        };
+
+        // Eater (chaser)
+        const eater = {
+            x: -100,
+            y: 350,
+            width: 60,
+            height: 70,
+            speed: 2.5,
+            color: '#d63031',
+            mouthOpen: 0
+        };
+
+        // Gummy chair platforms
+        let platforms = [...worlds[1].platforms];
+
+        // Obstacles (spikes)
+        let obstacles = [...worlds[1].obstacles];
+
+        // Finish zone
+        let finishZone = {
+            x: worlds[1].finishX,
+            y: 150,
+            width: 100,
+            height: 100
+        };
+
+        // Input handling
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['ArrowUp', 'ArrowDown'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        function drawGummyChair(platform) {
+            const x = platform.x - cameraX;
+            const y = platform.y;
+            const w = platform.width;
+            const h = platform.height;
+
+            // Chair seat (gummy texture)
+            ctx.fillStyle = platform.color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h * 0.4, 10);
+            ctx.fill();
+
+            // Gummy shine effect
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(x + w * 0.3, y + h * 0.15, w * 0.15, h * 0.08, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Chair back
+            ctx.fillStyle = platform.color;
+            ctx.beginPath();
+            ctx.roundRect(x + w * 0.1, y - h * 0.5, w * 0.8, h * 0.55, 8);
+            ctx.fill();
+
+            // Chair legs
+            ctx.fillStyle = platform.color;
+            ctx.fillRect(x + 10, y + h * 0.35, 12, h * 0.65);
+            ctx.fillRect(x + w - 22, y + h * 0.35, 12, h * 0.65);
+
+            // Darker outline
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h * 0.4, 10);
+            ctx.stroke();
+        }
+
+        function drawPlayer() {
+            const x = player.x - cameraX;
+            const y = player.y;
+
+            // Body (gummy person)
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, player.width, player.height, 15);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x + 12, y + 15, 8, 0, Math.PI * 2);
+            ctx.arc(x + 28, y + 15, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pupils (looking at eater direction)
+            ctx.fillStyle = '#2d3436';
+            ctx.beginPath();
+            ctx.arc(x + 10, y + 15, 4, 0, Math.PI * 2);
+            ctx.arc(x + 26, y + 15, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Worried mouth
+            ctx.strokeStyle = '#2d3436';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x + 20, y + 38, 8, 0.2 * Math.PI, 0.8 * Math.PI);
+            ctx.stroke();
+
+            // Shine
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(x + 12, y + 10, 6, 4, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawEater() {
+            const x = eater.x - cameraX;
+            const y = eater.y;
+
+            eater.mouthOpen = (Math.sin(Date.now() / 150) + 1) * 10;
+
+            // Body
+            ctx.fillStyle = eater.color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, eater.width, eater.height, 20);
+            ctx.fill();
+
+            // Angry eyes
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x + 15, y + 20, 12, 0, Math.PI * 2);
+            ctx.arc(x + 45, y + 20, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Angry eyebrows
+            ctx.strokeStyle = '#2d3436';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(x + 5, y + 10);
+            ctx.lineTo(x + 25, y + 15);
+            ctx.moveTo(x + 55, y + 10);
+            ctx.lineTo(x + 35, y + 15);
+            ctx.stroke();
+
+            // Evil pupils
+            ctx.fillStyle = '#d63031';
+            ctx.beginPath();
+            ctx.arc(x + 18, y + 20, 6, 0, Math.PI * 2);
+            ctx.arc(x + 48, y + 20, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hungry mouth
+            ctx.fillStyle = '#2d3436';
+            ctx.beginPath();
+            ctx.ellipse(x + 30, y + 50, 20, 10 + eater.mouthOpen, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Teeth
+            ctx.fillStyle = 'white';
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x + 15 + i * 8, y + 45);
+                ctx.lineTo(x + 18 + i * 8, y + 52);
+                ctx.lineTo(x + 12 + i * 8, y + 52);
+                ctx.fill();
+            }
+
+            // "YUM" text when close
+            if (player.x - eater.x < 200) {
+                ctx.fillStyle = '#d63031';
+                ctx.font = 'bold 16px Comic Sans MS';
+                ctx.fillText('YUM YUM!', x + 5, y - 10);
+            }
+        }
+
+        function drawSpike(obstacle) {
+            const x = obstacle.x - cameraX;
+            const y = obstacle.y;
+            const w = obstacle.width;
+            const h = obstacle.height;
+
+            // Spike triangle
+            ctx.fillStyle = '#636e72';
+            ctx.beginPath();
+            ctx.moveTo(x, y + h);
+            ctx.lineTo(x + w / 2, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Spike shine
+            ctx.fillStyle = '#b2bec3';
+            ctx.beginPath();
+            ctx.moveTo(x + 5, y + h);
+            ctx.lineTo(x + w / 2, y + 5);
+            ctx.lineTo(x + w / 2, y + h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Outline
+            ctx.strokeStyle = '#2d3436';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y + h);
+            ctx.lineTo(x + w / 2, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        function drawFinishZone() {
+            const x = finishZone.x - cameraX;
+            const y = finishZone.y;
+
+            // Safe zone
+            ctx.fillStyle = 'rgba(0, 184, 148, 0.5)';
+            ctx.beginPath();
+            ctx.roundRect(x, y, finishZone.width, finishZone.height, 15);
+            ctx.fill();
+
+            // Door
+            ctx.fillStyle = '#00b894';
+            ctx.fillRect(x + 30, y + 20, 40, 80);
+            ctx.fillStyle = '#ffeaa7';
+            ctx.beginPath();
+            ctx.arc(x + 60, y + 60, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sign
+            ctx.fillStyle = '#00b894';
+            ctx.font = 'bold 14px Comic Sans MS';
+            ctx.fillText('SAFETY!', x + 20, y + 10);
+        }
+
+        function drawBackground() {
+            // Sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#a8edea');
+            gradient.addColorStop(1, '#fed6e3');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Clouds
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            for (let i = 0; i < 5; i++) {
+                const cloudX = ((i * 400 - cameraX * 0.3) % 1000) - 100;
+                ctx.beginPath();
+                ctx.arc(cloudX, 80 + i * 20, 40, 0, Math.PI * 2);
+                ctx.arc(cloudX + 30, 70 + i * 20, 35, 0, Math.PI * 2);
+                ctx.arc(cloudX + 60, 80 + i * 20, 40, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawHUD() {
+            // World name
+            ctx.fillStyle = worlds[currentWorld].color;
+            ctx.font = 'bold 18px Comic Sans MS';
+            ctx.fillText('World ' + currentWorld + ': ' + worlds[currentWorld].name, 50, 25);
+
+            // Distance indicator
+            const progress = Math.min(player.x / finishZone.x * 100, 100);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(50, 35, 200, 15);
+
+            ctx.fillStyle = '#00b894';
+            ctx.fillRect(50, 35, progress * 2, 15);
+
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(50, 35, 200, 15);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 10px Arial';
+            ctx.fillText('ESCAPE PROGRESS', 50, 62);
+
+            // Danger indicator
+            const danger = Math.max(0, 100 - (player.x - eater.x));
+            if (danger > 50) {
+                ctx.fillStyle = `rgba(255, 0, 0, ${Math.sin(Date.now() / 100) * 0.3 + 0.3})`;
+                ctx.font = 'bold 20px Comic Sans MS';
+                ctx.fillText('DANGER!', canvas.width - 120, 45);
+            }
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            // Player movement
+            if (keys['ArrowLeft']) {
+                player.velX = -player.speed;
+            } else if (keys['ArrowRight']) {
+                player.velX = player.speed;
+            } else {
+                player.velX *= 0.8;
+            }
+
+            // Jump
+            if (keys['ArrowUp'] && player.onGround) {
+                player.velY = player.jumpForce;
+                player.onGround = false;
+            }
+
+            // Gravity
+            player.velY += 0.8;
+
+            // Apply velocity
+            player.x += player.velX;
+            player.y += player.velY;
+
+            // Platform collision
+            player.onGround = false;
+            for (const platform of platforms) {
+                const platTop = platform.y;
+                const platBottom = platform.y + platform.height * 0.4;
+                const platLeft = platform.x;
+                const platRight = platform.x + platform.width;
+
+                if (player.x + player.width > platLeft &&
+                    player.x < platRight &&
+                    player.y + player.height > platTop &&
+                    player.y + player.height < platBottom + 20 &&
+                    player.velY >= 0) {
+                    player.y = platTop - player.height;
+                    player.velY = 0;
+                    player.onGround = true;
+                }
+            }
+
+            // Fall off screen
+            if (player.y > canvas.height + 100) {
+                player.x = 50;
+                player.y = 350;
+                player.velY = 0;
+                eater.x = -100;
+            }
+
+            // Check obstacle collision (spikes)
+            for (const obstacle of obstacles) {
+                if (player.x + player.width > obstacle.x &&
+                    player.x < obstacle.x + obstacle.width &&
+                    player.y + player.height > obstacle.y &&
+                    player.y < obstacle.y + obstacle.height) {
+                    // Hit a spike - reset position
+                    player.x = 50;
+                    player.y = 350;
+                    player.velY = 0;
+                    eater.x = -100;
+                    cameraX = 0;
+                    break;
+                }
+            }
+
+            // Camera follow
+            cameraX = Math.max(0, player.x - 200);
+
+            // Eater follows player
+            if (eater.x < player.x - 50) {
+                eater.speed = worlds[currentWorld].eaterSpeed + (player.x / 2000);
+                eater.x += eater.speed;
+            }
+
+            // Eater on platforms
+            for (const platform of platforms) {
+                if (eater.x + eater.width > platform.x &&
+                    eater.x < platform.x + platform.width) {
+                    eater.y = platform.y - eater.height;
+                    break;
+                }
+            }
+
+            // Check if eaten
+            if (player.x < eater.x + eater.width - 20 &&
+                player.x + player.width > eater.x + 20 &&
+                player.y + player.height > eater.y &&
+                player.y < eater.y + eater.height) {
+                gameOver = true;
+                won = false;
+                message.textContent = 'OH NO! You got eaten! The gummy chairs couldn\'t save you!';
+                message.style.color = '#d63031';
+                restartBtn.style.display = 'block';
+            }
+
+            // Check win
+            if (player.x > finishZone.x &&
+                player.x < finishZone.x + finishZone.width &&
+                player.y > finishZone.y &&
+                player.y < finishZone.y + finishZone.height) {
+                gameOver = true;
+                won = true;
+
+                // Go to next world
+                if (currentWorld < 5) {
+                    message.textContent = 'World ' + currentWorld + ' complete! Starting World ' + (currentWorld + 1) + '...';
+                    restartBtn.textContent = 'Next World!';
+                } else {
+                    message.textContent = 'YOU BEAT ALL WORLDS! You are the Gummy Chair Master!';
+                    restartBtn.textContent = 'Play Again!';
+                }
+                message.style.color = '#00b894';
+                restartBtn.style.display = 'block';
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBackground();
+
+            // Draw platforms
+            for (const platform of platforms) {
+                drawGummyChair(platform);
+            }
+
+            // Draw obstacles
+            for (const obstacle of obstacles) {
+                drawSpike(obstacle);
+            }
+
+            drawFinishZone();
+            drawPlayer();
+            drawEater();
+            drawHUD();
+
+            // Game over overlay
+            if (gameOver) {
+                ctx.fillStyle = won ? 'rgba(0, 184, 148, 0.3)' : 'rgba(214, 48, 49, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = won ? '#00b894' : '#d63031';
+                ctx.font = 'bold 48px Comic Sans MS';
+                ctx.textAlign = 'center';
+                ctx.fillText(won ? 'WORLD COMPLETE!' : 'GAME OVER', canvas.width / 2, canvas.height / 2);
+
+                ctx.font = 'bold 24px Comic Sans MS';
+                ctx.fillText('World ' + currentWorld + ': ' + worlds[currentWorld].name, canvas.width / 2, canvas.height / 2 + 45);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function restartGame() {
+            // If won and not on last world, go to next world
+            if (won && currentWorld < 5) {
+                currentWorld++;
+            } else {
+                // Lost or beat all worlds - restart from World 1
+                currentWorld = 1;
+            }
+
+            platforms = [...worlds[currentWorld].platforms];
+            obstacles = [...worlds[currentWorld].obstacles];
+            finishZone.x = worlds[currentWorld].finishX;
+
+            player.x = 50;
+            player.y = 350;
+            player.velX = 0;
+            player.velY = 0;
+            eater.x = -100;
+            eater.y = 350;
+            eater.speed = worlds[currentWorld].eaterSpeed;
+            cameraX = 0;
+            gameOver = false;
+            won = false;
+            message.textContent = '';
+            restartBtn.style.display = 'none';
+            restartBtn.textContent = 'Play Again!';
+        }
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

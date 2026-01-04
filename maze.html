@@ -1,0 +1,2979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon Maze Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #gameInfo {
+            margin-bottom: 10px;
+            font-size: 18px;
+            display: flex;
+            gap: 30px;
+        }
+        #gameCanvas {
+            border: 3px solid #666;
+            background-color: #2a2a2a;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border: 3px solid #fff;
+            text-align: center;
+            display: none;
+        }
+        .controls {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+        }
+        #store {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border: 3px solid #fff;
+            min-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .item {
+            background-color: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #666;
+            cursor: pointer;
+        }
+        .item:hover {
+            border-color: #4CAF50;
+        }
+        .item.purchased {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .item.equipped {
+            border-color: #f39c12;
+            background-color: #444;
+        }
+        .rarity-common { border-left: 4px solid #9d9d9d; }
+        .rarity-uncommon { border-left: 4px solid #1eff00; }
+        .rarity-rare { border-left: 4px solid #0070dd; }
+        .rarity-epic { border-left: 4px solid #a335ee; }
+        .rarity-legendary { border-left: 4px solid #ff8000; }
+        .rarity-mythical { border-left: 4px solid #ff00ff; background: linear-gradient(90deg, rgba(255,0,255,0.1), rgba(0,255,255,0.1)); }
+        .rarity-supermyth { border-left: 4px solid #ffd700; background: linear-gradient(90deg, rgba(255,215,0,0.2), rgba(255,165,0,0.1)); }
+        .rarity-supermyth .rarity-label { color: #ffd700 !important; text-shadow: 0 0 10px #ffd700, 0 0 20px #ffa500; }
+        .rarity-label {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        .category-header {
+            color: #aaa;
+            font-size: 12px;
+            margin: 15px 0 5px 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 3px;
+        }
+        #storeBtn {
+            padding: 5px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #storeBtn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dungeon Maze</h1>
+    <div id="gameInfo">
+        <div>Level: <span id="currentLevel">1</span>/27</div>
+        <div>Player HP: <span id="playerHP">30</span></div>
+        <div>Kills: <span id="levelKills">0</span>/5</div>
+        <div>Score: <span id="score">0</span></div>
+        <div>Best: <span id="bestLevel">1</span></div>
+        <button id="storeBtn" onclick="toggleStore()">Store</button>
+    </div>
+    <div style="text-align: center; color: #f39c12; font-size: 18px; margin-top: 5px;">
+        <span id="levelName">Crimson Depths</span>
+    </div>
+    <svg id="gameCanvas" width="800" height="600"></svg>
+    <div class="controls">
+        Use Arrow Keys to move | Space Bar to attack | Click Store to upgrade
+    </div>
+    <div id="gameOver">
+        <h2 id="gameOverText"></h2>
+        <button onclick="restartGame()" style="margin-top: 20px; padding: 10px 30px; font-size: 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">Play Again</button>
+    </div>
+    <div id="store" style="display: none;">
+        <h2>Store</h2>
+        <div style="margin-bottom: 20px;">Your Points: <span id="storePoints">0</span></div>
+        <div style="display: flex; gap: 20px;">
+            <div style="flex: 1;">
+                <h3>Weapons</h3>
+                <div id="weaponList"></div>
+            </div>
+            <div style="flex: 1;">
+                <h3>Powers</h3>
+                <div id="powerList"></div>
+            </div>
+            <div style="flex: 1;">
+                <h3>Skins</h3>
+                <div id="skinList"></div>
+            </div>
+        </div>
+        <div style="margin-top: 30px; border-top: 2px solid #666; padding-top: 20px;">
+            <h2 style="color: #87ceeb;">Little Daily Events</h2>
+            <div id="littleDailyEventStatus" style="margin-bottom: 15px; font-style: italic;"></div>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h3>Little Weapons</h3>
+                    <div id="littleDailyWeaponList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3>Little Powers</h3>
+                    <div id="littleDailyPowerList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3>Little Skins</h3>
+                    <div id="littleDailySkinList"></div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 30px; border-top: 2px solid #666; padding-top: 20px;">
+            <h2 style="color: #ff00ff;">Daily Events</h2>
+            <div id="dailyEventStatus" style="margin-bottom: 15px; font-style: italic;"></div>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h3>Daily Weapons</h3>
+                    <div id="dailyWeaponList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3>Daily Powers</h3>
+                    <div id="dailyPowerList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3>Daily Skins</h3>
+                    <div id="dailySkinList"></div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 30px; border-top: 2px solid #666; padding-top: 20px;">
+            <h2 style="color: #ff6b6b;">Holiday Events</h2>
+            <div id="holidayStatus" style="margin-bottom: 15px; font-style: italic;"></div>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h3>Event Weapons</h3>
+                    <div id="holidayWeaponList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3>Event Powers</h3>
+                    <div id="holidayPowerList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3>Event Skins</h3>
+                    <div id="holidaySkinList"></div>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top: 30px; border-top: 2px solid #666; padding-top: 20px;">
+            <h2 style="color: #ffd700; text-shadow: 0 0 10px #ffd700, 0 0 20px #ffa500;">Super Myth</h2>
+            <div id="superMythStatus" style="margin-bottom: 15px; font-style: italic; color: #ffd700;"></div>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h3 style="color: #ffd700;">Super Myth Weapons</h3>
+                    <div id="superMythWeaponList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="color: #ffd700;">Super Myth Powers</h3>
+                    <div id="superMythPowerList"></div>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="color: #ffd700;">Super Myth Skins</h3>
+                    <div id="superMythSkinList"></div>
+                </div>
+            </div>
+        </div>
+        <button onclick="toggleStore()" style="margin-top: 20px;">Close</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ns = "http://www.w3.org/2000/svg";
+
+        // Rarity colors
+        const rarityColors = {
+            common: '#9d9d9d',
+            uncommon: '#1eff00',
+            rare: '#0070dd',
+            epic: '#a335ee',
+            legendary: '#ff8000',
+            mythical: '#ff00ff',
+            supermyth: '#ffd700'
+        };
+
+        // Store items
+        const weapons = [
+            // Common - all unlocked
+            { id: 'sword1', name: 'Iron Sword', cost: 50, damage: 2, rarity: 'common', purchased: true },
+            { id: 'dagger', name: 'Rusty Dagger', cost: 75, damage: 3, rarity: 'common', purchased: true },
+            // Uncommon - all unlocked
+            { id: 'sword2', name: 'Steel Sword', cost: 200, damage: 5, rarity: 'uncommon', purchased: true },
+            { id: 'mace', name: 'Iron Mace', cost: 250, damage: 6, rarity: 'uncommon', purchased: true },
+            { id: 'spear', name: 'Bronze Spear', cost: 300, damage: 7, rarity: 'uncommon', purchased: true },
+            // Rare - all unlocked
+            { id: 'sword3', name: 'Knight\'s Blade', cost: 500, damage: 10, rarity: 'rare', purchased: true },
+            { id: 'axe', name: 'Battle Axe', cost: 600, damage: 12, rarity: 'rare', purchased: true },
+            { id: 'hammer', name: 'War Hammer', cost: 700, damage: 14, rarity: 'rare', purchased: true },
+            // Epic - all unlocked
+            { id: 'flamesword', name: 'Flame Sword', cost: 1200, damage: 20, rarity: 'epic', purchased: true },
+            { id: 'frostaxe', name: 'Frost Axe', cost: 1400, damage: 22, rarity: 'epic', purchased: true },
+            { id: 'voidblade', name: 'Void Blade', cost: 1600, damage: 25, rarity: 'epic', purchased: true },
+            // Legendary - unlocked except Deathbringer (highest cost)
+            { id: 'excalibur', name: 'Excalibur', cost: 3000, damage: 35, rarity: 'legendary', purchased: true },
+            { id: 'mjolnir', name: 'Mjolnir', cost: 3500, damage: 40, rarity: 'legendary', purchased: true },
+            { id: 'deathbringer', name: 'Deathbringer', cost: 5000, damage: 50, rarity: 'legendary', purchased: false }
+        ];
+
+        const skins = [
+            // Common - all unlocked
+            { id: 'blue', name: 'Blue Warrior', cost: 0, color: '#4a90e2', rarity: 'common', purchased: true },
+            { id: 'gray', name: 'Stone Knight', cost: 50, color: '#7f8c8d', rarity: 'common', purchased: true },
+            { id: 'brown', name: 'Earth Walker', cost: 75, color: '#8b4513', rarity: 'common', purchased: true },
+            // Uncommon - all unlocked
+            { id: 'red', name: 'Red Knight', cost: 200, color: '#e74c3c', rarity: 'uncommon', purchased: true },
+            { id: 'green', name: 'Forest Ranger', cost: 250, color: '#27ae60', rarity: 'uncommon', purchased: true },
+            { id: 'cyan', name: 'Ice Warrior', cost: 300, color: '#00bcd4', rarity: 'uncommon', purchased: true },
+            { id: 'orange', name: 'Flame Guard', cost: 350, color: '#ff5722', rarity: 'uncommon', purchased: true },
+            // Rare - all unlocked
+            { id: 'purple', name: 'Royal Mage', cost: 600, color: '#9b59b6', rarity: 'rare', purchased: true },
+            { id: 'pink', name: 'Rose Knight', cost: 700, color: '#e91e63', rarity: 'rare', purchased: true },
+            { id: 'teal', name: 'Ocean Lord', cost: 800, color: '#009688', rarity: 'rare', purchased: true },
+            // Epic - all unlocked
+            { id: 'gold', name: 'Golden Hero', cost: 1500, color: '#f39c12', rarity: 'epic', purchased: true },
+            { id: 'silver', name: 'Platinum Knight', cost: 1800, color: '#bdc3c7', rarity: 'epic', purchased: true },
+            { id: 'crimson', name: 'Blood Lord', cost: 2000, color: '#8b0000', rarity: 'epic', purchased: true },
+            { id: 'neon', name: 'Neon Striker', cost: 2200, color: '#39ff14', rarity: 'epic', purchased: true },
+            // Legendary - unlocked except highest cost ones (Celestial Being, Shadow Demon)
+            { id: 'rainbow', name: 'Prismatic Champion', cost: 4000, color: 'linear-gradient(90deg, red, orange, yellow, green, blue, purple)', rarity: 'legendary', purchased: true },
+            { id: 'void', name: 'Void Walker', cost: 5000, color: '#1a0033', rarity: 'legendary', purchased: true },
+            { id: 'celestial', name: 'Celestial Being', cost: 6000, color: '#ffeaa7', rarity: 'legendary', purchased: false },
+            { id: 'shadow', name: 'Shadow Demon', cost: 7500, color: '#0d0d0d', rarity: 'legendary', purchased: false }
+        ];
+
+        const powers = [
+            // Common - all unlocked
+            { id: 'speed', name: 'Swift Boots', cost: 150, description: 'Move 50% faster', rarity: 'common', purchased: true },
+            { id: 'health', name: 'Vitality Amulet', cost: 200, description: '+20 Max HP', rarity: 'common', purchased: true },
+            // Uncommon - all unlocked
+            { id: 'regen', name: 'Healing Ring', cost: 400, description: 'Regenerate 1 HP every 5 seconds', rarity: 'uncommon', purchased: true },
+            { id: 'crit', name: 'Lucky Charm', cost: 350, description: '25% chance for double damage', rarity: 'uncommon', purchased: true },
+            { id: 'range', name: 'Long Reach', cost: 300, description: 'Increased attack range', rarity: 'uncommon', purchased: true },
+            // Rare - all unlocked
+            { id: 'lifesteal', name: 'Vampire Fang', cost: 600, description: 'Heal 3 HP on kill', rarity: 'rare', purchased: true },
+            { id: 'armor', name: 'Iron Shield', cost: 550, description: 'Take 1 less damage from attacks', rarity: 'rare', purchased: true },
+            { id: 'dodge', name: 'Shadow Cloak', cost: 700, description: '20% chance to dodge attacks', rarity: 'rare', purchased: true },
+            { id: 'thorns', name: 'Thorns Aura', cost: 650, description: 'Reflect 2 damage when hit', rarity: 'rare', purchased: true },
+            // Epic - all unlocked
+            { id: 'health2', name: 'Heart of Giant', cost: 1000, description: '+50 Max HP', rarity: 'epic', purchased: true },
+            { id: 'supercrit', name: 'Assassin Mark', cost: 1200, description: '15% chance for triple damage', rarity: 'epic', purchased: true },
+            { id: 'superregen', name: 'Phoenix Feather', cost: 1100, description: 'Regenerate 2 HP every 3 seconds', rarity: 'epic', purchased: true },
+            { id: 'multiattack', name: 'Whirlwind', cost: 1300, description: 'Attack hits all nearby enemies', rarity: 'epic', purchased: true },
+            { id: 'speed2', name: 'Wind Walker', cost: 900, description: 'Move 100% faster', rarity: 'epic', purchased: true },
+            // Legendary - unlocked except highest cost (Divine Shield)
+            { id: 'immortal', name: 'Second Life', cost: 2500, description: 'Revive once with 50% HP', rarity: 'legendary', purchased: true },
+            { id: 'execute', name: 'Executioner', cost: 2800, description: 'Instantly kill enemies below 20% HP', rarity: 'legendary', purchased: true },
+            { id: 'goldbonus', name: 'Midas Touch', cost: 2000, description: 'Earn 50% more points', rarity: 'legendary', purchased: true },
+            { id: 'invincible', name: 'Divine Shield', cost: 3500, description: 'Immune to damage for 2 seconds after being hit', rarity: 'legendary', purchased: false }
+        ];
+
+        // Holiday Events - each has months when available
+        const holidayEvents = [
+            // Christmas (December)
+            { id: 'christmas', name: 'Christmas', months: [12], color: '#c41e3a' },
+            // Halloween (October)
+            { id: 'halloween', name: 'Halloween', months: [10], color: '#ff6600' },
+            // Valentine's Day (February)
+            { id: 'valentines', name: "Valentine's Day", months: [2], color: '#ff69b4' },
+            // St. Patrick's Day (March)
+            { id: 'stpatricks', name: "St. Patrick's Day", months: [3], color: '#00ff00' },
+            // Easter (April)
+            { id: 'easter', name: 'Easter', months: [4], color: '#ffb6c1' },
+            // Independence Day (July)
+            { id: 'july4th', name: 'Independence Day', months: [7], color: '#ff0000' },
+            // Summer (June, July, August)
+            { id: 'summer', name: 'Summer Festival', months: [6, 7, 8], color: '#ffd700' },
+            // Thanksgiving (November)
+            { id: 'thanksgiving', name: 'Thanksgiving', months: [11], color: '#d2691e' }
+        ];
+
+        const holidayWeapons = [
+            // Christmas - epic unlocked, legendary locked
+            { id: 'candycane', name: 'Candy Cane Blade', cost: 800, damage: 18, rarity: 'epic', purchased: true, event: 'christmas' },
+            { id: 'icicle', name: 'Icicle Spear', cost: 1500, damage: 28, rarity: 'legendary', purchased: false, event: 'christmas' },
+            // Halloween - epic unlocked, legendary locked
+            { id: 'scythe', name: 'Reaper Scythe', cost: 900, damage: 20, rarity: 'epic', purchased: true, event: 'halloween' },
+            { id: 'pumpkinaxe', name: 'Pumpkin Cleaver', cost: 1600, damage: 30, rarity: 'legendary', purchased: false, event: 'halloween' },
+            // Valentine's - rare unlocked, legendary locked
+            { id: 'cupidbow', name: "Cupid's Bow", cost: 700, damage: 16, rarity: 'rare', purchased: true, event: 'valentines' },
+            { id: 'heartbreaker', name: 'Heartbreaker', cost: 1400, damage: 26, rarity: 'legendary', purchased: false, event: 'valentines' },
+            // St. Patrick's - both unlocked (no legendary)
+            { id: 'shamrock', name: 'Shamrock Staff', cost: 600, damage: 14, rarity: 'rare', purchased: true, event: 'stpatricks' },
+            { id: 'potogold', name: 'Pot of Gold Hammer', cost: 1300, damage: 24, rarity: 'epic', purchased: true, event: 'stpatricks' },
+            // Easter - both unlocked (no legendary)
+            { id: 'bunnyblade', name: 'Bunny Blade', cost: 550, damage: 12, rarity: 'rare', purchased: true, event: 'easter' },
+            { id: 'eggsplosion', name: 'Egg-splosion Mace', cost: 1100, damage: 22, rarity: 'epic', purchased: true, event: 'easter' },
+            // July 4th - epic unlocked, legendary locked
+            { id: 'firework', name: 'Firework Lance', cost: 850, damage: 19, rarity: 'epic', purchased: true, event: 'july4th' },
+            { id: 'libertysword', name: 'Liberty Sword', cost: 1700, damage: 32, rarity: 'legendary', purchased: false, event: 'july4th' },
+            // Summer - both unlocked (no legendary)
+            { id: 'surfboard', name: 'Surfboard Smasher', cost: 500, damage: 11, rarity: 'uncommon', purchased: true, event: 'summer' },
+            { id: 'sunbeam', name: 'Sunbeam Blade', cost: 1200, damage: 23, rarity: 'epic', purchased: true, event: 'summer' },
+            // Thanksgiving - both unlocked (no legendary)
+            { id: 'turkeyleg', name: 'Giant Turkey Leg', cost: 450, damage: 10, rarity: 'uncommon', purchased: true, event: 'thanksgiving' },
+            { id: 'cornucopia', name: 'Cornucopia Crusher', cost: 1000, damage: 21, rarity: 'epic', purchased: true, event: 'thanksgiving' }
+        ];
+
+        const holidaySkins = [
+            // Christmas - rare/epic unlocked, legendary locked
+            { id: 'santa', name: 'Santa Claus', cost: 1000, color: '#c41e3a', rarity: 'epic', purchased: true, event: 'christmas' },
+            { id: 'elf', name: 'Christmas Elf', cost: 600, color: '#228b22', rarity: 'rare', purchased: true, event: 'christmas' },
+            { id: 'snowman', name: 'Frosty', cost: 2000, color: '#fffafa', rarity: 'legendary', purchased: false, event: 'christmas' },
+            // Halloween - rare/epic unlocked, legendary locked
+            { id: 'vampire', name: 'Vampire Lord', cost: 1000, color: '#4a0000', rarity: 'epic', purchased: true, event: 'halloween' },
+            { id: 'ghost', name: 'Ghost', cost: 600, color: '#e8e8e8', rarity: 'rare', purchased: true, event: 'halloween' },
+            { id: 'skeleton', name: 'Skeleton King', cost: 2200, color: '#f0e68c', rarity: 'legendary', purchased: false, event: 'halloween' },
+            // Valentine's - epic unlocked, legendary locked
+            { id: 'cupid', name: 'Cupid', cost: 800, color: '#ffb6c1', rarity: 'epic', purchased: true, event: 'valentines' },
+            { id: 'heartknight', name: 'Heart Knight', cost: 1800, color: '#ff1493', rarity: 'legendary', purchased: false, event: 'valentines' },
+            // St. Patrick's - rare unlocked, legendary locked
+            { id: 'leprechaun', name: 'Leprechaun', cost: 700, color: '#32cd32', rarity: 'rare', purchased: true, event: 'stpatricks' },
+            { id: 'goldking', name: 'Gold King', cost: 1900, color: '#ffd700', rarity: 'legendary', purchased: false, event: 'stpatricks' },
+            // Easter - rare/epic unlocked
+            { id: 'bunny', name: 'Easter Bunny', cost: 650, color: '#ffe4e1', rarity: 'rare', purchased: true, event: 'easter' },
+            { id: 'chickwarrior', name: 'Chick Warrior', cost: 1500, color: '#ffff00', rarity: 'epic', purchased: true, event: 'easter' },
+            // July 4th - epic unlocked, legendary locked
+            { id: 'patriot', name: 'Patriot', cost: 900, color: '#b22234', rarity: 'epic', purchased: true, event: 'july4th' },
+            { id: 'freedom', name: 'Freedom Fighter', cost: 2100, color: '#3c3b6e', rarity: 'legendary', purchased: false, event: 'july4th' },
+            // Summer - uncommon/epic unlocked
+            { id: 'lifeguard', name: 'Lifeguard', cost: 500, color: '#ff6347', rarity: 'uncommon', purchased: true, event: 'summer' },
+            { id: 'beachking', name: 'Beach King', cost: 1400, color: '#00ced1', rarity: 'epic', purchased: true, event: 'summer' },
+            // Thanksgiving - uncommon/epic unlocked
+            { id: 'pilgrim', name: 'Pilgrim', cost: 550, color: '#8b4513', rarity: 'uncommon', purchased: true, event: 'thanksgiving' },
+            { id: 'turkey', name: 'Turkey Titan', cost: 1600, color: '#cd853f', rarity: 'epic', purchased: true, event: 'thanksgiving' }
+        ];
+
+        const holidayPowers = [
+            // Christmas - epic unlocked, legendary locked
+            { id: 'snowstorm', name: 'Snowstorm', cost: 1200, description: 'Slow all enemies by 30%', rarity: 'epic', purchased: true, event: 'christmas' },
+            { id: 'santasgift', name: "Santa's Gift", cost: 2500, description: 'Double points from kills', rarity: 'legendary', purchased: false, event: 'christmas' },
+            // Halloween - epic unlocked, legendary locked
+            { id: 'fear', name: 'Aura of Fear', cost: 1100, description: 'Monsters flee when below 30% HP', rarity: 'epic', purchased: true, event: 'halloween' },
+            { id: 'soulharvest', name: 'Soul Harvest', cost: 2600, description: 'Gain +5 max HP per kill', rarity: 'legendary', purchased: false, event: 'halloween' },
+            // Valentine's - rare unlocked, legendary locked
+            { id: 'charm', name: 'Love Charm', cost: 900, description: '10% chance monsters skip attack', rarity: 'rare', purchased: true, event: 'valentines' },
+            { id: 'passion', name: 'Burning Passion', cost: 2200, description: 'Deal 50% more damage when below 50% HP', rarity: 'legendary', purchased: false, event: 'valentines' },
+            // St. Patrick's - rare unlocked, legendary locked
+            { id: 'luck', name: 'Luck of Irish', cost: 800, description: '+15% crit chance', rarity: 'rare', purchased: true, event: 'stpatricks' },
+            { id: 'rainbow', name: 'Rainbow Shield', cost: 2000, description: '25% chance to block all damage', rarity: 'legendary', purchased: false, event: 'stpatricks' },
+            // Easter - rare unlocked, legendary locked
+            { id: 'egghunt', name: 'Egg Hunt', cost: 750, description: 'Food heals 50% more', rarity: 'rare', purchased: true, event: 'easter' },
+            { id: 'rebirth', name: 'Rebirth', cost: 2400, description: 'Revive with full HP (once per game)', rarity: 'legendary', purchased: false, event: 'easter' },
+            // July 4th - epic unlocked, legendary locked
+            { id: 'explosion', name: 'Explosive Hits', cost: 1000, description: 'Attacks deal splash damage', rarity: 'epic', purchased: true, event: 'july4th' },
+            { id: 'liberty', name: 'Liberty', cost: 2700, description: 'Immune to slows and debuffs', rarity: 'legendary', purchased: false, event: 'july4th' },
+            // Summer - rare/epic unlocked
+            { id: 'heatwave', name: 'Heat Wave', cost: 700, description: 'Nearby enemies take 1 damage/sec', rarity: 'rare', purchased: true, event: 'summer' },
+            { id: 'sunsblessing', name: "Sun's Blessing", cost: 1800, description: 'Regenerate 3 HP every 5 seconds', rarity: 'epic', purchased: true, event: 'summer' },
+            // Thanksgiving - rare unlocked, legendary locked
+            { id: 'feast', name: 'Feast', cost: 650, description: '+30 max HP', rarity: 'rare', purchased: true, event: 'thanksgiving' },
+            { id: 'harvest', name: 'Bountiful Harvest', cost: 2300, description: 'Kills have 20% chance to spawn food', rarity: 'legendary', purchased: false, event: 'thanksgiving' }
+        ];
+
+        // Super Myth Items - Available after holiday events end, extremely rare and powerful
+        // These appear the month after each holiday event
+        const superMythWeapons = [
+            // After Christmas (January)
+            { id: 'frostEternity', name: 'Frost Eternity', cost: 35000, damage: 120, rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            { id: 'winterSolstice', name: 'Winter Solstice Blade', cost: 45000, damage: 150, rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            { id: 'glacialAnnihilator', name: 'Glacial Annihilator', cost: 55000, damage: 180, rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            // After Halloween (November)
+            { id: 'soulReaper', name: 'Soul Reaper', cost: 38000, damage: 130, rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            { id: 'nightmareIncarnate', name: 'Nightmare Incarnate', cost: 48000, damage: 160, rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            { id: 'voidScythe', name: 'Void Scythe', cost: 58000, damage: 185, rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            // After Valentine's (March)
+            { id: 'heartDestroyer', name: 'Heart Destroyer', cost: 32000, damage: 115, rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            { id: 'eternalPassion', name: 'Eternal Passion', cost: 42000, damage: 140, rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            { id: 'cupidWrath', name: 'Cupid\'s Wrath', cost: 52000, damage: 170, rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            // After Easter (May)
+            { id: 'divineBunny', name: 'Divine Bunny Blade', cost: 33000, damage: 118, rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            { id: 'resurrectionSword', name: 'Resurrection Sword', cost: 43000, damage: 145, rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            { id: 'holyAscension', name: 'Holy Ascension Blade', cost: 53000, damage: 175, rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            // After Summer (September)
+            { id: 'sunGod', name: 'Sun God Blade', cost: 40000, damage: 135, rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] },
+            { id: 'endlessSummer', name: 'Endless Summer', cost: 50000, damage: 165, rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] },
+            { id: 'supernova', name: 'Supernova Edge', cost: 60000, damage: 200, rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] }
+        ];
+
+        const superMythSkins = [
+            // After Christmas (January)
+            { id: 'frostGod', name: 'Frost God', cost: 40000, color: 'linear-gradient(135deg, #00ffff, #ffffff, #87ceeb)', rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            { id: 'winterEmperor', name: 'Winter Emperor', cost: 50000, color: 'linear-gradient(135deg, #e0ffff, #b0e0e6, #add8e6)', rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            { id: 'blizzardOverlord', name: 'Blizzard Overlord', cost: 60000, color: 'linear-gradient(135deg, #1e90ff, #00bfff, #ffffff, #87cefa)', rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            // After Halloween (November)
+            { id: 'deathLord', name: 'Death Lord', cost: 42000, color: 'linear-gradient(135deg, #000000, #1a0000, #330000)', rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            { id: 'horrorKing', name: 'Horror King', cost: 48000, color: 'linear-gradient(135deg, #4a0000, #000000, #1a001a)', rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            { id: 'abyssalPhantom', name: 'Abyssal Phantom', cost: 58000, color: 'linear-gradient(135deg, #0d0d0d, #1a0033, #330066, #000000)', rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            // After Valentine's (March)
+            { id: 'loveGod', name: 'God of Love', cost: 38000, color: 'linear-gradient(135deg, #ff1493, #ff69b4, #ffb6c1)', rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            { id: 'heartEmpress', name: 'Heart Empress', cost: 46000, color: 'linear-gradient(135deg, #ff0066, #ff3399, #ff66b2)', rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            { id: 'passionSovereign', name: 'Passion Sovereign', cost: 56000, color: 'linear-gradient(135deg, #ff0055, #ff1493, #ffffff, #ff69b4)', rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            // After Easter (May)
+            { id: 'divineRabbit', name: 'Divine Rabbit', cost: 35000, color: 'linear-gradient(135deg, #fffacd, #ffefd5, #ffffff)', rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            { id: 'springDeity', name: 'Spring Deity', cost: 44000, color: 'linear-gradient(135deg, #98fb98, #90ee90, #00ff7f)', rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            { id: 'celestialHarvest', name: 'Celestial Harvest', cost: 54000, color: 'linear-gradient(135deg, #ffeb3b, #8bc34a, #03a9f4, #e91e63)', rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            // After Summer (September)
+            { id: 'solarDeity', name: 'Solar Deity', cost: 45000, color: 'linear-gradient(135deg, #ffd700, #ff8c00, #ff4500)', rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] },
+            { id: 'beachGod', name: 'Beach God', cost: 50000, color: 'linear-gradient(135deg, #00ced1, #40e0d0, #48d1cc)', rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] },
+            { id: 'cosmicInferno', name: 'Cosmic Inferno', cost: 65000, color: 'linear-gradient(135deg, #ff4500, #ff6347, #ffd700, #ffffff)', rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] }
+        ];
+
+        const superMythPowers = [
+            // After Christmas (January)
+            { id: 'absoluteZero', name: 'Absolute Zero', cost: 35000, description: 'Freeze all enemies for 3s when you take damage', rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            { id: 'winterWrath', name: 'Winter Wrath', cost: 45000, description: 'All attacks slow enemies by 80% and deal 2x damage', rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            { id: 'permafrostShield', name: 'Permafrost Shield', cost: 55000, description: 'Take 70% less damage and reflect 30% back as ice damage', rarity: 'supermyth', purchased: false, afterEvent: 'christmas', months: [1] },
+            // After Halloween (November)
+            { id: 'deathTouch', name: 'Death Touch', cost: 40000, description: '15% chance to instantly kill any enemy', rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            { id: 'terrorAura', name: 'Terror Aura', cost: 48000, description: 'Enemies near you take 5 damage/sec and deal 50% less damage', rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            { id: 'soulHarvest', name: 'Soul Harvest', cost: 58000, description: 'Killed enemies explode dealing 50 damage to nearby foes', rarity: 'supermyth', purchased: false, afterEvent: 'halloween', months: [11] },
+            // After Valentine's (March)
+            { id: 'loveConquest', name: 'Love Conquest', cost: 34000, description: '25% chance enemies fight for you for 5s', rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            { id: 'heartSteal', name: 'Heart Steal', cost: 44000, description: 'Heal 50% of damage dealt, +100 Max HP', rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            { id: 'eternalBond', name: 'Eternal Bond', cost: 54000, description: 'Create a heart link that shares damage with enemies', rarity: 'supermyth', purchased: false, afterEvent: 'valentines', months: [3] },
+            // After Easter (May)
+            { id: 'infiniteRebirth', name: 'Infinite Rebirth', cost: 38000, description: 'Revive unlimited times with 30% HP', rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            { id: 'miracleEgg', name: 'Miracle Egg', cost: 46000, description: 'Every kill spawns healing food and gives +2 permanent HP', rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            { id: 'divineBlessing', name: 'Divine Blessing', cost: 56000, description: 'Immune to damage every 10 seconds for 3 seconds', rarity: 'supermyth', purchased: false, afterEvent: 'easter', months: [5] },
+            // After Summer (September)
+            { id: 'solarFlare', name: 'Solar Flare', cost: 42000, description: 'Burn all enemies on screen for 3 damage/sec', rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] },
+            { id: 'endlessEnergy', name: 'Endless Energy', cost: 50000, description: 'Move 200% faster, attack 50% faster, +200 Max HP', rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] },
+            { id: 'stellarAscension', name: 'Stellar Ascension', cost: 65000, description: 'All stats doubled, enemies take 10 damage/sec near you', rarity: 'supermyth', purchased: false, afterEvent: 'summer', months: [9] }
+        ];
+
+        // Check if super myth items are available (month after holiday)
+        function isSuperMythAvailable(item) {
+            const currentMonth = new Date().getMonth() + 1;
+            return item.months.includes(currentMonth);
+        }
+
+        // Daily Events Configuration - rotates based on day of year
+        const dailyEventTypes = [
+            { id: 'cosmicStorm', name: 'Cosmic Storm', color: '#9400d3', description: 'Harness the power of the cosmos' },
+            { id: 'dragonRage', name: 'Dragon Rage', color: '#ff4500', description: 'Channel ancient dragon fury' },
+            { id: 'shadowRealm', name: 'Shadow Realm', color: '#1a1a2e', description: 'Embrace the darkness within' },
+            { id: 'celestialDawn', name: 'Celestial Dawn', color: '#ffd700', description: 'Bask in divine light' },
+            { id: 'abyssalDepths', name: 'Abyssal Depths', color: '#000080', description: 'Explore the ocean abyss' },
+            { id: 'phoenixFlame', name: 'Phoenix Flame', color: '#ff6347', description: 'Rise from the ashes' },
+            { id: 'voidEclipse', name: 'Void Eclipse', color: '#2f0040', description: 'When light meets darkness' }
+        ];
+
+        // Daily Event Weapons (Epic, Legendary, Mythical only) - epic/legendary unlocked, mythical locked
+        const dailyWeapons = [
+            // Cosmic Storm
+            { id: 'nebulaBlade', name: 'Nebula Blade', cost: 2000, damage: 28, rarity: 'epic', purchased: true, event: 'cosmicStorm' },
+            { id: 'starforgedAxe', name: 'Starforged Axe', cost: 4000, damage: 45, rarity: 'legendary', purchased: true, event: 'cosmicStorm' },
+            { id: 'galaxyReaver', name: 'Galaxy Reaver', cost: 8000, damage: 70, rarity: 'mythical', purchased: false, event: 'cosmicStorm' },
+            // Dragon Rage
+            { id: 'dragonFang', name: 'Dragon Fang', cost: 2200, damage: 30, rarity: 'epic', purchased: true, event: 'dragonRage' },
+            { id: 'wyrmsbaneBlade', name: 'Wyrmsbane Blade', cost: 4500, damage: 48, rarity: 'legendary', purchased: true, event: 'dragonRage' },
+            { id: 'primordialDragonSlayer', name: 'Primordial Dragon Slayer', cost: 9000, damage: 75, rarity: 'mythical', purchased: false, event: 'dragonRage' },
+            // Shadow Realm
+            { id: 'shadowDagger', name: 'Shadow Dagger', cost: 1800, damage: 26, rarity: 'epic', purchased: true, event: 'shadowRealm' },
+            { id: 'nightmareScythe', name: 'Nightmare Scythe', cost: 4200, damage: 46, rarity: 'legendary', purchased: true, event: 'shadowRealm' },
+            { id: 'voidTerror', name: 'Void Terror', cost: 8500, damage: 72, rarity: 'mythical', purchased: false, event: 'shadowRealm' },
+            // Celestial Dawn
+            { id: 'dawnbreaker', name: 'Dawnbreaker', cost: 2100, damage: 29, rarity: 'epic', purchased: true, event: 'celestialDawn' },
+            { id: 'solarisBlade', name: 'Solaris Blade', cost: 4300, damage: 47, rarity: 'legendary', purchased: true, event: 'celestialDawn' },
+            { id: 'divineJudgment', name: 'Divine Judgment', cost: 8800, damage: 74, rarity: 'mythical', purchased: false, event: 'celestialDawn' },
+            // Abyssal Depths
+            { id: 'coralCrusher', name: 'Coral Crusher', cost: 1900, damage: 27, rarity: 'epic', purchased: true, event: 'abyssalDepths' },
+            { id: 'leviathanTrident', name: 'Leviathan Trident', cost: 4100, damage: 45, rarity: 'legendary', purchased: true, event: 'abyssalDepths' },
+            { id: 'krakenDestroyer', name: 'Kraken Destroyer', cost: 8200, damage: 71, rarity: 'mythical', purchased: false, event: 'abyssalDepths' },
+            // Phoenix Flame
+            { id: 'emberBlade', name: 'Ember Blade', cost: 2000, damage: 28, rarity: 'epic', purchased: true, event: 'phoenixFlame' },
+            { id: 'infernoCleaver', name: 'Inferno Cleaver', cost: 4400, damage: 48, rarity: 'legendary', purchased: true, event: 'phoenixFlame' },
+            { id: 'eternalPhoenixWing', name: 'Eternal Phoenix Wing', cost: 9200, damage: 76, rarity: 'mythical', purchased: false, event: 'phoenixFlame' },
+            // Void Eclipse
+            { id: 'eclipseSaber', name: 'Eclipse Saber', cost: 2300, damage: 31, rarity: 'epic', purchased: true, event: 'voidEclipse' },
+            { id: 'twilightAnnihilator', name: 'Twilight Annihilator', cost: 4600, damage: 50, rarity: 'legendary', purchased: true, event: 'voidEclipse' },
+            { id: 'cosmicOblivion', name: 'Cosmic Oblivion', cost: 10000, damage: 80, rarity: 'mythical', purchased: false, event: 'voidEclipse' }
+        ];
+
+        // Daily Event Skins (Epic, Legendary, Mythical only) - epic/legendary unlocked, mythical locked
+        const dailySkins = [
+            // Cosmic Storm
+            { id: 'starWeaver', name: 'Star Weaver', cost: 2500, color: '#9400d3', rarity: 'epic', purchased: true, event: 'cosmicStorm' },
+            { id: 'nebulaKnight', name: 'Nebula Knight', cost: 5000, color: '#8a2be2', rarity: 'legendary', purchased: true, event: 'cosmicStorm' },
+            { id: 'cosmicEmperor', name: 'Cosmic Emperor', cost: 12000, color: 'linear-gradient(135deg, #9400d3, #00ffff, #ff00ff)', rarity: 'mythical', purchased: false, event: 'cosmicStorm' },
+            // Dragon Rage
+            { id: 'dragonKnight', name: 'Dragon Knight', cost: 2600, color: '#ff4500', rarity: 'epic', purchased: true, event: 'dragonRage' },
+            { id: 'wyrmLord', name: 'Wyrm Lord', cost: 5200, color: '#8b0000', rarity: 'legendary', purchased: true, event: 'dragonRage' },
+            { id: 'ancientDragonGod', name: 'Ancient Dragon God', cost: 13000, color: 'linear-gradient(135deg, #ff4500, #ffd700, #ff0000)', rarity: 'mythical', purchased: false, event: 'dragonRage' },
+            // Shadow Realm
+            { id: 'shadowAssassin', name: 'Shadow Assassin', cost: 2400, color: '#1a1a2e', rarity: 'epic', purchased: true, event: 'shadowRealm' },
+            { id: 'nightmareLord', name: 'Nightmare Lord', cost: 4800, color: '#0d0d1a', rarity: 'legendary', purchased: true, event: 'shadowRealm' },
+            { id: 'voidSovereign', name: 'Void Sovereign', cost: 11000, color: 'linear-gradient(135deg, #1a1a2e, #4a0080, #000000)', rarity: 'mythical', purchased: false, event: 'shadowRealm' },
+            // Celestial Dawn
+            { id: 'solarGuardian', name: 'Solar Guardian', cost: 2500, color: '#ffd700', rarity: 'epic', purchased: true, event: 'celestialDawn' },
+            { id: 'divineChampion', name: 'Divine Champion', cost: 5100, color: '#fff8dc', rarity: 'legendary', purchased: true, event: 'celestialDawn' },
+            { id: 'godOfLight', name: 'God of Light', cost: 12500, color: 'linear-gradient(135deg, #ffd700, #ffffff, #fffacd)', rarity: 'mythical', purchased: false, event: 'celestialDawn' },
+            // Abyssal Depths
+            { id: 'deepSeaHunter', name: 'Deep Sea Hunter', cost: 2300, color: '#000080', rarity: 'epic', purchased: true, event: 'abyssalDepths' },
+            { id: 'abyssalTitan', name: 'Abyssal Titan', cost: 4700, color: '#191970', rarity: 'legendary', purchased: true, event: 'abyssalDepths' },
+            { id: 'leviathan', name: 'Leviathan', cost: 11500, color: 'linear-gradient(135deg, #000080, #00ced1, #001a33)', rarity: 'mythical', purchased: false, event: 'abyssalDepths' },
+            // Phoenix Flame
+            { id: 'flameWarden', name: 'Flame Warden', cost: 2400, color: '#ff6347', rarity: 'epic', purchased: true, event: 'phoenixFlame' },
+            { id: 'infernalPhoenix', name: 'Infernal Phoenix', cost: 5000, color: '#ff4500', rarity: 'legendary', purchased: true, event: 'phoenixFlame' },
+            { id: 'eternalFlameGod', name: 'Eternal Flame God', cost: 12800, color: 'linear-gradient(135deg, #ff6347, #ffa500, #ff0000)', rarity: 'mythical', purchased: false, event: 'phoenixFlame' },
+            // Void Eclipse
+            { id: 'eclipseWarrior', name: 'Eclipse Warrior', cost: 2700, color: '#2f0040', rarity: 'epic', purchased: true, event: 'voidEclipse' },
+            { id: 'twilightOverlord', name: 'Twilight Overlord', cost: 5500, color: '#4b0082', rarity: 'legendary', purchased: true, event: 'voidEclipse' },
+            { id: 'cosmicAnnihilator', name: 'Cosmic Annihilator', cost: 15000, color: 'linear-gradient(135deg, #2f0040, #ff00ff, #00ffff)', rarity: 'mythical', purchased: false, event: 'voidEclipse' }
+        ];
+
+        // Little Daily Events - rotate every few hours, more accessible items (common, uncommon, rare)
+        const littleDailyEventTypes = [
+            { id: 'mistyMorning', name: 'Misty Morning', color: '#87ceeb', description: 'A calm fog brings mysterious items' },
+            { id: 'luckyHour', name: 'Lucky Hour', color: '#ffd700', description: 'Fortune smiles upon warriors' },
+            { id: 'moonlitNight', name: 'Moonlit Night', color: '#c0c0ff', description: 'The moon reveals hidden treasures' },
+            { id: 'rustleWinds', name: 'Rustle Winds', color: '#90ee90', description: 'Gentle winds carry rare finds' },
+            { id: 'emberGlow', name: 'Ember Glow', color: '#ff7f50', description: 'Warm embers light your path' }
+        ];
+
+        // Get current little daily event (changes every 4-5 hours based on hour of day)
+        function getLittleDailyEvent() {
+            const now = new Date();
+            const hour = now.getHours();
+            const eventIndex = Math.floor(hour / 5) % littleDailyEventTypes.length;
+            return littleDailyEventTypes[eventIndex];
+        }
+
+        function isLittleDailyEventActive(eventId) {
+            const currentEvent = getLittleDailyEvent();
+            return currentEvent.id === eventId;
+        }
+
+        // Little Daily Weapons (Common, Uncommon, Rare only - more accessible) - all unlocked
+        const littleDailyWeapons = [
+            // Misty Morning
+            { id: 'fogBlade', name: 'Fog Blade', cost: 60, damage: 3, rarity: 'common', purchased: true, event: 'mistyMorning' },
+            { id: 'mistDagger', name: 'Mist Dagger', cost: 180, damage: 6, rarity: 'uncommon', purchased: true, event: 'mistyMorning' },
+            { id: 'cloudPiercer', name: 'Cloud Piercer', cost: 450, damage: 11, rarity: 'rare', purchased: true, event: 'mistyMorning' },
+            // Lucky Hour
+            { id: 'luckyKnife', name: 'Lucky Knife', cost: 70, damage: 3, rarity: 'common', purchased: true, event: 'luckyHour' },
+            { id: 'fortuneSword', name: 'Fortune Sword', cost: 200, damage: 7, rarity: 'uncommon', purchased: true, event: 'luckyHour' },
+            { id: 'goldenCharm', name: 'Golden Charm Blade', cost: 500, damage: 12, rarity: 'rare', purchased: true, event: 'luckyHour' },
+            // Moonlit Night
+            { id: 'moonShard', name: 'Moon Shard', cost: 65, damage: 3, rarity: 'common', purchased: true, event: 'moonlitNight' },
+            { id: 'lunarEdge', name: 'Lunar Edge', cost: 190, damage: 6, rarity: 'uncommon', purchased: true, event: 'moonlitNight' },
+            { id: 'crescentBlade', name: 'Crescent Blade', cost: 480, damage: 11, rarity: 'rare', purchased: true, event: 'moonlitNight' },
+            // Rustle Winds
+            { id: 'breezeCutter', name: 'Breeze Cutter', cost: 55, damage: 2, rarity: 'common', purchased: true, event: 'rustleWinds' },
+            { id: 'galeStrike', name: 'Gale Strike', cost: 170, damage: 5, rarity: 'uncommon', purchased: true, event: 'rustleWinds' },
+            { id: 'tempestFang', name: 'Tempest Fang', cost: 420, damage: 10, rarity: 'rare', purchased: true, event: 'rustleWinds' },
+            // Ember Glow
+            { id: 'sparkBlade', name: 'Spark Blade', cost: 75, damage: 4, rarity: 'common', purchased: true, event: 'emberGlow' },
+            { id: 'cinderSword', name: 'Cinder Sword', cost: 210, damage: 7, rarity: 'uncommon', purchased: true, event: 'emberGlow' },
+            { id: 'blazeReaper', name: 'Blaze Reaper', cost: 520, damage: 13, rarity: 'rare', purchased: true, event: 'emberGlow' }
+        ];
+
+        // Little Daily Skins (Common, Uncommon, Rare only) - all unlocked
+        const littleDailySkins = [
+            // Misty Morning
+            { id: 'fogWalker', name: 'Fog Walker', cost: 40, color: '#b0c4de', rarity: 'common', purchased: true, event: 'mistyMorning' },
+            { id: 'mistWraith', name: 'Mist Wraith', cost: 220, color: '#708090', rarity: 'uncommon', purchased: true, event: 'mistyMorning' },
+            { id: 'cloudDancer', name: 'Cloud Dancer', cost: 550, color: '#87ceeb', rarity: 'rare', purchased: true, event: 'mistyMorning' },
+            // Lucky Hour
+            { id: 'luckyCharm', name: 'Lucky Charm', cost: 50, color: '#daa520', rarity: 'common', purchased: true, event: 'luckyHour' },
+            { id: 'goldenWarrior', name: 'Golden Warrior', cost: 250, color: '#ffd700', rarity: 'uncommon', purchased: true, event: 'luckyHour' },
+            { id: 'fortuneKnight', name: 'Fortune Knight', cost: 600, color: '#ffdf00', rarity: 'rare', purchased: true, event: 'luckyHour' },
+            // Moonlit Night
+            { id: 'nightShade', name: 'Night Shade', cost: 45, color: '#483d8b', rarity: 'common', purchased: true, event: 'moonlitNight' },
+            { id: 'lunarGuard', name: 'Lunar Guard', cost: 230, color: '#9370db', rarity: 'uncommon', purchased: true, event: 'moonlitNight' },
+            { id: 'moonKnight', name: 'Moon Knight', cost: 580, color: '#e6e6fa', rarity: 'rare', purchased: true, event: 'moonlitNight' },
+            // Rustle Winds
+            { id: 'leafRunner', name: 'Leaf Runner', cost: 35, color: '#8fbc8f', rarity: 'common', purchased: true, event: 'rustleWinds' },
+            { id: 'windStalker', name: 'Wind Stalker', cost: 200, color: '#66cdaa', rarity: 'uncommon', purchased: true, event: 'rustleWinds' },
+            { id: 'stormRider', name: 'Storm Rider', cost: 520, color: '#20b2aa', rarity: 'rare', purchased: true, event: 'rustleWinds' },
+            // Ember Glow
+            { id: 'sparkFighter', name: 'Spark Fighter', cost: 55, color: '#cd5c5c', rarity: 'common', purchased: true, event: 'emberGlow' },
+            { id: 'flameRunner', name: 'Flame Runner', cost: 240, color: '#ff6347', rarity: 'uncommon', purchased: true, event: 'emberGlow' },
+            { id: 'infernoHero', name: 'Inferno Hero', cost: 620, color: '#ff4500', rarity: 'rare', purchased: true, event: 'emberGlow' }
+        ];
+
+        // Little Daily Powers (Common, Uncommon, Rare only) - all unlocked
+        const littleDailyPowers = [
+            // Misty Morning
+            { id: 'mistVeil', name: 'Mist Veil', cost: 80, description: '10% chance to dodge attacks', rarity: 'common', purchased: true, event: 'mistyMorning' },
+            { id: 'fogShield', name: 'Fog Shield', cost: 280, description: 'Take 1 less damage from attacks', rarity: 'uncommon', purchased: true, event: 'mistyMorning' },
+            { id: 'cloudWalk', name: 'Cloud Walk', cost: 550, description: 'Move 30% faster', rarity: 'rare', purchased: true, event: 'mistyMorning' },
+            // Lucky Hour
+            { id: 'luckyStrike', name: 'Lucky Strike', cost: 90, description: '10% chance for double damage', rarity: 'common', purchased: true, event: 'luckyHour' },
+            { id: 'fortuneFavor', name: 'Fortune Favor', cost: 300, description: '+15% points from kills', rarity: 'uncommon', purchased: true, event: 'luckyHour' },
+            { id: 'jackpot', name: 'Jackpot', cost: 580, description: '5% chance for triple damage', rarity: 'rare', purchased: true, event: 'luckyHour' },
+            // Moonlit Night
+            { id: 'nightVision', name: 'Night Vision', cost: 70, description: '+5 Max HP', rarity: 'common', purchased: true, event: 'moonlitNight' },
+            { id: 'lunarBlessing', name: 'Lunar Blessing', cost: 260, description: 'Regenerate 1 HP every 8 seconds', rarity: 'uncommon', purchased: true, event: 'moonlitNight' },
+            { id: 'moonPower', name: 'Moon Power', cost: 540, description: '+15 Max HP', rarity: 'rare', purchased: true, event: 'moonlitNight' },
+            // Rustle Winds
+            { id: 'lightFeet', name: 'Light Feet', cost: 60, description: 'Move 15% faster', rarity: 'common', purchased: true, event: 'rustleWinds' },
+            { id: 'windDash', name: 'Wind Dash', cost: 240, description: 'Increased attack range', rarity: 'uncommon', purchased: true, event: 'rustleWinds' },
+            { id: 'galeForce', name: 'Gale Force', cost: 500, description: 'Attacks push enemies back', rarity: 'rare', purchased: true, event: 'rustleWinds' },
+            // Ember Glow
+            { id: 'warmth', name: 'Warmth', cost: 85, description: '+8 Max HP', rarity: 'common', purchased: true, event: 'emberGlow' },
+            { id: 'emberHeart', name: 'Ember Heart', cost: 290, description: 'Heal 2 HP on kill', rarity: 'uncommon', purchased: true, event: 'emberGlow' },
+            { id: 'blazingSoul', name: 'Blazing Soul', cost: 570, description: 'Deal 1 fire damage to nearby enemies', rarity: 'rare', purchased: true, event: 'emberGlow' }
+        ];
+
+        // Daily Event Powers (Epic, Legendary, Mythical only) - epic/legendary unlocked, mythical locked
+        const dailyPowers = [
+            // Cosmic Storm
+            { id: 'starShield', name: 'Star Shield', cost: 2000, description: '30% chance to block all damage', rarity: 'epic', purchased: true, event: 'cosmicStorm' },
+            { id: 'nebulaStrike', name: 'Nebula Strike', cost: 4000, description: 'Attacks chain to 2 nearby enemies', rarity: 'legendary', purchased: true, event: 'cosmicStorm' },
+            { id: 'cosmicDomination', name: 'Cosmic Domination', cost: 10000, description: 'Time slows for enemies by 50%', rarity: 'mythical', purchased: false, event: 'cosmicStorm' },
+            // Dragon Rage
+            { id: 'dragonBreath', name: 'Dragon Breath', cost: 2100, description: 'Attacks deal fire damage over time', rarity: 'epic', purchased: true, event: 'dragonRage' },
+            { id: 'wyrmsFury', name: "Wyrm's Fury", cost: 4200, description: 'Deal 100% more damage below 25% HP', rarity: 'legendary', purchased: true, event: 'dragonRage' },
+            { id: 'dragonSoul', name: 'Dragon Soul', cost: 11000, description: 'Transform into dragon form on kill (2x damage for 5s)', rarity: 'mythical', purchased: false, event: 'dragonRage' },
+            // Shadow Realm
+            { id: 'shadowStep', name: 'Shadow Step', cost: 1900, description: 'Teleport through walls once per 10s', rarity: 'epic', purchased: true, event: 'shadowRealm' },
+            { id: 'nightmareAura', name: 'Nightmare Aura', cost: 3800, description: 'Nearby enemies take 3 damage/sec', rarity: 'legendary', purchased: true, event: 'shadowRealm' },
+            { id: 'voidWalk', name: 'Void Walk', cost: 9500, description: 'Become invulnerable for 3s after each kill', rarity: 'mythical', purchased: false, event: 'shadowRealm' },
+            // Celestial Dawn
+            { id: 'holyLight', name: 'Holy Light', cost: 2000, description: 'Regenerate 4 HP every 5 seconds', rarity: 'epic', purchased: true, event: 'celestialDawn' },
+            { id: 'divineFavor', name: 'Divine Favor', cost: 4100, description: 'Revive twice with 75% HP', rarity: 'legendary', purchased: true, event: 'celestialDawn' },
+            { id: 'godMode', name: 'God Mode', cost: 10500, description: 'Cannot drop below 1 HP for 3 seconds after taking fatal damage', rarity: 'mythical', purchased: false, event: 'celestialDawn' },
+            // Abyssal Depths
+            { id: 'tidalWave', name: 'Tidal Wave', cost: 1800, description: 'Push enemies away on attack', rarity: 'epic', purchased: true, event: 'abyssalDepths' },
+            { id: 'krakenGrip', name: 'Kraken Grip', cost: 3900, description: 'Stun enemies for 1s on hit', rarity: 'legendary', purchased: true, event: 'abyssalDepths' },
+            { id: 'abyssalTerror', name: 'Abyssal Terror', cost: 9800, description: 'Enemies near you deal 50% less damage', rarity: 'mythical', purchased: false, event: 'abyssalDepths' },
+            // Phoenix Flame
+            { id: 'flameAura', name: 'Flame Aura', cost: 2100, description: 'Burn enemies on contact for 2 damage/sec', rarity: 'epic', purchased: true, event: 'phoenixFlame' },
+            { id: 'phoenixRebirth', name: 'Phoenix Rebirth', cost: 4300, description: 'Revive with full HP and deal explosion damage', rarity: 'legendary', purchased: true, event: 'phoenixFlame' },
+            { id: 'eternalFlame', name: 'Eternal Flame', cost: 11500, description: 'All attacks ignite, dealing 100% bonus damage over 3s', rarity: 'mythical', purchased: false, event: 'phoenixFlame' },
+            // Void Eclipse
+            { id: 'eclipsePower', name: 'Eclipse Power', cost: 2200, description: '+75 Max HP', rarity: 'epic', purchased: true, event: 'voidEclipse' },
+            { id: 'twilightMastery', name: 'Twilight Mastery', cost: 4500, description: '25% chance for quadruple damage', rarity: 'legendary', purchased: true, event: 'voidEclipse' },
+            { id: 'cosmicAscension', name: 'Cosmic Ascension', cost: 12000, description: 'All stats doubled, immune to all debuffs', rarity: 'mythical', purchased: false, event: 'voidEclipse' }
+        ];
+
+        // Get today's daily event
+        function getDailyEvent() {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), 0, 0);
+            const diff = now - start;
+            const oneDay = 1000 * 60 * 60 * 24;
+            const dayOfYear = Math.floor(diff / oneDay);
+            const eventIndex = dayOfYear % dailyEventTypes.length;
+            return dailyEventTypes[eventIndex];
+        }
+
+        function isDailyEventActive(eventId) {
+            const todayEvent = getDailyEvent();
+            return todayEvent.id === eventId;
+        }
+
+        // Get current active events based on month
+        function getActiveEvents() {
+            const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11
+            return holidayEvents.filter(event => event.months.includes(currentMonth));
+        }
+
+        function isEventActive(eventId) {
+            const activeEvents = getActiveEvents();
+            return activeEvents.some(event => event.id === eventId);
+        }
+
+        // Level configurations
+        const levels = [
+            { level: 1, name: 'Crimson Depths', monsterColor: '#e74c3c' },      // Red
+            { level: 2, name: 'Emerald Caverns', monsterColor: '#27ae60' },     // Green
+            { level: 3, name: 'Azure Halls', monsterColor: '#3498db' },         // Blue
+            { level: 4, name: 'Golden Ruins', monsterColor: '#f39c12' },        // Orange/Gold
+            { level: 5, name: 'Violet Chambers', monsterColor: '#9b59b6' },     // Purple
+            { level: 6, name: 'Shadow Dungeons', monsterColor: '#34495e' },     // Dark Gray
+            { level: 7, name: 'Infernal Abyss', monsterColor: '#c0392b' },      // Dark Red
+            { level: 8, name: 'Frozen Catacombs', monsterColor: '#5dade2' },    // Ice Blue
+            { level: 9, name: 'Toxic Sewers', monsterColor: '#58d68d' },        // Toxic Green
+            { level: 10, name: 'Obsidian Mines', monsterColor: '#1c2833' },     // Near Black
+            { level: 11, name: 'Coral Grottos', monsterColor: '#ec7063' },      // Coral Pink
+            { level: 12, name: 'Thunder Peaks', monsterColor: '#f7dc6f' },      // Electric Yellow
+            { level: 13, name: 'Haunted Crypts', monsterColor: '#aab7b8' },     // Ghost Gray
+            { level: 14, name: 'Magma Forges', monsterColor: '#e67e22' },       // Molten Orange
+            { level: 15, name: 'Twilight Gardens', monsterColor: '#af7ac5' },   // Lavender
+            { level: 16, name: 'Sunken Temple', monsterColor: '#48c9b0' },      // Teal
+            { level: 17, name: 'Bone Pits', monsterColor: '#f5e6d3' },          // Bone White
+            { level: 18, name: 'Neon Wastelands', monsterColor: '#2ecc71' },    // Neon Green
+            { level: 19, name: 'Blood Moon Citadel', monsterColor: '#922b21' }, // Blood Red
+            { level: 20, name: 'Celestial Spire', monsterColor: '#85c1e9' },    // Sky Blue
+            { level: 21, name: 'Void Rift', monsterColor: '#4a235a' },          // Deep Purple
+            { level: 22, name: 'Sandstorm Tombs', monsterColor: '#d4ac0d' },    // Sand Gold
+            { level: 23, name: 'Phantom Maze', monsterColor: '#d5d8dc' },       // Silver
+            { level: 24, name: 'Dragon\'s Lair', monsterColor: '#b03a2e' },     // Dragon Red
+            { level: 25, name: 'Eternal Frost', monsterColor: '#a9cce3' },      // Frost Blue
+            { level: 26, name: 'Chaos Realm', monsterColor: '#ff00ff' },        // Magenta
+            { level: 27, name: 'The Final Darkness', monsterColor: '#0d0d0d' }  // Almost Black
+        ];
+
+        // Game state
+        const game = {
+            player: {
+                x: 100,
+                y: 100,
+                size: 20,
+                hp: 30,
+                maxHp: 30,
+                speed: 3,
+                direction: { x: 0, y: 1 },
+                skin: '#4a90e2',
+                weaponDamage: 0
+            },
+            monsters: [],
+            food: [],
+            walls: [],
+            monstersKilled: 0,
+            levelKills: 0,
+            currentLevel: 1,
+            score: 0,
+            keys: {},
+            attacking: false,
+            attackCooldown: 0,
+            equippedWeapon: null,
+            equippedSkin: 'blue',
+            purchasedPowers: [],
+            regenTimer: 0,
+            respawnTimer: 0,
+            foodRespawnTimer: 0,
+            foodRespawnTime: Math.floor(Math.random() * 300) + 900,
+            gameOver: false,
+            storeOpen: false,
+            usedSecondLife: false,
+            invincibleTimer: 0,
+            bestLevel: 1,
+            boss: null
+        };
+
+        // Create maze walls
+        function createMaze() {
+            const walls = [
+                // Outer walls
+                { x: 0, y: 0, width: 800, height: 20 },
+                { x: 0, y: 0, width: 20, height: 600 },
+                { x: 780, y: 0, width: 20, height: 600 },
+                { x: 0, y: 580, width: 800, height: 20 },
+
+                // Inner walls
+                { x: 150, y: 100, width: 20, height: 200 },
+                { x: 300, y: 50, width: 20, height: 150 },
+                { x: 300, y: 300, width: 20, height: 200 },
+                { x: 450, y: 100, width: 20, height: 300 },
+                { x: 600, y: 50, width: 20, height: 250 },
+                { x: 200, y: 400, width: 300, height: 20 },
+                { x: 550, y: 450, width: 150, height: 20 },
+                { x: 100, y: 250, width: 200, height: 20 }
+            ];
+
+            walls.forEach(wall => {
+                const rect = document.createElementNS(ns, 'rect');
+                rect.setAttribute('x', wall.x);
+                rect.setAttribute('y', wall.y);
+                rect.setAttribute('width', wall.width);
+                rect.setAttribute('height', wall.height);
+                rect.setAttribute('fill', '#555');
+                canvas.appendChild(rect);
+                game.walls.push(wall);
+            });
+        }
+
+        // Create player sprite (medieval warrior)
+        function createPlayer() {
+            const group = document.createElementNS(ns, 'g');
+            group.id = 'player';
+
+            // Body
+            const body = document.createElementNS(ns, 'rect');
+            body.setAttribute('x', -8);
+            body.setAttribute('y', -10);
+            body.setAttribute('width', 16);
+            body.setAttribute('height', 20);
+            body.setAttribute('fill', '#4a90e2');
+
+            // Head
+            const head = document.createElementNS(ns, 'circle');
+            head.setAttribute('cx', 0);
+            head.setAttribute('cy', -15);
+            head.setAttribute('r', 6);
+            head.setAttribute('fill', '#ffcc99');
+
+            // Sword
+            const sword = document.createElementNS(ns, 'line');
+            sword.id = 'sword';
+            sword.setAttribute('x1', 0);
+            sword.setAttribute('y1', 0);
+            sword.setAttribute('x2', 0);
+            sword.setAttribute('y2', -25);
+            sword.setAttribute('stroke', '#ccc');
+            sword.setAttribute('stroke-width', 3);
+            sword.setAttribute('display', 'none');
+
+            group.appendChild(body);
+            group.appendChild(head);
+            group.appendChild(sword);
+            canvas.appendChild(group);
+
+            updatePlayerPosition();
+        }
+
+        // Create monster sprite
+        function createMonster(x, y) {
+            const hp = Math.floor(Math.random() * 6) + 5; // 5-10 HP
+            const currentLevelData = levels[game.currentLevel - 1];
+            const monsterColor = currentLevelData ? currentLevelData.monsterColor : '#e74c3c';
+
+            const group = document.createElementNS(ns, 'g');
+            group.classList.add('monster');
+
+            // Body
+            const body = document.createElementNS(ns, 'rect');
+            body.setAttribute('x', -10);
+            body.setAttribute('y', -10);
+            body.setAttribute('width', 20);
+            body.setAttribute('height', 20);
+            body.setAttribute('fill', monsterColor);
+
+            // Eyes
+            const eye1 = document.createElementNS(ns, 'circle');
+            eye1.setAttribute('cx', -4);
+            eye1.setAttribute('cy', -5);
+            eye1.setAttribute('r', 2);
+            eye1.setAttribute('fill', '#fff');
+
+            const eye2 = document.createElementNS(ns, 'circle');
+            eye2.setAttribute('cx', 4);
+            eye2.setAttribute('cy', -5);
+            eye2.setAttribute('r', 2);
+            eye2.setAttribute('fill', '#fff');
+
+            group.appendChild(body);
+            group.appendChild(eye1);
+            group.appendChild(eye2);
+            group.setAttribute('transform', `translate(${x}, ${y})`);
+            canvas.appendChild(group);
+
+            const monster = {
+                x: x,
+                y: y,
+                size: 20,
+                hp: hp,
+                maxHp: hp,
+                element: group,
+                attackCooldown: 0,
+                speed: 1,
+                direction: { x: 0, y: 0 },
+                changeDirectionTimer: 0
+            };
+
+            game.monsters.push(monster);
+        }
+
+        // Spawn monsters randomly
+        function spawnMonsters() {
+            const positions = [
+                { x: 250, y: 150 },
+                { x: 400, y: 400 },
+                { x: 650, y: 150 },
+                { x: 550, y: 350 },
+                { x: 200, y: 500 },
+                { x: 700, y: 500 }
+            ];
+
+            for (let i = 0; i < 6; i++) {
+                createMonster(positions[i].x, positions[i].y);
+            }
+        }
+
+        // Create boss monster for level 27
+        function createBoss() {
+            const x = 400;
+            const y = 300;
+
+            const group = document.createElementNS(ns, 'g');
+            group.classList.add('monster');
+            group.classList.add('boss');
+
+            // Large body
+            const body = document.createElementNS(ns, 'rect');
+            body.setAttribute('x', -30);
+            body.setAttribute('y', -30);
+            body.setAttribute('width', 60);
+            body.setAttribute('height', 60);
+            body.setAttribute('fill', '#0d0d0d');
+            body.setAttribute('stroke', '#ff0000');
+            body.setAttribute('stroke-width', '3');
+
+            // Glowing eyes
+            const eye1 = document.createElementNS(ns, 'circle');
+            eye1.setAttribute('cx', -12);
+            eye1.setAttribute('cy', -10);
+            eye1.setAttribute('r', 6);
+            eye1.setAttribute('fill', '#ff0000');
+
+            const eye2 = document.createElementNS(ns, 'circle');
+            eye2.setAttribute('cx', 12);
+            eye2.setAttribute('cy', -10);
+            eye2.setAttribute('r', 6);
+            eye2.setAttribute('fill', '#ff0000');
+
+            // Crown/horns
+            const horn1 = document.createElementNS(ns, 'polygon');
+            horn1.setAttribute('points', '-25,-30 -15,-30 -20,-50');
+            horn1.setAttribute('fill', '#8b0000');
+
+            const horn2 = document.createElementNS(ns, 'polygon');
+            horn2.setAttribute('points', '15,-30 25,-30 20,-50');
+            horn2.setAttribute('fill', '#8b0000');
+
+            // HP bar background
+            const hpBarBg = document.createElementNS(ns, 'rect');
+            hpBarBg.setAttribute('x', -40);
+            hpBarBg.setAttribute('y', -55);
+            hpBarBg.setAttribute('width', 80);
+            hpBarBg.setAttribute('height', 8);
+            hpBarBg.setAttribute('fill', '#333');
+            hpBarBg.setAttribute('stroke', '#fff');
+            hpBarBg.setAttribute('stroke-width', '1');
+
+            // HP bar
+            const hpBar = document.createElementNS(ns, 'rect');
+            hpBar.setAttribute('x', -39);
+            hpBar.setAttribute('y', -54);
+            hpBar.setAttribute('width', 78);
+            hpBar.setAttribute('height', 6);
+            hpBar.setAttribute('fill', '#ff0000');
+            hpBar.id = 'bossHpBar';
+
+            group.appendChild(body);
+            group.appendChild(horn1);
+            group.appendChild(horn2);
+            group.appendChild(eye1);
+            group.appendChild(eye2);
+            group.appendChild(hpBarBg);
+            group.appendChild(hpBar);
+            group.setAttribute('transform', `translate(${x}, ${y})`);
+            canvas.appendChild(group);
+
+            const boss = {
+                x: x,
+                y: y,
+                size: 60,
+                hp: 200,
+                maxHp: 200,
+                element: group,
+                attackCooldown: 0,
+                speed: 1.5,
+                direction: { x: 0, y: 0 },
+                changeDirectionTimer: 0,
+                isBoss: true,
+                damage: 8
+            };
+
+            game.boss = boss;
+            game.monsters.push(boss);
+        }
+
+        // Spawn a random monster
+        function spawnRandomMonster() {
+            // Try to find a valid spawn position
+            let attempts = 0;
+            let validPosition = false;
+            let x, y;
+
+            while (!validPosition && attempts < 50) {
+                // Random position in the maze (avoiding edges)
+                x = Math.floor(Math.random() * 700) + 50;
+                y = Math.floor(Math.random() * 500) + 50;
+
+                // Check if position is not in a wall and not too close to player
+                const distToPlayer = distance(x, y, game.player.x, game.player.y);
+                if (!checkWallCollision(x, y, 20) && distToPlayer > 100) {
+                    validPosition = true;
+                }
+                attempts++;
+            }
+
+            if (validPosition) {
+                createMonster(x, y);
+            }
+        }
+
+        // Monster respawn system
+        function handleMonsterRespawn() {
+            if (game.gameOver) return;
+
+            game.respawnTimer++;
+
+            // Every 10 seconds (600 frames at 60fps)
+            if (game.respawnTimer >= 600) {
+                game.respawnTimer = 0;
+
+                // 50% chance to spawn
+                if (Math.random() < 0.5) {
+                    spawnRandomMonster();
+                }
+            }
+        }
+
+        // Create food sprite
+        function createFood(x, y) {
+            const group = document.createElementNS(ns, 'g');
+            group.classList.add('food');
+
+            // Food (apple/meat)
+            const foodCircle = document.createElementNS(ns, 'circle');
+            foodCircle.setAttribute('cx', 0);
+            foodCircle.setAttribute('cy', 0);
+            foodCircle.setAttribute('r', 8);
+            foodCircle.setAttribute('fill', '#f39c12');
+
+            // Highlight
+            const highlight = document.createElementNS(ns, 'circle');
+            highlight.setAttribute('cx', -2);
+            highlight.setAttribute('cy', -2);
+            highlight.setAttribute('r', 3);
+            highlight.setAttribute('fill', '#f1c40f');
+
+            group.appendChild(foodCircle);
+            group.appendChild(highlight);
+            group.setAttribute('transform', `translate(${x}, ${y})`);
+            canvas.appendChild(group);
+
+            const food = {
+                x: x,
+                y: y,
+                element: group
+            };
+
+            game.food.push(food);
+        }
+
+        // Spawn food randomly
+        function spawnFood() {
+            const positions = [
+                { x: 380, y: 250 },
+                { x: 520, y: 180 },
+                { x: 680, y: 400 },
+                { x: 120, y: 450 }
+            ];
+
+            for (let i = 0; i < 4; i++) {
+                createFood(positions[i].x, positions[i].y);
+            }
+        }
+
+        // Check food collision
+        function checkFoodCollision() {
+            for (let i = game.food.length - 1; i >= 0; i--) {
+                const food = game.food[i];
+                const dist = distance(game.player.x, game.player.y, food.x, food.y);
+
+                if (dist <= 20) { // Player is close enough to eat
+                    // Restore HP (5-10 points)
+                    const healAmount = Math.floor(Math.random() * 6) + 5; // 5-10 HP
+                    game.player.hp = Math.min(game.player.hp + healAmount, game.player.maxHp);
+                    document.getElementById('playerHP').textContent = game.player.hp;
+
+                    // Remove food
+                    canvas.removeChild(food.element);
+                    game.food.splice(i, 1);
+                }
+            }
+        }
+
+        // Food respawn system
+        function handleFoodRespawn() {
+            if (game.gameOver) return;
+
+            game.foodRespawnTimer++;
+
+            if (game.foodRespawnTimer >= game.foodRespawnTime && game.food.length < 4) {
+                game.foodRespawnTimer = 0;
+                game.foodRespawnTime = Math.floor(Math.random() * 300) + 900; // Set new random time
+                spawnRandomFood();
+            }
+        }
+
+        // Spawn random food
+        function spawnRandomFood() {
+            let attempts = 0;
+            let validPosition = false;
+            let x, y;
+
+            while (!validPosition && attempts < 50) {
+                x = Math.floor(Math.random() * 700) + 50;
+                y = Math.floor(Math.random() * 500) + 50;
+
+                const distToPlayer = distance(x, y, game.player.x, game.player.y);
+                if (!checkWallCollision(x, y, 16) && distToPlayer > 80) {
+                    validPosition = true;
+                }
+                attempts++;
+            }
+
+            if (validPosition) {
+                createFood(x, y);
+            }
+        }
+
+        // Next level function
+        function nextLevel() {
+            game.currentLevel++;
+            game.levelKills = 0;
+
+            // Update best level if current is higher
+            if (game.currentLevel > game.bestLevel) {
+                game.bestLevel = game.currentLevel;
+                saveBestLevel();
+                document.getElementById('bestLevel').textContent = game.bestLevel;
+            }
+
+            // Clear all monsters
+            game.monsters.forEach(monster => {
+                canvas.removeChild(monster.element);
+            });
+            game.monsters = [];
+            game.boss = null;
+
+            // Update UI
+            document.getElementById('currentLevel').textContent = game.currentLevel;
+            document.getElementById('levelKills').textContent = game.levelKills;
+            const levelData = levels[game.currentLevel - 1];
+            if (levelData) {
+                document.getElementById('levelName').textContent = levelData.name;
+            }
+
+            // Level 27 is the boss level
+            if (game.currentLevel === 27) {
+                createBoss();
+                // Also spawn some minions
+                for (let i = 0; i < 3; i++) {
+                    spawnRandomMonster();
+                }
+            } else {
+                // Spawn new monsters for the level
+                spawnMonsters();
+            }
+
+            // Reset respawn timer
+            game.respawnTimer = 0;
+        }
+
+        // Update player position
+        function updatePlayerPosition() {
+            const player = document.getElementById('player');
+            player.setAttribute('transform', `translate(${game.player.x}, ${game.player.y})`);
+        }
+
+        // Check collision with walls
+        function checkWallCollision(x, y, size) {
+            for (let wall of game.walls) {
+                if (x - size/2 < wall.x + wall.width &&
+                    x + size/2 > wall.x &&
+                    y - size/2 < wall.y + wall.height &&
+                    y + size/2 > wall.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Move player
+        function movePlayer() {
+            let newX = game.player.x;
+            let newY = game.player.y;
+
+            if (game.keys['ArrowUp']) {
+                newY -= game.player.speed;
+                game.player.direction = { x: 0, y: -1 };
+            }
+            if (game.keys['ArrowDown']) {
+                newY += game.player.speed;
+                game.player.direction = { x: 0, y: 1 };
+            }
+            if (game.keys['ArrowLeft']) {
+                newX -= game.player.speed;
+                game.player.direction = { x: -1, y: 0 };
+            }
+            if (game.keys['ArrowRight']) {
+                newX += game.player.speed;
+                game.player.direction = { x: 1, y: 0 };
+            }
+
+            // Check wall collision
+            if (!checkWallCollision(newX, newY, game.player.size)) {
+                game.player.x = newX;
+                game.player.y = newY;
+                updatePlayerPosition();
+            }
+        }
+
+        // Move monsters
+        function moveMonsters() {
+            for (let monster of game.monsters) {
+                const dist = distance(game.player.x, game.player.y, monster.x, monster.y);
+                const sightRange = 150; // Monsters can "see" player within 150 pixels
+
+                let newX = monster.x;
+                let newY = monster.y;
+
+                if (dist <= sightRange) {
+                    // Follow the player
+                    const dx = game.player.x - monster.x;
+                    const dy = game.player.y - monster.y;
+                    const magnitude = Math.sqrt(dx * dx + dy * dy);
+
+                    if (magnitude > 0) {
+                        newX += (dx / magnitude) * monster.speed;
+                        newY += (dy / magnitude) * monster.speed;
+                    }
+                } else {
+                    // Random movement
+                    monster.changeDirectionTimer--;
+
+                    if (monster.changeDirectionTimer <= 0) {
+                        // Change direction randomly
+                        const directions = [
+                            { x: 0, y: 0 },   // Stop
+                            { x: 1, y: 0 },   // Right
+                            { x: -1, y: 0 },  // Left
+                            { x: 0, y: 1 },   // Down
+                            { x: 0, y: -1 }   // Up
+                        ];
+                        monster.direction = directions[Math.floor(Math.random() * directions.length)];
+                        monster.changeDirectionTimer = Math.floor(Math.random() * 60) + 30; // 30-90 frames
+                    }
+
+                    newX += monster.direction.x * monster.speed;
+                    newY += monster.direction.y * monster.speed;
+                }
+
+                // Check wall collision
+                if (!checkWallCollision(newX, newY, monster.size)) {
+                    monster.x = newX;
+                    monster.y = newY;
+                    monster.element.setAttribute('transform', `translate(${monster.x}, ${monster.y})`);
+                } else {
+                    // Hit a wall, change direction
+                    monster.changeDirectionTimer = 0;
+                }
+            }
+        }
+
+        // Calculate distance between two points
+        function distance(x1, y1, x2, y2) {
+            return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        }
+
+        // Player attack
+        function playerAttack() {
+            if (game.gameOver || game.attacking || game.attackCooldown > 0) return;
+
+            game.attacking = true;
+            game.attackCooldown = 30;
+
+            // Show sword
+            const sword = document.getElementById('sword');
+            sword.setAttribute('display', 'block');
+
+            setTimeout(() => {
+                sword.setAttribute('display', 'none');
+                game.attacking = false;
+            }, 200);
+
+            // Check if any monster is in range
+            const attackRange = game.player.attackRange || 60;
+            const monstersToAttack = hasPower('multiattack')
+                ? game.monsters.filter(m => distance(game.player.x, game.player.y, m.x, m.y) <= attackRange)
+                : game.monsters.filter(m => distance(game.player.x, game.player.y, m.x, m.y) <= attackRange).slice(0, 1);
+
+            for (let monster of monstersToAttack) {
+                // 75% chance to hit
+                if (Math.random() < 0.75) {
+                    let baseDamage = Math.floor(Math.random() * 10) + 1; // 1-10 base damage
+
+                    // Critical hit chance from Lucky Charm (25% for double)
+                    if (hasPower('crit') && Math.random() < 0.25) {
+                        baseDamage *= 2;
+                    }
+
+                    // Super critical from Assassin Mark (15% for triple)
+                    if (hasPower('supercrit') && Math.random() < 0.15) {
+                        baseDamage *= 3;
+                    }
+
+                    const totalDamage = baseDamage + game.player.weaponDamage;
+
+                    // Executioner: instant kill if below 20% HP (not for boss)
+                    if (hasPower('execute') && !monster.isBoss && monster.hp <= monster.maxHp * 0.2) {
+                        monster.hp = 0;
+                    } else {
+                        monster.hp -= totalDamage;
+                    }
+
+                    // Update boss HP bar if this is the boss
+                    if (monster.isBoss && monster.hp > 0) {
+                        const hpBar = document.getElementById('bossHpBar');
+                        if (hpBar) {
+                            const hpPercent = monster.hp / monster.maxHp;
+                            hpBar.setAttribute('width', 78 * hpPercent);
+                        }
+                    }
+
+                    if (monster.hp <= 0) {
+                        // Monster defeated
+                        const wasBoss = monster.isBoss;
+                        canvas.removeChild(monster.element);
+                        game.monsters = game.monsters.filter(m => m !== monster);
+                        game.monstersKilled++;
+                        game.levelKills++;
+
+                        // Midas Touch: 50% more points (boss gives 500 base points)
+                        let pointsEarned = wasBoss ? 500 : 25;
+                        if (hasPower('goldbonus')) {
+                            pointsEarned = Math.floor(pointsEarned * 1.5);
+                        }
+                        game.score += pointsEarned;
+
+                        // Lifesteal from Vampire Fang
+                        if (hasPower('lifesteal')) {
+                            game.player.hp = Math.min(game.player.hp + 3, game.player.maxHp);
+                            document.getElementById('playerHP').textContent = game.player.hp;
+                        }
+
+                        document.getElementById('levelKills').textContent = game.levelKills;
+                        document.getElementById('score').textContent = game.score;
+
+                        // Boss defeated = victory!
+                        if (wasBoss) {
+                            game.boss = null;
+                            endGame('Victory! You defeated the Final Boss!');
+                            return;
+                        }
+
+                        // Check if level is complete
+                        if (game.levelKills >= 5) {
+                            if (game.currentLevel >= 27) {
+                                endGame('Victory! You completed all 27 levels!');
+                            } else {
+                                nextLevel();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Monster attack
+        function monsterAttack() {
+            // Decrease invincibility timer
+            if (game.invincibleTimer > 0) {
+                game.invincibleTimer--;
+            }
+
+            for (let monster of game.monsters) {
+                monster.attackCooldown--;
+
+                const dist = distance(game.player.x, game.player.y, monster.x, monster.y);
+
+                // Boss has larger attack range
+                const attackRange = monster.isBoss ? 70 : 40;
+
+                if (dist <= attackRange && monster.attackCooldown <= 0) {
+                    // Divine Shield: immune to damage for 2 seconds after being hit
+                    if (game.invincibleTimer > 0) {
+                        monster.attackCooldown = 60;
+                        continue; // Still invincible!
+                    }
+
+                    // Dodge chance from Shadow Cloak
+                    if (hasPower('dodge') && Math.random() < 0.20) {
+                        monster.attackCooldown = 60;
+                        continue; // Attack dodged!
+                    }
+
+                    // Boss does more damage
+                    let damage = monster.isBoss
+                        ? Math.floor(Math.random() * 5) + 6 // 6-10 damage
+                        : Math.floor(Math.random() * 3) + 3; // 3-5 damage
+
+                    // Armor reduction from Iron Shield
+                    if (hasPower('armor')) {
+                        damage = Math.max(1, damage - 1);
+                    }
+
+                    game.player.hp -= damage;
+                    monster.attackCooldown = 60; // Cooldown before next attack
+
+                    // Thorns Aura: reflect 2 damage when hit
+                    if (hasPower('thorns')) {
+                        monster.hp -= 2;
+                        if (monster.hp <= 0) {
+                            canvas.removeChild(monster.element);
+                            game.monsters = game.monsters.filter(m => m !== monster);
+                            game.monstersKilled++;
+                            game.levelKills++;
+                            game.score += 25;
+                            document.getElementById('levelKills').textContent = game.levelKills;
+                            document.getElementById('score').textContent = game.score;
+                        }
+                    }
+
+                    // Activate Divine Shield invincibility
+                    if (hasPower('invincible')) {
+                        game.invincibleTimer = 120; // 2 seconds at 60fps
+                    }
+
+                    document.getElementById('playerHP').textContent = game.player.hp;
+
+                    // Flash the player red (or gold if invincible activated)
+                    const playerBody = document.querySelector('#player rect');
+                    const originalColor = playerBody.getAttribute('fill');
+                    const flashColor = hasPower('invincible') ? '#ffd700' : '#ff0000';
+                    playerBody.setAttribute('fill', flashColor);
+                    setTimeout(() => {
+                        playerBody.setAttribute('fill', originalColor);
+                    }, 100);
+
+                    if (game.player.hp <= 0) {
+                        // Second Life: revive once with 50% HP
+                        if (hasPower('immortal') && !game.usedSecondLife) {
+                            game.usedSecondLife = true;
+                            game.player.hp = Math.floor(game.player.maxHp * 0.5);
+                            document.getElementById('playerHP').textContent = game.player.hp;
+                            // Flash player gold to show revival
+                            playerBody.setAttribute('fill', '#ffd700');
+                            setTimeout(() => {
+                                playerBody.setAttribute('fill', originalColor);
+                            }, 500);
+                        } else {
+                            endGame('Game Over! You were defeated!');
+                        }
+                    }
+                }
+            }
+        }
+
+        // End game
+        function endGame(message) {
+            game.gameOver = true;
+
+            // Award bonus points based on level reached
+            let bonusPoints = 0;
+            if (message.includes('Victory')) {
+                // Completed the game - award 700 points
+                bonusPoints = 700;
+            } else {
+                // Died - award points based on current level
+                const levelBonuses = {
+                    2: 100,
+                    3: 200,
+                    4: 300,
+                    5: 400,
+                    6: 500,
+                    7: 600
+                };
+                bonusPoints = levelBonuses[game.currentLevel] || 0;
+            }
+
+            if (bonusPoints > 0) {
+                game.score += bonusPoints;
+                document.getElementById('score').textContent = game.score;
+            }
+
+            saveScore(); // Save points when game ends
+            document.getElementById('gameOverText').textContent = message + (bonusPoints > 0 ? ` (+${bonusPoints} bonus points!)` : '');
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!game.gameOver && !game.storeOpen) {
+                movePlayer();
+                moveMonsters();
+                monsterAttack();
+                checkFoodCollision();
+                handleMonsterRespawn();
+                handleFoodRespawn();
+
+                // Regeneration from Healing Ring (1 HP every 5 seconds = 300 frames)
+                if (hasPower('regen')) {
+                    game.regenTimer++;
+                    if (game.regenTimer >= 300) {
+                        game.regenTimer = 0;
+                        if (game.player.hp < game.player.maxHp) {
+                            game.player.hp++;
+                            document.getElementById('playerHP').textContent = game.player.hp;
+                        }
+                    }
+                }
+
+                if (game.attackCooldown > 0) {
+                    game.attackCooldown--;
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Store functions
+        function toggleStore() {
+            if (game.gameOver) return;
+
+            const store = document.getElementById('store');
+            const isVisible = store.style.display !== 'none';
+            store.style.display = isVisible ? 'none' : 'block';
+            game.storeOpen = !isVisible;
+
+            if (!isVisible) {
+                updateStoreDisplay();
+            }
+        }
+
+        function updateStoreDisplay() {
+            document.getElementById('storePoints').textContent = game.score;
+            const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+
+            // Helper function to render items by rarity
+            function renderItemsByRarity(items, container, type) {
+                container.innerHTML = '';
+
+                rarityOrder.forEach(rarity => {
+                    const rarityItems = items.filter(item => item.rarity === rarity);
+                    if (rarityItems.length === 0) return;
+
+                    // Add category header
+                    const header = document.createElement('div');
+                    header.className = 'category-header';
+                    header.style.color = rarityColors[rarity];
+                    header.textContent = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+                    container.appendChild(header);
+
+                    rarityItems.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = `item rarity-${item.rarity}`;
+                        if (item.purchased) div.classList.add('purchased');
+
+                        if (type === 'weapon' && game.equippedWeapon === item.id) div.classList.add('equipped');
+                        if (type === 'skin' && game.equippedSkin === item.id) div.classList.add('equipped');
+                        if (type === 'power' && item.purchased) div.classList.add('equipped');
+
+                        let status = '';
+                        if (item.purchased) {
+                            if (type === 'weapon') {
+                                status = game.equippedWeapon === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else if (type === 'skin') {
+                                status = game.equippedSkin === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else {
+                                status = ' [OWNED]';
+                            }
+                        }
+
+                        let content = `<div class="rarity-label" style="color: ${rarityColors[item.rarity]}">${item.rarity}</div>`;
+                        content += `<strong>${item.name}</strong>${status}<br>`;
+
+                        if (type === 'weapon') {
+                            content += `Damage: +${item.damage}<br>`;
+                        } else if (type === 'skin') {
+                            content += `<div style="background: ${item.color}; width: 30px; height: 30px; display: inline-block; border: 1px solid white;"></div><br>`;
+                        } else if (type === 'power') {
+                            content += `${item.description}<br>`;
+                        }
+                        content += `Cost: ${item.cost} points`;
+
+                        div.innerHTML = content;
+
+                        if (!item.purchased) {
+                            if (type === 'weapon') div.onclick = () => purchaseWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => purchaseSkin(item.id);
+                            else if (type === 'power') div.onclick = () => purchasePower(item.id);
+                        } else {
+                            if (type === 'weapon') div.onclick = () => equipWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => equipSkin(item.id);
+                        }
+
+                        container.appendChild(div);
+                    });
+                });
+            }
+
+            // Render all categories
+            renderItemsByRarity(weapons, document.getElementById('weaponList'), 'weapon');
+            renderItemsByRarity(powers, document.getElementById('powerList'), 'power');
+            renderItemsByRarity(skins, document.getElementById('skinList'), 'skin');
+
+            // Render little daily event items
+            renderLittleDailyItems();
+
+            // Render daily event items
+            renderDailyItems();
+
+            // Render holiday items
+            renderHolidayItems();
+
+            // Render super myth items
+            renderSuperMythItems();
+        }
+
+        function renderLittleDailyItems() {
+            const currentEvent = getLittleDailyEvent();
+            const littleDailyEventStatus = document.getElementById('littleDailyEventStatus');
+            const rarityOrder = ['common', 'uncommon', 'rare'];
+
+            // Calculate time until next event
+            const now = new Date();
+            const currentHour = now.getHours();
+            const nextEventHour = (Math.floor(currentHour / 5) + 1) * 5;
+            const hoursUntilNext = nextEventHour - currentHour;
+
+            // Show current event with timer
+            littleDailyEventStatus.innerHTML = `Current Event: <span style="color: ${currentEvent.color}; font-weight: bold;">${currentEvent.name}</span> - ${currentEvent.description} <span style="color: #888;">(Changes in ~${hoursUntilNext} hours)</span>`;
+
+            // Helper function to render little daily items
+            function renderLittleDailyItemsByEvent(items, container, type) {
+                container.innerHTML = '';
+
+                // Group items by event
+                const eventGroups = {};
+                items.forEach(item => {
+                    if (!eventGroups[item.event]) {
+                        eventGroups[item.event] = [];
+                    }
+                    eventGroups[item.event].push(item);
+                });
+
+                // Render each event's items
+                littleDailyEventTypes.forEach(event => {
+                    const eventItems = eventGroups[event.id] || [];
+                    if (eventItems.length === 0) return;
+
+                    const isActive = isLittleDailyEventActive(event.id);
+
+                    // Add event header
+                    const header = document.createElement('div');
+                    header.className = 'category-header';
+                    header.style.color = event.color;
+                    header.innerHTML = `${event.name} ${isActive ? '<span style="color: #4CAF50;">(NOW)</span>' : '<span style="color: #888;">(LATER)</span>'}`;
+                    container.appendChild(header);
+
+                    // Sort by rarity
+                    eventItems.sort((a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity));
+
+                    eventItems.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = `item rarity-${item.rarity}`;
+
+                        if (!isActive && !item.purchased) {
+                            div.style.opacity = '0.4';
+                            div.style.cursor = 'not-allowed';
+                        }
+                        if (item.purchased) div.classList.add('purchased');
+                        if (type === 'weapon' && game.equippedWeapon === item.id) div.classList.add('equipped');
+                        if (type === 'skin' && game.equippedSkin === item.id) div.classList.add('equipped');
+                        if (type === 'power' && item.purchased) div.classList.add('equipped');
+
+                        let status = '';
+                        if (!isActive && !item.purchased) {
+                            status = ' <span style="color: #888;">[WAIT FOR EVENT]</span>';
+                        } else if (item.purchased) {
+                            if (type === 'weapon') {
+                                status = game.equippedWeapon === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else if (type === 'skin') {
+                                status = game.equippedSkin === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else {
+                                status = ' [OWNED]';
+                            }
+                        }
+
+                        let content = `<div class="rarity-label" style="color: ${rarityColors[item.rarity]}">${item.rarity}</div>`;
+                        content += `<strong>${item.name}</strong>${status}<br>`;
+
+                        if (type === 'weapon') {
+                            content += `Damage: +${item.damage}<br>`;
+                        } else if (type === 'skin') {
+                            content += `<div style="background: ${item.color}; width: 30px; height: 30px; display: inline-block; border: 1px solid white;"></div><br>`;
+                        } else if (type === 'power') {
+                            content += `${item.description}<br>`;
+                        }
+                        content += `Cost: ${item.cost} points`;
+
+                        div.innerHTML = content;
+
+                        // Only allow purchase if event is active or item already purchased
+                        if (isActive && !item.purchased) {
+                            if (type === 'weapon') div.onclick = () => purchaseLittleDailyWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => purchaseLittleDailySkin(item.id);
+                            else if (type === 'power') div.onclick = () => purchaseLittleDailyPower(item.id);
+                        } else if (item.purchased) {
+                            if (type === 'weapon') div.onclick = () => equipLittleDailyWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => equipLittleDailySkin(item.id);
+                        }
+
+                        container.appendChild(div);
+                    });
+                });
+            }
+
+            renderLittleDailyItemsByEvent(littleDailyWeapons, document.getElementById('littleDailyWeaponList'), 'weapon');
+            renderLittleDailyItemsByEvent(littleDailyPowers, document.getElementById('littleDailyPowerList'), 'power');
+            renderLittleDailyItemsByEvent(littleDailySkins, document.getElementById('littleDailySkinList'), 'skin');
+        }
+
+        function renderDailyItems() {
+            const todayEvent = getDailyEvent();
+            const dailyEventStatus = document.getElementById('dailyEventStatus');
+            const rarityOrder = ['epic', 'legendary', 'mythical'];
+
+            // Show today's event
+            dailyEventStatus.innerHTML = `Today's Event: <span style="color: ${todayEvent.color}; font-weight: bold;">${todayEvent.name}</span> - ${todayEvent.description}`;
+
+            // Helper function to render daily items
+            function renderDailyItemsByEvent(items, container, type) {
+                container.innerHTML = '';
+
+                // Group items by event
+                const eventGroups = {};
+                items.forEach(item => {
+                    if (!eventGroups[item.event]) {
+                        eventGroups[item.event] = [];
+                    }
+                    eventGroups[item.event].push(item);
+                });
+
+                // Render each event's items
+                dailyEventTypes.forEach(event => {
+                    const eventItems = eventGroups[event.id] || [];
+                    if (eventItems.length === 0) return;
+
+                    const isActive = isDailyEventActive(event.id);
+
+                    // Add event header
+                    const header = document.createElement('div');
+                    header.className = 'category-header';
+                    header.style.color = event.color;
+                    header.innerHTML = `${event.name} ${isActive ? '<span style="color: #4CAF50;">(TODAY)</span>' : '<span style="color: #888;">(COMING SOON)</span>'}`;
+                    container.appendChild(header);
+
+                    // Sort by rarity
+                    eventItems.sort((a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity));
+
+                    eventItems.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = `item rarity-${item.rarity}`;
+
+                        if (!isActive && !item.purchased) {
+                            div.style.opacity = '0.4';
+                            div.style.cursor = 'not-allowed';
+                        }
+                        if (item.purchased) div.classList.add('purchased');
+                        if (type === 'weapon' && game.equippedWeapon === item.id) div.classList.add('equipped');
+                        if (type === 'skin' && game.equippedSkin === item.id) div.classList.add('equipped');
+                        if (type === 'power' && item.purchased) div.classList.add('equipped');
+
+                        let status = '';
+                        if (!isActive && !item.purchased) {
+                            status = ' <span style="color: #888;">[WAIT FOR EVENT]</span>';
+                        } else if (item.purchased) {
+                            if (type === 'weapon') {
+                                status = game.equippedWeapon === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else if (type === 'skin') {
+                                status = game.equippedSkin === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else {
+                                status = ' [OWNED]';
+                            }
+                        }
+
+                        let content = `<div class="rarity-label" style="color: ${rarityColors[item.rarity]}">${item.rarity}</div>`;
+                        content += `<strong>${item.name}</strong>${status}<br>`;
+
+                        if (type === 'weapon') {
+                            content += `Damage: +${item.damage}<br>`;
+                        } else if (type === 'skin') {
+                            content += `<div style="background: ${item.color}; width: 30px; height: 30px; display: inline-block; border: 1px solid white;"></div><br>`;
+                        } else if (type === 'power') {
+                            content += `${item.description}<br>`;
+                        }
+                        content += `Cost: ${item.cost} points`;
+
+                        div.innerHTML = content;
+
+                        // Only allow purchase if event is active or item already purchased
+                        if (isActive && !item.purchased) {
+                            if (type === 'weapon') div.onclick = () => purchaseDailyWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => purchaseDailySkin(item.id);
+                            else if (type === 'power') div.onclick = () => purchaseDailyPower(item.id);
+                        } else if (item.purchased) {
+                            if (type === 'weapon') div.onclick = () => equipDailyWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => equipDailySkin(item.id);
+                        }
+
+                        container.appendChild(div);
+                    });
+                });
+            }
+
+            renderDailyItemsByEvent(dailyWeapons, document.getElementById('dailyWeaponList'), 'weapon');
+            renderDailyItemsByEvent(dailyPowers, document.getElementById('dailyPowerList'), 'power');
+            renderDailyItemsByEvent(dailySkins, document.getElementById('dailySkinList'), 'skin');
+        }
+
+        function renderHolidayItems() {
+            const activeEvents = getActiveEvents();
+            const holidayStatus = document.getElementById('holidayStatus');
+
+            if (activeEvents.length > 0) {
+                const eventNames = activeEvents.map(e => `<span style="color: ${e.color}">${e.name}</span>`).join(', ');
+                holidayStatus.innerHTML = `Active Events: ${eventNames}`;
+            } else {
+                holidayStatus.innerHTML = '<span style="color: #888;">No active events this month. Check back during holidays!</span>';
+            }
+
+            // Helper function to render holiday items by event
+            function renderHolidayItemsByEvent(items, container, type) {
+                container.innerHTML = '';
+
+                // Group items by event
+                const eventGroups = {};
+                items.forEach(item => {
+                    if (!eventGroups[item.event]) {
+                        eventGroups[item.event] = [];
+                    }
+                    eventGroups[item.event].push(item);
+                });
+
+                // Render each event's items
+                holidayEvents.forEach(event => {
+                    const eventItems = eventGroups[event.id] || [];
+                    if (eventItems.length === 0) return;
+
+                    const isActive = isEventActive(event.id);
+
+                    // Add event header
+                    const header = document.createElement('div');
+                    header.className = 'category-header';
+                    header.style.color = event.color;
+                    header.innerHTML = `${event.name} ${isActive ? '<span style="color: #4CAF50;">(ACTIVE)</span>' : '<span style="color: #ff4444;">(NOT AVAILABLE)</span>'}`;
+                    container.appendChild(header);
+
+                    eventItems.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = `item rarity-${item.rarity}`;
+
+                        if (!isActive && !item.purchased) {
+                            div.style.opacity = '0.4';
+                            div.style.cursor = 'not-allowed';
+                        }
+                        if (item.purchased) div.classList.add('purchased');
+                        if (type === 'weapon' && game.equippedWeapon === item.id) div.classList.add('equipped');
+                        if (type === 'skin' && game.equippedSkin === item.id) div.classList.add('equipped');
+                        if (type === 'power' && item.purchased) div.classList.add('equipped');
+
+                        let status = '';
+                        if (!isActive && !item.purchased) {
+                            status = ' <span style="color: #ff4444;">[NOT AVAILABLE THIS SEASON]</span>';
+                        } else if (item.purchased) {
+                            if (type === 'weapon') {
+                                status = game.equippedWeapon === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else if (type === 'skin') {
+                                status = game.equippedSkin === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else {
+                                status = ' [OWNED]';
+                            }
+                        }
+
+                        let content = `<div class="rarity-label" style="color: ${rarityColors[item.rarity]}">${item.rarity}</div>`;
+                        content += `<strong>${item.name}</strong>${status}<br>`;
+
+                        if (type === 'weapon') {
+                            content += `Damage: +${item.damage}<br>`;
+                        } else if (type === 'skin') {
+                            content += `<div style="background: ${item.color}; width: 30px; height: 30px; display: inline-block; border: 1px solid white;"></div><br>`;
+                        } else if (type === 'power') {
+                            content += `${item.description}<br>`;
+                        }
+                        content += `Cost: ${item.cost} points`;
+
+                        div.innerHTML = content;
+
+                        // Only allow purchase if event is active or item already purchased
+                        if (isActive && !item.purchased) {
+                            if (type === 'weapon') div.onclick = () => purchaseHolidayWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => purchaseHolidaySkin(item.id);
+                            else if (type === 'power') div.onclick = () => purchaseHolidayPower(item.id);
+                        } else if (item.purchased) {
+                            if (type === 'weapon') div.onclick = () => equipHolidayWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => equipHolidaySkin(item.id);
+                        }
+
+                        container.appendChild(div);
+                    });
+                });
+            }
+
+            renderHolidayItemsByEvent(holidayWeapons, document.getElementById('holidayWeaponList'), 'weapon');
+            renderHolidayItemsByEvent(holidayPowers, document.getElementById('holidayPowerList'), 'power');
+            renderHolidayItemsByEvent(holidaySkins, document.getElementById('holidaySkinList'), 'skin');
+        }
+
+        function renderSuperMythItems() {
+            const superMythStatus = document.getElementById('superMythStatus');
+            const currentMonth = new Date().getMonth() + 1;
+
+            // Find which super myth items are available this month
+            const availableEvents = [];
+            const monthToEvent = {
+                1: 'christmas',
+                3: 'valentines',
+                5: 'easter',
+                9: 'summer',
+                11: 'halloween'
+            };
+
+            if (monthToEvent[currentMonth]) {
+                availableEvents.push(monthToEvent[currentMonth]);
+            }
+
+            if (availableEvents.length > 0) {
+                const eventNames = availableEvents.map(e => {
+                    const event = holidayEvents.find(h => h.id === e);
+                    return event ? `<span style="color: #ffd700;">Post-${event.name}</span>` : '';
+                }).join(', ');
+                superMythStatus.innerHTML = `Available Now: ${eventNames} Super Myths! These legendary items appear after holiday events end.`;
+            } else {
+                superMythStatus.innerHTML = '<span style="color: #888;">Super Myth items appear the month after holiday events. Check back in January, March, May, September, or November!</span>';
+            }
+
+            // Helper function to render super myth items
+            function renderSuperMythItemsByEvent(items, container, type) {
+                container.innerHTML = '';
+
+                // Group items by afterEvent
+                const eventGroups = {};
+                items.forEach(item => {
+                    if (!eventGroups[item.afterEvent]) {
+                        eventGroups[item.afterEvent] = [];
+                    }
+                    eventGroups[item.afterEvent].push(item);
+                });
+
+                // Render each event's items
+                Object.keys(eventGroups).forEach(eventId => {
+                    const eventItems = eventGroups[eventId];
+                    const event = holidayEvents.find(e => e.id === eventId);
+                    if (!event) return;
+
+                    const isAvailable = isSuperMythAvailable(eventItems[0]);
+
+                    // Add event header with gold styling
+                    const header = document.createElement('div');
+                    header.className = 'category-header';
+                    header.style.color = '#ffd700';
+                    header.style.textShadow = '0 0 5px #ffd700';
+                    header.innerHTML = `Post-${event.name} ${isAvailable ? '<span style="color: #4CAF50;">(AVAILABLE NOW)</span>' : '<span style="color: #888;">(COMING LATER)</span>'}`;
+                    container.appendChild(header);
+
+                    eventItems.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = `item rarity-${item.rarity}`;
+
+                        if (!isAvailable && !item.purchased) {
+                            div.style.opacity = '0.4';
+                            div.style.cursor = 'not-allowed';
+                        }
+                        if (item.purchased) div.classList.add('purchased');
+                        if (type === 'weapon' && game.equippedWeapon === item.id) div.classList.add('equipped');
+                        if (type === 'skin' && game.equippedSkin === item.id) div.classList.add('equipped');
+                        if (type === 'power' && item.purchased) div.classList.add('equipped');
+
+                        let status = '';
+                        if (!isAvailable && !item.purchased) {
+                            status = ' <span style="color: #888;">[WAIT FOR POST-EVENT]</span>';
+                        } else if (item.purchased) {
+                            if (type === 'weapon') {
+                                status = game.equippedWeapon === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else if (type === 'skin') {
+                                status = game.equippedSkin === item.id ? ' [EQUIPPED]' : ' [OWNED]';
+                            } else {
+                                status = ' [OWNED]';
+                            }
+                        }
+
+                        // Gold label for super myth
+                        let content = `<div class="rarity-label" style="color: #ffd700; text-shadow: 0 0 10px #ffd700, 0 0 20px #ffa500;">SUPER MYTH</div>`;
+                        content += `<strong style="color: #ffd700;">${item.name}</strong>${status}<br>`;
+
+                        if (type === 'weapon') {
+                            content += `Damage: +${item.damage}<br>`;
+                        } else if (type === 'skin') {
+                            content += `<div style="background: ${item.color}; width: 30px; height: 30px; display: inline-block; border: 2px solid #ffd700; box-shadow: 0 0 10px #ffd700;"></div><br>`;
+                        } else if (type === 'power') {
+                            content += `${item.description}<br>`;
+                        }
+                        content += `<span style="color: #ffd700;">Cost: ${item.cost.toLocaleString()} points</span>`;
+
+                        div.innerHTML = content;
+
+                        // Only allow purchase if available or item already purchased
+                        if (isAvailable && !item.purchased) {
+                            if (type === 'weapon') div.onclick = () => purchaseSuperMythWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => purchaseSuperMythSkin(item.id);
+                            else if (type === 'power') div.onclick = () => purchaseSuperMythPower(item.id);
+                        } else if (item.purchased) {
+                            if (type === 'weapon') div.onclick = () => equipSuperMythWeapon(item.id);
+                            else if (type === 'skin') div.onclick = () => equipSuperMythSkin(item.id);
+                        }
+
+                        container.appendChild(div);
+                    });
+                });
+            }
+
+            renderSuperMythItemsByEvent(superMythWeapons, document.getElementById('superMythWeaponList'), 'weapon');
+            renderSuperMythItemsByEvent(superMythPowers, document.getElementById('superMythPowerList'), 'power');
+            renderSuperMythItemsByEvent(superMythSkins, document.getElementById('superMythSkinList'), 'skin');
+        }
+
+        // Super Myth purchase and equip functions
+        function purchaseSuperMythWeapon(id) {
+            const weapon = superMythWeapons.find(w => w.id === id);
+            if (!weapon || weapon.purchased || !isSuperMythAvailable(weapon)) return;
+
+            if (game.score >= weapon.cost) {
+                game.score -= weapon.cost;
+                weapon.purchased = true;
+                game.equippedWeapon = weapon.id;
+                game.player.weaponDamage = weapon.damage;
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipSuperMythWeapon(id) {
+            const weapon = superMythWeapons.find(w => w.id === id);
+            if (!weapon || !weapon.purchased) return;
+            game.equippedWeapon = weapon.id;
+            game.player.weaponDamage = weapon.damage;
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseSuperMythSkin(id) {
+            const skin = superMythSkins.find(s => s.id === id);
+            if (!skin || skin.purchased || !isSuperMythAvailable(skin)) return;
+
+            if (game.score >= skin.cost) {
+                game.score -= skin.cost;
+                skin.purchased = true;
+                game.equippedSkin = skin.id;
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipSuperMythSkin(id) {
+            const skin = superMythSkins.find(s => s.id === id);
+            if (!skin || !skin.purchased) return;
+            game.equippedSkin = skin.id;
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseSuperMythPower(id) {
+            const power = superMythPowers.find(p => p.id === id);
+            if (!power || power.purchased || !isSuperMythAvailable(power)) return;
+
+            if (game.score >= power.cost) {
+                game.score -= power.cost;
+                power.purchased = true;
+                game.purchasedPowers.push(power.id);
+                applySuperMythPower(power.id);
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function applySuperMythPower(id) {
+            switch(id) {
+                // Christmas powers
+                case 'absoluteZero':
+                    game.player.freezeOnDamage = true;
+                    break;
+                case 'winterWrath':
+                    game.player.damageMultiplier = (game.player.damageMultiplier || 1) * 2;
+                    game.player.slowEnemies = 0.8;
+                    break;
+                case 'permafrostShield':
+                    game.player.damageReduction = (game.player.damageReduction || 0) + 0.7;
+                    game.player.reflectDamage = 0.3;
+                    break;
+                // Halloween powers
+                case 'deathTouch':
+                    game.player.instantKillChance = 0.15;
+                    break;
+                case 'terrorAura':
+                    game.player.terrorAura = true;
+                    game.player.enemyDamageReduction = 0.5;
+                    break;
+                case 'soulHarvest':
+                    game.player.soulHarvest = true;
+                    break;
+                // Valentine's powers
+                case 'loveConquest':
+                    game.player.charmChance = 0.25;
+                    break;
+                case 'heartSteal':
+                    game.player.lifesteal = (game.player.lifesteal || 0) + 0.5;
+                    game.player.maxHp += 100;
+                    game.player.hp += 100;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+                case 'eternalBond':
+                    game.player.eternalBond = true;
+                    break;
+                // Easter powers
+                case 'infiniteRebirth':
+                    game.player.infiniteRevives = true;
+                    break;
+                case 'miracleEgg':
+                    game.player.miracleEgg = true;
+                    break;
+                case 'divineBlessing':
+                    game.player.divineBlessing = true;
+                    break;
+                // Summer powers
+                case 'solarFlare':
+                    game.player.solarFlare = true;
+                    break;
+                case 'endlessEnergy':
+                    game.player.speed = (game.player.speed || 3) * 3;
+                    game.player.attackSpeedMultiplier = 1.5;
+                    game.player.maxHp += 200;
+                    game.player.hp += 200;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+                case 'stellarAscension':
+                    game.player.speed = (game.player.speed || 3) * 2;
+                    game.player.damageMultiplier = (game.player.damageMultiplier || 1) * 2;
+                    game.player.maxHp = (game.player.maxHp || 100) * 2;
+                    game.player.hp = (game.player.hp || 100) * 2;
+                    game.player.stellarAura = true;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+            }
+        }
+
+        function applyAllSuperMythPowers() {
+            game.purchasedPowers.forEach(id => {
+                if (superMythPowers.some(p => p.id === id)) {
+                    applySuperMythPower(id);
+                }
+            });
+        }
+
+        function purchaseWeapon(id) {
+            const weapon = weapons.find(w => w.id === id);
+            if (!weapon || weapon.purchased) return;
+
+            if (game.score >= weapon.cost) {
+                game.score -= weapon.cost;
+                weapon.purchased = true;
+                game.equippedWeapon = weapon.id;
+                game.player.weaponDamage = weapon.damage;
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipWeapon(id) {
+            const weapon = weapons.find(w => w.id === id);
+            if (!weapon || !weapon.purchased) return;
+
+            game.equippedWeapon = weapon.id;
+            game.player.weaponDamage = weapon.damage;
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseSkin(id) {
+            const skin = skins.find(s => s.id === id);
+            if (!skin || skin.purchased) return;
+
+            if (game.score >= skin.cost) {
+                game.score -= skin.cost;
+                skin.purchased = true;
+                game.equippedSkin = skin.id;
+                game.player.skin = skin.color;
+                updatePlayerSkin();
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipSkin(id) {
+            const skin = skins.find(s => s.id === id);
+            if (!skin || !skin.purchased) return;
+
+            game.equippedSkin = skin.id;
+            game.player.skin = skin.color;
+            updatePlayerSkin();
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchasePower(id) {
+            const power = powers.find(p => p.id === id);
+            if (!power || power.purchased) return;
+
+            if (game.score >= power.cost) {
+                game.score -= power.cost;
+                power.purchased = true;
+                game.purchasedPowers.push(power.id);
+                applyPower(power.id);
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function applyPower(id) {
+            switch(id) {
+                case 'speed':
+                    game.player.speed = 4.5; // 50% faster (base is 3)
+                    break;
+                case 'speed2':
+                    game.player.speed = 6; // 100% faster (base is 3)
+                    break;
+                case 'health':
+                    game.player.maxHp += 20;
+                    game.player.hp += 20;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+                case 'health2':
+                    game.player.maxHp += 50;
+                    game.player.hp += 50;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+                case 'range':
+                    game.player.attackRange = 80; // Increased from 60
+                    break;
+            }
+        }
+
+        function applyAllPowers() {
+            game.purchasedPowers.forEach(id => applyPower(id));
+        }
+
+        function hasPower(id) {
+            return game.purchasedPowers.includes(id);
+        }
+
+        function updatePlayerSkin() {
+            const playerBody = document.querySelector('#player rect');
+            if (playerBody) {
+                playerBody.setAttribute('fill', game.player.skin);
+            }
+        }
+
+        // Holiday item purchase/equip functions
+        function purchaseHolidayWeapon(id) {
+            const weapon = holidayWeapons.find(w => w.id === id);
+            if (!weapon || weapon.purchased) return;
+            if (!isEventActive(weapon.event)) {
+                alert('This item is not available this season!');
+                return;
+            }
+
+            if (game.score >= weapon.cost) {
+                game.score -= weapon.cost;
+                weapon.purchased = true;
+                game.equippedWeapon = weapon.id;
+                game.player.weaponDamage = weapon.damage;
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipHolidayWeapon(id) {
+            const weapon = holidayWeapons.find(w => w.id === id);
+            if (!weapon || !weapon.purchased) return;
+
+            game.equippedWeapon = weapon.id;
+            game.player.weaponDamage = weapon.damage;
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseHolidaySkin(id) {
+            const skin = holidaySkins.find(s => s.id === id);
+            if (!skin || skin.purchased) return;
+            if (!isEventActive(skin.event)) {
+                alert('This item is not available this season!');
+                return;
+            }
+
+            if (game.score >= skin.cost) {
+                game.score -= skin.cost;
+                skin.purchased = true;
+                game.equippedSkin = skin.id;
+                game.player.skin = skin.color;
+                updatePlayerSkin();
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipHolidaySkin(id) {
+            const skin = holidaySkins.find(s => s.id === id);
+            if (!skin || !skin.purchased) return;
+
+            game.equippedSkin = skin.id;
+            game.player.skin = skin.color;
+            updatePlayerSkin();
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseHolidayPower(id) {
+            const power = holidayPowers.find(p => p.id === id);
+            if (!power || power.purchased) return;
+            if (!isEventActive(power.event)) {
+                alert('This item is not available this season!');
+                return;
+            }
+
+            if (game.score >= power.cost) {
+                game.score -= power.cost;
+                power.purchased = true;
+                game.purchasedPowers.push(power.id);
+                applyHolidayPower(power.id);
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function applyHolidayPower(id) {
+            switch(id) {
+                case 'feast':
+                    game.player.maxHp += 30;
+                    game.player.hp += 30;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+            }
+        }
+
+        function applyAllHolidayPowers() {
+            game.purchasedPowers.forEach(id => {
+                if (holidayPowers.some(p => p.id === id)) {
+                    applyHolidayPower(id);
+                }
+            });
+        }
+
+        // Little Daily event item purchase/equip functions
+        function purchaseLittleDailyWeapon(id) {
+            const weapon = littleDailyWeapons.find(w => w.id === id);
+            if (!weapon || weapon.purchased) return;
+            if (!isLittleDailyEventActive(weapon.event)) {
+                alert('This item is only available during its little daily event!');
+                return;
+            }
+
+            if (game.score >= weapon.cost) {
+                game.score -= weapon.cost;
+                weapon.purchased = true;
+                game.equippedWeapon = weapon.id;
+                game.player.weaponDamage = weapon.damage;
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipLittleDailyWeapon(id) {
+            const weapon = littleDailyWeapons.find(w => w.id === id);
+            if (!weapon || !weapon.purchased) return;
+
+            game.equippedWeapon = weapon.id;
+            game.player.weaponDamage = weapon.damage;
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseLittleDailySkin(id) {
+            const skin = littleDailySkins.find(s => s.id === id);
+            if (!skin || skin.purchased) return;
+            if (!isLittleDailyEventActive(skin.event)) {
+                alert('This item is only available during its little daily event!');
+                return;
+            }
+
+            if (game.score >= skin.cost) {
+                game.score -= skin.cost;
+                skin.purchased = true;
+                game.equippedSkin = skin.id;
+                game.player.skin = skin.color;
+                updatePlayerSkin();
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipLittleDailySkin(id) {
+            const skin = littleDailySkins.find(s => s.id === id);
+            if (!skin || !skin.purchased) return;
+
+            game.equippedSkin = skin.id;
+            game.player.skin = skin.color;
+            updatePlayerSkin();
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseLittleDailyPower(id) {
+            const power = littleDailyPowers.find(p => p.id === id);
+            if (!power || power.purchased) return;
+            if (!isLittleDailyEventActive(power.event)) {
+                alert('This item is only available during its little daily event!');
+                return;
+            }
+
+            if (game.score >= power.cost) {
+                game.score -= power.cost;
+                power.purchased = true;
+                game.purchasedPowers.push(power.id);
+                applyLittleDailyPower(power.id);
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function applyLittleDailyPower(id) {
+            switch(id) {
+                // Misty Morning
+                case 'cloudWalk':
+                    game.player.speed += 0.9; // 30% faster
+                    break;
+                // Lucky Hour
+                case 'luckyStrike':
+                case 'jackpot':
+                    // Handled in attack calculation
+                    break;
+                case 'fortuneFavor':
+                    // Handled in kill rewards
+                    break;
+                // Moonlit Night
+                case 'nightVision':
+                    game.player.maxHp += 5;
+                    game.player.hp += 5;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+                case 'moonPower':
+                    game.player.maxHp += 15;
+                    game.player.hp += 15;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+                // Rustle Winds
+                case 'lightFeet':
+                    game.player.speed += 0.45; // 15% faster
+                    break;
+                case 'windDash':
+                    game.player.attackRange += 15;
+                    break;
+                // Ember Glow
+                case 'warmth':
+                    game.player.maxHp += 8;
+                    game.player.hp += 8;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+            }
+        }
+
+        function applyAllLittleDailyPowers() {
+            game.purchasedPowers.forEach(id => {
+                if (littleDailyPowers.some(p => p.id === id)) {
+                    applyLittleDailyPower(id);
+                }
+            });
+        }
+
+        // Daily event item purchase/equip functions
+        function purchaseDailyWeapon(id) {
+            const weapon = dailyWeapons.find(w => w.id === id);
+            if (!weapon || weapon.purchased) return;
+            if (!isDailyEventActive(weapon.event)) {
+                alert('This item is only available during its daily event!');
+                return;
+            }
+
+            if (game.score >= weapon.cost) {
+                game.score -= weapon.cost;
+                weapon.purchased = true;
+                game.equippedWeapon = weapon.id;
+                game.player.weaponDamage = weapon.damage;
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipDailyWeapon(id) {
+            const weapon = dailyWeapons.find(w => w.id === id);
+            if (!weapon || !weapon.purchased) return;
+
+            game.equippedWeapon = weapon.id;
+            game.player.weaponDamage = weapon.damage;
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseDailySkin(id) {
+            const skin = dailySkins.find(s => s.id === id);
+            if (!skin || skin.purchased) return;
+            if (!isDailyEventActive(skin.event)) {
+                alert('This item is only available during its daily event!');
+                return;
+            }
+
+            if (game.score >= skin.cost) {
+                game.score -= skin.cost;
+                skin.purchased = true;
+                game.equippedSkin = skin.id;
+                game.player.skin = skin.color;
+                updatePlayerSkin();
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function equipDailySkin(id) {
+            const skin = dailySkins.find(s => s.id === id);
+            if (!skin || !skin.purchased) return;
+
+            game.equippedSkin = skin.id;
+            game.player.skin = skin.color;
+            updatePlayerSkin();
+            updateStoreDisplay();
+            saveItems();
+        }
+
+        function purchaseDailyPower(id) {
+            const power = dailyPowers.find(p => p.id === id);
+            if (!power || power.purchased) return;
+            if (!isDailyEventActive(power.event)) {
+                alert('This item is only available during its daily event!');
+                return;
+            }
+
+            if (game.score >= power.cost) {
+                game.score -= power.cost;
+                power.purchased = true;
+                game.purchasedPowers.push(power.id);
+                applyDailyPower(power.id);
+                document.getElementById('score').textContent = game.score;
+                updateStoreDisplay();
+                saveItems();
+                saveScore();
+            } else {
+                alert('Not enough points!');
+            }
+        }
+
+        function applyDailyPower(id) {
+            switch(id) {
+                case 'eclipsePower':
+                    game.player.maxHp += 75;
+                    game.player.hp += 75;
+                    document.getElementById('playerHP').textContent = game.player.hp;
+                    break;
+            }
+        }
+
+        function applyAllDailyPowers() {
+            game.purchasedPowers.forEach(id => {
+                if (dailyPowers.some(p => p.id === id)) {
+                    applyDailyPower(id);
+                }
+            });
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            game.keys[e.key] = true;
+
+            if (e.key === ' ') {
+                e.preventDefault();
+                playerAttack();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            game.keys[e.key] = false;
+        });
+
+        // Restart game
+        function restartGame() {
+            // Clear all monsters
+            game.monsters.forEach(monster => {
+                if (monster.element && monster.element.parentNode) {
+                    canvas.removeChild(monster.element);
+                }
+            });
+            game.monsters = [];
+
+            // Clear all food
+            game.food.forEach(food => {
+                if (food.element && food.element.parentNode) {
+                    canvas.removeChild(food.element);
+                }
+            });
+            game.food = [];
+
+            // Reset game state
+            game.player.x = 100;
+            game.player.y = 100;
+            game.player.maxHp = 30; // Reset base max HP
+            game.player.hp = 30;
+            game.player.speed = 3; // Reset base speed
+            game.player.attackRange = 60; // Reset base attack range
+            game.monstersKilled = 0;
+            game.levelKills = 0;
+            game.currentLevel = 1;
+            // Load saved score instead of resetting to 0
+            const savedScore = localStorage.getItem('mazeGameScore');
+            game.score = savedScore !== null ? parseInt(savedScore, 10) : 0;
+            game.attacking = false;
+            game.attackCooldown = 0;
+            game.regenTimer = 0;
+            game.respawnTimer = 0;
+            game.foodRespawnTimer = 0;
+            game.foodRespawnTime = Math.floor(Math.random() * 300) + 900;
+            game.gameOver = false;
+
+            // Update UI
+            document.getElementById('currentLevel').textContent = game.currentLevel;
+            document.getElementById('playerHP').textContent = game.player.hp;
+            document.getElementById('levelKills').textContent = game.levelKills;
+            document.getElementById('score').textContent = game.score;
+            document.getElementById('levelName').textContent = levels[0].name;
+            document.getElementById('gameOver').style.display = 'none';
+
+            // Update player position
+            updatePlayerPosition();
+
+            // Reapply purchased powers
+            applyAllPowers();
+            applyAllHolidayPowers();
+            applyAllDailyPowers();
+            applyAllLittleDailyPowers();
+
+            // Respawn initial monsters and food
+            spawnMonsters();
+            spawnFood();
+        }
+
+        // Load saved score from localStorage
+        function loadSavedScore() {
+            const savedScore = localStorage.getItem('mazeGameScore');
+            if (savedScore !== null) {
+                game.score = parseInt(savedScore, 10);
+                document.getElementById('score').textContent = game.score;
+            }
+        }
+
+        // Save score to localStorage
+        function saveScore() {
+            localStorage.setItem('mazeGameScore', game.score);
+        }
+
+        // Save best level to localStorage
+        function saveBestLevel() {
+            localStorage.setItem('mazeGameBestLevel', game.bestLevel);
+        }
+
+        // Load best level from localStorage
+        function loadBestLevel() {
+            const savedBest = localStorage.getItem('mazeGameBestLevel');
+            if (savedBest !== null) {
+                game.bestLevel = parseInt(savedBest, 10);
+                document.getElementById('bestLevel').textContent = game.bestLevel;
+            }
+        }
+
+        // Save items to localStorage
+        function saveItems() {
+            const itemData = {
+                weapons: weapons.map(w => ({ id: w.id, purchased: w.purchased })),
+                skins: skins.map(s => ({ id: s.id, purchased: s.purchased })),
+                powers: powers.map(p => ({ id: p.id, purchased: p.purchased })),
+                holidayWeapons: holidayWeapons.map(w => ({ id: w.id, purchased: w.purchased })),
+                holidaySkins: holidaySkins.map(s => ({ id: s.id, purchased: s.purchased })),
+                holidayPowers: holidayPowers.map(p => ({ id: p.id, purchased: p.purchased })),
+                dailyWeapons: dailyWeapons.map(w => ({ id: w.id, purchased: w.purchased })),
+                dailySkins: dailySkins.map(s => ({ id: s.id, purchased: s.purchased })),
+                dailyPowers: dailyPowers.map(p => ({ id: p.id, purchased: p.purchased })),
+                littleDailyWeapons: littleDailyWeapons.map(w => ({ id: w.id, purchased: w.purchased })),
+                littleDailySkins: littleDailySkins.map(s => ({ id: s.id, purchased: s.purchased })),
+                littleDailyPowers: littleDailyPowers.map(p => ({ id: p.id, purchased: p.purchased })),
+                superMythWeapons: superMythWeapons.map(w => ({ id: w.id, purchased: w.purchased })),
+                superMythSkins: superMythSkins.map(s => ({ id: s.id, purchased: s.purchased })),
+                superMythPowers: superMythPowers.map(p => ({ id: p.id, purchased: p.purchased })),
+                equippedWeapon: game.equippedWeapon,
+                equippedSkin: game.equippedSkin,
+                purchasedPowers: game.purchasedPowers
+            };
+            localStorage.setItem('mazeGameItems', JSON.stringify(itemData));
+        }
+
+        // Load items from localStorage
+        function loadSavedItems() {
+            const savedItems = localStorage.getItem('mazeGameItems');
+            if (savedItems) {
+                const itemData = JSON.parse(savedItems);
+
+                // Restore weapon purchases
+                if (itemData.weapons) {
+                    itemData.weapons.forEach(saved => {
+                        const weapon = weapons.find(w => w.id === saved.id);
+                        if (weapon) weapon.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore skin purchases
+                if (itemData.skins) {
+                    itemData.skins.forEach(saved => {
+                        const skin = skins.find(s => s.id === saved.id);
+                        if (skin) skin.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore power purchases
+                if (itemData.powers) {
+                    itemData.powers.forEach(saved => {
+                        const power = powers.find(p => p.id === saved.id);
+                        if (power) power.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore holiday weapon purchases
+                if (itemData.holidayWeapons) {
+                    itemData.holidayWeapons.forEach(saved => {
+                        const weapon = holidayWeapons.find(w => w.id === saved.id);
+                        if (weapon) weapon.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore holiday skin purchases
+                if (itemData.holidaySkins) {
+                    itemData.holidaySkins.forEach(saved => {
+                        const skin = holidaySkins.find(s => s.id === saved.id);
+                        if (skin) skin.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore holiday power purchases
+                if (itemData.holidayPowers) {
+                    itemData.holidayPowers.forEach(saved => {
+                        const power = holidayPowers.find(p => p.id === saved.id);
+                        if (power) power.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore daily weapon purchases
+                if (itemData.dailyWeapons) {
+                    itemData.dailyWeapons.forEach(saved => {
+                        const weapon = dailyWeapons.find(w => w.id === saved.id);
+                        if (weapon) weapon.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore daily skin purchases
+                if (itemData.dailySkins) {
+                    itemData.dailySkins.forEach(saved => {
+                        const skin = dailySkins.find(s => s.id === saved.id);
+                        if (skin) skin.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore daily power purchases
+                if (itemData.dailyPowers) {
+                    itemData.dailyPowers.forEach(saved => {
+                        const power = dailyPowers.find(p => p.id === saved.id);
+                        if (power) power.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore little daily weapon purchases
+                if (itemData.littleDailyWeapons) {
+                    itemData.littleDailyWeapons.forEach(saved => {
+                        const weapon = littleDailyWeapons.find(w => w.id === saved.id);
+                        if (weapon) weapon.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore little daily skin purchases
+                if (itemData.littleDailySkins) {
+                    itemData.littleDailySkins.forEach(saved => {
+                        const skin = littleDailySkins.find(s => s.id === saved.id);
+                        if (skin) skin.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore little daily power purchases
+                if (itemData.littleDailyPowers) {
+                    itemData.littleDailyPowers.forEach(saved => {
+                        const power = littleDailyPowers.find(p => p.id === saved.id);
+                        if (power) power.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore super myth weapon purchases
+                if (itemData.superMythWeapons) {
+                    itemData.superMythWeapons.forEach(saved => {
+                        const weapon = superMythWeapons.find(w => w.id === saved.id);
+                        if (weapon) weapon.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore super myth skin purchases
+                if (itemData.superMythSkins) {
+                    itemData.superMythSkins.forEach(saved => {
+                        const skin = superMythSkins.find(s => s.id === saved.id);
+                        if (skin) skin.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore super myth power purchases
+                if (itemData.superMythPowers) {
+                    itemData.superMythPowers.forEach(saved => {
+                        const power = superMythPowers.find(p => p.id === saved.id);
+                        if (power) power.purchased = saved.purchased;
+                    });
+                }
+
+                // Restore equipped items
+                game.equippedWeapon = itemData.equippedWeapon;
+                game.equippedSkin = itemData.equippedSkin || 'blue';
+                game.purchasedPowers = itemData.purchasedPowers || [];
+
+                // Apply equipped weapon damage (check regular, holiday, daily, and little daily weapons)
+                if (game.equippedWeapon) {
+                    let weapon = weapons.find(w => w.id === game.equippedWeapon);
+                    if (!weapon) weapon = holidayWeapons.find(w => w.id === game.equippedWeapon);
+                    if (!weapon) weapon = dailyWeapons.find(w => w.id === game.equippedWeapon);
+                    if (!weapon) weapon = littleDailyWeapons.find(w => w.id === game.equippedWeapon);
+                    if (weapon) game.player.weaponDamage = weapon.damage;
+                }
+
+                // Apply equipped skin (check regular, holiday, daily, and little daily skins)
+                let skin = skins.find(s => s.id === game.equippedSkin);
+                if (!skin) skin = holidaySkins.find(s => s.id === game.equippedSkin);
+                if (!skin) skin = dailySkins.find(s => s.id === game.equippedSkin);
+                if (!skin) skin = littleDailySkins.find(s => s.id === game.equippedSkin);
+                if (skin) game.player.skin = skin.color;
+            }
+        }
+
+        // Initialize game
+        createMaze();
+        createPlayer();
+        spawnMonsters();
+        spawnFood();
+        loadSavedScore();
+        loadSavedItems();
+        loadBestLevel();
+        gameLoop();
+    </script>
+</body>
+</html>

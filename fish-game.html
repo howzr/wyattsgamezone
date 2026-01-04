@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fish Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; cursor: none; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 10;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #hpBar {
+            width: 200px;
+            height: 25px;
+            background: #333;
+            border-radius: 12px;
+            border: 2px solid #fff;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        #hpFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ff6666);
+            transition: width 0.2s;
+        }
+        #levelInfo {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: white;
+            text-align: right;
+            z-index: 10;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #waveText {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 20;
+            pointer-events: none;
+        }
+        #gameOver {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+        }
+        #gameOver h1 { font-size: 42px; margin-bottom: 15px; }
+        #gameOver p { font-size: 20px; margin-bottom: 25px; opacity: 0.8; }
+        #gameOver button {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        #gameOver button:hover { background: #45a049; }
+        #bossBar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            display: none;
+            z-index: 10;
+        }
+        #bossName {
+            color: #ff4444;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #bossHpBar {
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            border: 2px solid #ff4444;
+            overflow: hidden;
+        }
+        #bossHpFill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff4444);
+            transition: width 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="hpBar"><div id="hpFill" style="width: 100%"></div></div>
+        <div>HP: <span id="hpText">100</span> / <span id="maxHpText">100</span></div>
+        <div>Score: <span id="score">0</span></div>
+    </div>
+    <div id="levelInfo">
+        <div>Level: <span id="level">1</span></div>
+        <div>Wave: <span id="wave">1</span> / <span id="maxWave">3</span></div>
+    </div>
+    <div id="waveText"></div>
+    <div id="bossBar">
+        <div id="bossName">BOSS</div>
+        <div id="bossHpBar"><div id="bossHpFill" style="width: 100%"></div></div>
+    </div>
+    <canvas id="game"></canvas>
+    <div id="gameOver">
+        <h1 id="endTitle">Game Over</h1>
+        <p id="endText">Score: 0</p>
+        <button onclick="restart()">Play Again</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+
+        let mouse = { x: canvas.width/2, y: canvas.height/2 };
+
+        // Game state
+        let player, fish, particles, rocks, caves;
+        let score, level, wave, maxWaves;
+        let gameOver, boss, bossActive;
+        let waveTimer, spawningWave;
+
+        const colors = ['#4ECDC4','#FFE66D','#95E1D3','#A8E6CF','#87CEEB','#DDA0DD','#F0E68C'];
+        const dangerColors = ['#FF6B6B','#FF4757','#FF6348','#EA2027'];
+
+        // Level configs
+        const levels = [
+            { waves: 3, fishPerWave: 8, bossHp: 200, hasCave: false, hasRocks: true },
+            { waves: 4, fishPerWave: 10, bossHp: 350, hasCave: true, hasRocks: true },
+            { waves: 5, fishPerWave: 12, bossHp: 500, hasCave: true, hasRocks: true },
+            { waves: 5, fishPerWave: 15, bossHp: 700, hasCave: true, hasRocks: true },
+            { waves: 6, fishPerWave: 18, bossHp: 1000, hasCave: true, hasRocks: true }
+        ];
+
+        function init() {
+            player = { x: canvas.width/2, y: canvas.height/2, vx: 0, vy: 0, hp: 100, maxHp: 100, angle: 0, size: 25 };
+            fish = [];
+            particles = [];
+            rocks = [];
+            caves = [];
+            score = 0;
+            level = 1;
+            wave = 0;
+            maxWaves = levels[0].waves;
+            gameOver = false;
+            boss = null;
+            bossActive = false;
+            waveTimer = 60;
+            spawningWave = false;
+
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('bossBar').style.display = 'none';
+            updateUI();
+            generateEnvironment();
+            nextWave();
+        }
+
+        function generateEnvironment() {
+            rocks = [];
+            caves = [];
+            const cfg = levels[Math.min(level - 1, levels.length - 1)];
+
+            // Rocks
+            if (cfg.hasRocks) {
+                for (let i = 0; i < 5 + level; i++) {
+                    rocks.push({
+                        x: 100 + Math.random() * (canvas.width - 200),
+                        y: 100 + Math.random() * (canvas.height - 200),
+                        size: 30 + Math.random() * 50,
+                        points: generateRockPoints()
+                    });
+                }
+            }
+
+            // Cave (on right side for boss)
+            if (cfg.hasCave) {
+                caves.push({
+                    x: canvas.width - 150,
+                    y: canvas.height / 2,
+                    width: 200,
+                    height: 250
+                });
+            }
+        }
+
+        function generateRockPoints() {
+            const points = [];
+            const numPoints = 6 + Math.floor(Math.random() * 4);
+            for (let i = 0; i < numPoints; i++) {
+                const angle = (i / numPoints) * Math.PI * 2;
+                const radius = 0.7 + Math.random() * 0.3;
+                points.push({ angle, radius });
+            }
+            return points;
+        }
+
+        function nextWave() {
+            wave++;
+            const cfg = levels[Math.min(level - 1, levels.length - 1)];
+            maxWaves = cfg.waves;
+
+            if (wave > maxWaves) {
+                // Boss wave
+                spawnBoss();
+                showWaveText('BOSS FIGHT!');
+            } else {
+                showWaveText(`Wave ${wave}`);
+                spawnSchool();
+            }
+            updateUI();
+        }
+
+        function showWaveText(text) {
+            const el = document.getElementById('waveText');
+            el.textContent = text;
+            el.style.opacity = 1;
+            setTimeout(() => el.style.opacity = 0, 2000);
+        }
+
+        function spawnSchool() {
+            const cfg = levels[Math.min(level - 1, levels.length - 1)];
+            const count = cfg.fishPerWave;
+            const side = Math.floor(Math.random() * 4);
+            const baseHp = 10 + level * 5;
+
+            // School spawn position
+            let sx, sy, vx, vy;
+            switch(side) {
+                case 0: sx = -100; sy = Math.random() * canvas.height; vx = 2; vy = 0; break;
+                case 1: sx = canvas.width + 100; sy = Math.random() * canvas.height; vx = -2; vy = 0; break;
+                case 2: sx = Math.random() * canvas.width; sy = -100; vx = 0; vy = 2; break;
+                case 3: sx = Math.random() * canvas.width; sy = canvas.height + 100; vx = 0; vy = -2; break;
+            }
+
+            // Spawn school
+            for (let i = 0; i < count; i++) {
+                const hp = baseHp + Math.floor(Math.random() * (baseHp * 0.5));
+                const danger = hp > player.hp;
+                fish.push({
+                    x: sx + (Math.random() - 0.5) * 100,
+                    y: sy + (Math.random() - 0.5) * 100,
+                    vx: vx + (Math.random() - 0.5) * 0.5,
+                    vy: vy + (Math.random() - 0.5) * 0.5,
+                    hp: hp,
+                    maxHp: hp,
+                    size: 15 + hp * 0.2,
+                    color: danger ? dangerColors[Math.floor(Math.random() * dangerColors.length)] : colors[Math.floor(Math.random() * colors.length)],
+                    angle: Math.atan2(vy, vx),
+                    wobble: Math.random() * 100,
+                    schoolId: wave
+                });
+            }
+
+            // Spawn some from cave if exists
+            if (caves.length > 0 && wave > 1) {
+                const cave = caves[0];
+                for (let i = 0; i < Math.floor(count / 3); i++) {
+                    const hp = baseHp + Math.floor(Math.random() * baseHp);
+                    const danger = hp > player.hp;
+                    fish.push({
+                        x: cave.x + cave.width / 2,
+                        y: cave.y + (Math.random() - 0.5) * cave.height * 0.6,
+                        vx: -2 + Math.random() * 0.5,
+                        vy: (Math.random() - 0.5) * 1,
+                        hp: hp,
+                        maxHp: hp,
+                        size: 15 + hp * 0.2,
+                        color: danger ? dangerColors[Math.floor(Math.random() * dangerColors.length)] : colors[Math.floor(Math.random() * colors.length)],
+                        angle: Math.PI,
+                        wobble: Math.random() * 100,
+                        schoolId: wave,
+                        fromCave: true
+                    });
+                }
+            }
+        }
+
+        function spawnBoss() {
+            const cfg = levels[Math.min(level - 1, levels.length - 1)];
+            const cave = caves[0];
+            const spawnX = cave ? cave.x + cave.width / 2 : canvas.width + 100;
+            const spawnY = cave ? cave.y : canvas.height / 2;
+
+            boss = {
+                x: spawnX,
+                y: spawnY,
+                vx: 0,
+                vy: 0,
+                hp: cfg.bossHp,
+                maxHp: cfg.bossHp,
+                size: 80 + level * 10,
+                color: '#8B0000',
+                angle: Math.PI,
+                wobble: 0,
+                attackTimer: 0
+            };
+            bossActive = true;
+            document.getElementById('bossBar').style.display = 'block';
+            document.getElementById('bossName').textContent = `LEVEL ${level} BOSS`;
+            updateBossHP();
+        }
+
+        function burst(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * (2 + Math.random() * 3),
+                    vy: Math.sin(angle) * (2 + Math.random() * 3),
+                    size: 3 + Math.random() * 4,
+                    color,
+                    life: 1
+                });
+            }
+        }
+
+        function update() {
+            if (gameOver) return;
+
+            // Player movement
+            let dx = mouse.x - player.x;
+            let dy = mouse.y - player.y;
+            let dist = Math.hypot(dx, dy);
+
+            if (dist > 5) {
+                player.vx += (dx / dist) * 0.4;
+                player.vy += (dy / dist) * 0.4;
+                player.angle = Math.atan2(dy, dx);
+            }
+
+            player.vx *= 0.94;
+            player.vy *= 0.94;
+
+            let speed = Math.hypot(player.vx, player.vy);
+            if (speed > 7) {
+                player.vx = (player.vx / speed) * 7;
+                player.vy = (player.vy / speed) * 7;
+            }
+
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Rock collision for player
+            for (let rock of rocks) {
+                let d = Math.hypot(player.x - rock.x, player.y - rock.y);
+                if (d < rock.size + player.size) {
+                    let pushX = (player.x - rock.x) / d;
+                    let pushY = (player.y - rock.y) / d;
+                    player.x = rock.x + pushX * (rock.size + player.size);
+                    player.y = rock.y + pushY * (rock.size + player.size);
+                    player.vx *= 0.5;
+                    player.vy *= 0.5;
+                }
+            }
+
+            // Bounds
+            player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+            player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+
+            // Update fish
+            for (let i = fish.length - 1; i >= 0; i--) {
+                let f = fish[i];
+                f.wobble += 0.12;
+
+                // Schooling behavior
+                let schoolmates = fish.filter(other => other !== f && other.schoolId === f.schoolId);
+                if (schoolmates.length > 0) {
+                    let avgX = schoolmates.reduce((s, o) => s + o.x, 0) / schoolmates.length;
+                    let avgY = schoolmates.reduce((s, o) => s + o.y, 0) / schoolmates.length;
+                    f.vx += (avgX - f.x) * 0.001;
+                    f.vy += (avgY - f.y) * 0.001;
+                }
+
+                // Behavior based on HP comparison
+                if (f.hp < player.hp * 0.8) {
+                    // Run away
+                    let dx = f.x - player.x;
+                    let dy = f.y - player.y;
+                    let d = Math.hypot(dx, dy);
+                    if (d < player.size * 4) {
+                        f.vx += (dx / d) * 0.25;
+                        f.vy += (dy / d) * 0.25;
+                    }
+                } else if (f.hp > player.hp * 1.2) {
+                    // Chase player
+                    let dx = player.x - f.x;
+                    let dy = player.y - f.y;
+                    let d = Math.hypot(dx, dy);
+                    if (d < f.size * 5) {
+                        f.vx += (dx / d) * 0.15;
+                        f.vy += (dy / d) * 0.15;
+                    }
+                }
+
+                // Wander
+                f.vx += (Math.random() - 0.5) * 0.1;
+                f.vy += (Math.random() - 0.5) * 0.1;
+
+                // Speed limit
+                let fSpeed = Math.hypot(f.vx, f.vy);
+                if (fSpeed > 3) {
+                    f.vx = (f.vx / fSpeed) * 3;
+                    f.vy = (f.vy / fSpeed) * 3;
+                }
+
+                // Rock avoidance
+                for (let rock of rocks) {
+                    let d = Math.hypot(f.x - rock.x, f.y - rock.y);
+                    if (d < rock.size + f.size + 20) {
+                        f.vx += (f.x - rock.x) / d * 0.3;
+                        f.vy += (f.y - rock.y) / d * 0.3;
+                    }
+                }
+
+                f.x += f.vx;
+                f.y += f.vy;
+                f.angle = Math.atan2(f.vy, f.vx);
+
+                // Remove if too far off screen
+                if (f.x < -200 || f.x > canvas.width + 200 || f.y < -200 || f.y > canvas.height + 200) {
+                    fish.splice(i, 1);
+                    continue;
+                }
+
+                // Collision with player
+                let d = Math.hypot(player.x - f.x, player.y - f.y);
+                if (d < player.size * 0.6 + f.size * 0.6) {
+                    if (player.hp >= f.hp) {
+                        // Eat fish
+                        burst(f.x, f.y, f.color);
+                        player.hp += Math.floor(f.hp * 0.3);
+                        player.maxHp = Math.max(player.maxHp, player.hp);
+                        player.size = 25 + player.hp * 0.1;
+                        score += f.hp;
+                        fish.splice(i, 1);
+                    } else {
+                        // Get hurt
+                        player.hp -= Math.floor(f.hp * 0.2);
+                        burst(player.x, player.y, '#ff0000', 5);
+                        f.vx = (f.x - player.x) * 0.2;
+                        f.vy = (f.y - player.y) * 0.2;
+                        player.vx = (player.x - f.x) * 0.3;
+                        player.vy = (player.y - f.y) * 0.3;
+
+                        if (player.hp <= 0) {
+                            endGame(false);
+                        }
+                    }
+                    updateUI();
+                }
+            }
+
+            // Boss update
+            if (bossActive && boss) {
+                boss.wobble += 0.08;
+                boss.attackTimer++;
+
+                // Move towards player slowly
+                let dx = player.x - boss.x;
+                let dy = player.y - boss.y;
+                let d = Math.hypot(dx, dy);
+                boss.vx += (dx / d) * 0.1;
+                boss.vy += (dy / d) * 0.1;
+
+                boss.vx *= 0.96;
+                boss.vy *= 0.96;
+
+                let bSpeed = Math.hypot(boss.vx, boss.vy);
+                if (bSpeed > 2) {
+                    boss.vx = (boss.vx / bSpeed) * 2;
+                    boss.vy = (boss.vy / bSpeed) * 2;
+                }
+
+                boss.x += boss.vx;
+                boss.y += boss.vy;
+                boss.angle = Math.atan2(dy, dx);
+
+                // Boss spawns minions
+                if (boss.attackTimer % 180 === 0) {
+                    for (let i = 0; i < 3; i++) {
+                        const hp = 20 + level * 10;
+                        fish.push({
+                            x: boss.x - boss.size,
+                            y: boss.y + (Math.random() - 0.5) * boss.size,
+                            vx: -2,
+                            vy: (Math.random() - 0.5) * 2,
+                            hp, maxHp: hp,
+                            size: 15 + hp * 0.15,
+                            color: dangerColors[Math.floor(Math.random() * dangerColors.length)],
+                            angle: Math.PI,
+                            wobble: Math.random() * 100,
+                            schoolId: 999
+                        });
+                    }
+                }
+
+                // Collision with boss
+                if (d < player.size * 0.6 + boss.size * 0.6) {
+                    // Damage boss based on player HP
+                    let damage = Math.floor(player.hp * 0.5);
+                    boss.hp -= damage;
+                    burst(boss.x, boss.y, '#ff4444', 15);
+
+                    // Player takes damage too
+                    player.hp -= 20;
+                    player.vx = (player.x - boss.x) * 0.5;
+                    player.vy = (player.y - boss.y) * 0.5;
+
+                    if (player.hp <= 0) {
+                        endGame(false);
+                    }
+
+                    if (boss.hp <= 0) {
+                        // Boss defeated
+                        burst(boss.x, boss.y, '#FFD700', 30);
+                        score += boss.maxHp * 2;
+                        player.hp += boss.maxHp;
+                        player.maxHp = player.hp;
+                        player.size = 25 + player.hp * 0.1;
+                        boss = null;
+                        bossActive = false;
+                        document.getElementById('bossBar').style.display = 'none';
+
+                        // Next level
+                        level++;
+                        if (level > levels.length) {
+                            endGame(true);
+                        } else {
+                            wave = 0;
+                            generateEnvironment();
+                            setTimeout(nextWave, 2000);
+                            showWaveText(`Level ${level}!`);
+                        }
+                    }
+                    updateUI();
+                    updateBossHP();
+                }
+            }
+
+            // Check if wave is clear
+            if (!bossActive && fish.length === 0 && !spawningWave) {
+                spawningWave = true;
+                setTimeout(() => {
+                    nextWave();
+                    spawningWave = false;
+                }, 1500);
+            }
+
+            // Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.95;
+                p.vy *= 0.95;
+                p.life -= 0.025;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('hpText').textContent = Math.floor(player.hp);
+            document.getElementById('maxHpText').textContent = Math.floor(player.maxHp);
+            document.getElementById('hpFill').style.width = (player.hp / player.maxHp * 100) + '%';
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('wave').textContent = Math.min(wave, maxWaves);
+            document.getElementById('maxWave').textContent = maxWaves;
+        }
+
+        function updateBossHP() {
+            if (boss) {
+                document.getElementById('bossHpFill').style.width = (boss.hp / boss.maxHp * 100) + '%';
+            }
+        }
+
+        function endGame(won) {
+            gameOver = true;
+            document.getElementById('endTitle').textContent = won ? 'You Win!' : 'Game Over';
+            document.getElementById('endText').textContent = `Level: ${level} | Score: ${score}`;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        function draw() {
+            // Background
+            let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, '#005577');
+            grad.addColorStop(1, '#002233');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Light rays
+            ctx.globalAlpha = 0.06;
+            ctx.fillStyle = '#88ccff';
+            for (let i = 0; i < 5; i++) {
+                let x = (i + 0.5) * canvas.width / 5;
+                ctx.beginPath();
+                ctx.moveTo(x - 30, 0);
+                ctx.lineTo(x + 30, 0);
+                ctx.lineTo(x + 100, canvas.height);
+                ctx.lineTo(x - 100, canvas.height);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw caves
+            for (let cave of caves) {
+                ctx.fillStyle = '#1a1a2e';
+                ctx.beginPath();
+                ctx.ellipse(cave.x + cave.width/2, cave.y, cave.width/2, cave.height/2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Cave entrance darker
+                ctx.fillStyle = '#0a0a15';
+                ctx.beginPath();
+                ctx.ellipse(cave.x + cave.width/3, cave.y, cave.width/4, cave.height/3, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw rocks
+            for (let rock of rocks) {
+                ctx.fillStyle = '#4a5568';
+                ctx.beginPath();
+                let first = true;
+                for (let p of rock.points) {
+                    let x = rock.x + Math.cos(p.angle) * rock.size * p.radius;
+                    let y = rock.y + Math.sin(p.angle) * rock.size * p.radius;
+                    if (first) { ctx.moveTo(x, y); first = false; }
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Rock highlight
+                ctx.fillStyle = '#5a6578';
+                ctx.beginPath();
+                first = true;
+                for (let p of rock.points) {
+                    let x = rock.x + Math.cos(p.angle) * rock.size * p.radius * 0.7;
+                    let y = rock.y + Math.sin(p.angle) * rock.size * p.radius * 0.7 - 5;
+                    if (first) { ctx.moveTo(x, y); first = false; }
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Draw fish
+            for (let f of fish) {
+                let canEat = player.hp >= f.hp;
+                ctx.shadowColor = canEat ? '#00ff00' : '#ff0000';
+                ctx.shadowBlur = 10;
+                drawFish(f.x, f.y, f.size, f.color, f.angle, f.wobble, false);
+                ctx.shadowBlur = 0;
+
+                // HP text
+                ctx.fillStyle = canEat ? '#88ff88' : '#ff8888';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(f.hp, f.x, f.y - f.size - 5);
+            }
+
+            // Draw boss
+            if (boss) {
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 30;
+                drawFish(boss.x, boss.y, boss.size, boss.color, boss.angle, boss.wobble, false, true);
+                ctx.shadowBlur = 0;
+            }
+
+            // Particles
+            for (let p of particles) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player
+            if (!gameOver) {
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 20;
+                drawFish(player.x, player.y, player.size, '#00bcd4', player.angle, Date.now() * 0.01, true);
+                ctx.shadowBlur = 0;
+
+                // Player HP above
+                ctx.fillStyle = '#00ffff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.floor(player.hp), player.x, player.y - player.size - 8);
+            }
+        }
+
+        function drawFish(x, y, size, color, angle, wobble, isPlayer, isBoss = false) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+
+            let tailWag = Math.sin(wobble) * 0.3;
+
+            // Body
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, size, size * 0.55, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tail
+            ctx.save();
+            ctx.rotate(tailWag);
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.6, 0);
+            ctx.lineTo(-size * 1.3, -size * 0.5);
+            ctx.lineTo(-size * 1.3, size * 0.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // Fin
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.1, -size * 0.5);
+            ctx.lineTo(size * 0.1, -size * 0.85);
+            ctx.lineTo(size * 0.3, -size * 0.5);
+            ctx.fill();
+
+            if (isBoss) {
+                // Extra fins for boss
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.3, -size * 0.45);
+                ctx.lineTo(-size * 0.2, -size * 0.75);
+                ctx.lineTo(0, -size * 0.45);
+                ctx.fill();
+
+                // Spikes
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(-size * 0.5 + i * size * 0.25, -size * 0.5);
+                    ctx.lineTo(-size * 0.4 + i * size * 0.25, -size * 0.7);
+                    ctx.lineTo(-size * 0.3 + i * size * 0.25, -size * 0.5);
+                    ctx.fill();
+                }
+            }
+
+            // Belly
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(0, size * 0.1, size * 0.6, size * 0.2, 0, 0, Math.PI);
+            ctx.fill();
+
+            // Eye
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(size * 0.35, -size * 0.08, size * 0.22, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = isBoss ? '#ff0000' : '#111';
+            ctx.beginPath();
+            ctx.arc(size * 0.4, -size * 0.08, size * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (!isBoss) {
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(size * 0.37, -size * 0.13, size * 0.05, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Mouth
+            if (isPlayer || isBoss) {
+                ctx.fillStyle = isBoss ? '#330000' : '#006666';
+                ctx.beginPath();
+                ctx.arc(size * 0.8, size * 0.05, size * 0.12, 0, Math.PI);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        function restart() { init(); }
+
+        canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: false });
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: false });
+
+        init();
+        loop();
+    </script>
+</body>
+</html>

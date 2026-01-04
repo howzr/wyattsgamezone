@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Why Do Want Birds To Race</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            margin: 20px;
+            text-align: center;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            color: #ffd700;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #aaa;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        #game-container {
+            width: 800px;
+            max-width: 95vw;
+            background: linear-gradient(180deg, #2d2d44 0%, #1a1a2e 100%);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 3px solid #444;
+        }
+
+        #status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #333;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+        }
+
+        #game-area {
+            min-height: 400px;
+            background: linear-gradient(180deg, #3d3d5c 0%, #2a2a3e 100%);
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .room-title {
+            text-align: center;
+            font-size: 1.5rem;
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .room-description {
+            text-align: center;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+
+        /* Pin Puzzle Styles */
+        .pin-puzzle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .puzzle-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            background: #555;
+            border-radius: 20px;
+            border: 5px solid #777;
+        }
+
+        .pin {
+            position: absolute;
+            width: 20px;
+            height: 80px;
+            background: linear-gradient(90deg, #c0c0c0, #888);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 10;
+        }
+
+        .pin:hover {
+            filter: brightness(1.3);
+            transform: scale(1.1);
+        }
+
+        .pin.horizontal {
+            width: 80px;
+            height: 20px;
+        }
+
+        .pin-head {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30%, #ffd700, #b8860b);
+            border-radius: 50%;
+            top: -15px;
+            left: -5px;
+        }
+
+        .pin.horizontal .pin-head {
+            top: -5px;
+            left: -15px;
+        }
+
+        .hazard {
+            position: absolute;
+            font-size: 2rem;
+        }
+
+        .bird-cage {
+            position: absolute;
+            font-size: 3rem;
+        }
+
+        .water {
+            position: absolute;
+            background: linear-gradient(180deg, #4a90d9, #2563eb);
+            border-radius: 5px;
+        }
+
+        .lava {
+            position: absolute;
+            background: linear-gradient(180deg, #ff4500, #ff6b35);
+            border-radius: 5px;
+            animation: lava-glow 1s infinite alternate;
+        }
+
+        @keyframes lava-glow {
+            from { box-shadow: 0 0 10px #ff4500; }
+            to { box-shadow: 0 0 20px #ff6b35; }
+        }
+
+        /* Trading Styles */
+        .trading-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .trader {
+            background: #444;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            width: 200px;
+            transition: transform 0.2s;
+        }
+
+        .trader:hover {
+            transform: translateY(-5px);
+        }
+
+        .trader-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .trade-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #ffd700;
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .trade-btn:hover {
+            background: #ffed4a;
+            transform: scale(1.05);
+        }
+
+        .trade-btn:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        /* Explosion Styles */
+        .bomb-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .rock-wall {
+            display: grid;
+            grid-template-columns: repeat(5, 60px);
+            gap: 5px;
+        }
+
+        .rock {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #8b7355, #6b5344);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid #5a4535;
+        }
+
+        .rock:hover {
+            filter: brightness(1.2);
+        }
+
+        .rock.destroyed {
+            background: #2a2a3e;
+            border-color: #3a3a4e;
+        }
+
+        .bomb-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .place-bomb-btn {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: linear-gradient(180deg, #ff4500, #cc3700);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .place-bomb-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px #ff4500;
+        }
+
+        .place-bomb-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Navigation */
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            background: linear-gradient(180deg, #4a5568, #2d3748);
+            color: white;
+            border: 2px solid #718096;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: linear-gradient(180deg, #5a6578, #3d4758);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Message */
+        #message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            padding: 15px 30px;
+            border-radius: 10px;
+            border: 2px solid #ffd700;
+            z-index: 1000;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* Explosion Animation */
+        .explosion {
+            position: fixed;
+            font-size: 5rem;
+            z-index: 1000;
+            animation: explode 0.5s forwards;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(0); opacity: 1; }
+            50% { transform: scale(2); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+
+        /* Race Track */
+        .race-track {
+            background: linear-gradient(180deg, #8b4513, #654321);
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            height: 350px;
+        }
+
+        .track-lane {
+            height: 50px;
+            background: #a0522d;
+            margin: 10px 0;
+            border-radius: 10px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .racing-bird {
+            font-size: 2rem;
+            position: absolute;
+            transition: left 0.1s linear;
+        }
+
+        .finish-line {
+            position: absolute;
+            right: 30px;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            background: repeating-linear-gradient(
+                0deg,
+                white,
+                white 10px,
+                black 10px,
+                black 20px
+            );
+        }
+
+        .start-race-btn {
+            padding: 20px 40px;
+            font-size: 1.5rem;
+            background: linear-gradient(180deg, #22c55e, #16a34a);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .start-race-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px #22c55e;
+        }
+
+        /* Intro Screen */
+        .intro-screen {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .intro-screen h2 {
+            font-size: 2rem;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .intro-birds {
+            font-size: 4rem;
+            margin: 30px 0;
+            animation: flyAway 2s infinite;
+        }
+
+        @keyframes flyAway {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(20px) rotate(-10deg); }
+            75% { transform: translateX(-20px) rotate(10deg); }
+        }
+
+        .start-btn {
+            padding: 20px 50px;
+            font-size: 1.5rem;
+            background: linear-gradient(180deg, #ffd700, #b8860b);
+            color: #333;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px #ffd700;
+        }
+
+        .inventory {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .inv-item {
+            background: #555;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        /* Player Character */
+        .game-world {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(180deg, #2d2d44 0%, #1a1a2e 100%);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .player {
+            position: absolute;
+            font-size: 2.5rem;
+            transition: left 0.1s, top 0.1s;
+            z-index: 100;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.3));
+        }
+
+        .player.walking {
+            animation: walk 0.2s infinite alternate;
+        }
+
+        @keyframes walk {
+            from { transform: translateY(0) scaleX(var(--dir, 1)); }
+            to { transform: translateY(-5px) scaleX(var(--dir, 1)); }
+        }
+
+        .world-object {
+            position: absolute;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .world-object:hover {
+            transform: scale(1.2);
+        }
+
+        .world-object.interactable {
+            animation: glow 1s infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 5px #ffd700); }
+            to { filter: drop-shadow(0 0 15px #ffd700); }
+        }
+
+        .interact-prompt {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: #ffd700;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        .cave-wall {
+            position: absolute;
+            background: linear-gradient(180deg, #4a4a5c, #3a3a4c);
+            border-radius: 10px;
+        }
+
+        .cave-door {
+            position: absolute;
+            font-size: 3rem;
+            cursor: pointer;
+        }
+
+        .controls-hint {
+            text-align: center;
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐦 Why Do Want Birds To Race 🏁</h1>
+    <p class="subtitle">They flew into a cave... now you must find them!</p>
+
+    <div id="message"></div>
+
+    <div id="game-container">
+        <div id="status-bar">
+            <div class="stat">
+                <span class="stat-icon">💰</span>
+                <span>Gold: <span id="gold">50</span></span>
+            </div>
+            <div class="stat">
+                <span class="stat-icon">💣</span>
+                <span>Bombs: <span id="bombs">3</span></span>
+            </div>
+            <div class="stat">
+                <span class="stat-icon">🐦</span>
+                <span>Birds Found: <span id="birds-found">0</span>/5</span>
+            </div>
+            <div class="stat">
+                <span class="stat-icon">🗺️</span>
+                <span>Room: <span id="current-room">Entrance</span></span>
+            </div>
+        </div>
+
+        <div id="game-area">
+            <!-- Game content loads here -->
+        </div>
+    </div>
+
+    <script>
+        // Shuffle array helper
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // Generate random puzzle solutions
+        function generateRandomSolutions() {
+            // Random pin orders
+            const pin1Order = shuffle([1, 2, 3]);
+            const pin2Order = shuffle([1, 2, 3, 4]);
+
+            // Random rocks for birds and gems (pick 2 for birds, 2 for gems from 1-10)
+            const allRocks = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+            const birdRocks = { yellow: allRocks[0], purple: allRocks[1] };
+            const gemRocks = [allRocks[2], allRocks[3]];
+
+            return { pin1Order, pin2Order, birdRocks, gemRocks };
+        }
+
+        const randomSolutions = generateRandomSolutions();
+
+        // Game State
+        const gameState = {
+            gold: 50,
+            bombs: 3,
+            birdsFound: 0,
+            currentRoom: 'intro',
+            inventory: [],
+            puzzlesSolved: {
+                pin1: false,
+                pin2: false,
+                rocks1: false,
+                rocks2: false
+            },
+            rocksDestroyed: [],
+            birdsCollected: [],
+            player: {
+                x: 350,
+                y: 300,
+                dir: 1,
+                speed: 8
+            }
+        };
+
+        // Keyboard state
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            keys[e.code] = true;
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+            keys[e.code] = false;
+        });
+
+        // Player movement
+        let gameLoop;
+        function startGameLoop() {
+            if (gameLoop) cancelAnimationFrame(gameLoop);
+
+            function update() {
+                const player = document.getElementById('player');
+                if (!player) {
+                    gameLoop = requestAnimationFrame(update);
+                    return;
+                }
+
+                let moving = false;
+                let newX = gameState.player.x;
+                let newY = gameState.player.y;
+
+                if (keys['w'] || keys['arrowup'] || keys['ArrowUp']) {
+                    newY -= gameState.player.speed;
+                    moving = true;
+                }
+                if (keys['s'] || keys['arrowdown'] || keys['ArrowDown']) {
+                    newY += gameState.player.speed;
+                    moving = true;
+                }
+                if (keys['a'] || keys['arrowleft'] || keys['ArrowLeft']) {
+                    newX -= gameState.player.speed;
+                    gameState.player.dir = -1;
+                    moving = true;
+                }
+                if (keys['d'] || keys['arrowright'] || keys['ArrowRight']) {
+                    newX += gameState.player.speed;
+                    gameState.player.dir = 1;
+                    moving = true;
+                }
+
+                // Boundaries
+                newX = Math.max(20, Math.min(720, newX));
+                newY = Math.max(50, Math.min(350, newY));
+
+                gameState.player.x = newX;
+                gameState.player.y = newY;
+
+                player.style.left = newX + 'px';
+                player.style.top = newY + 'px';
+                player.style.setProperty('--dir', gameState.player.dir);
+
+                if (moving) {
+                    player.classList.add('walking');
+                } else {
+                    player.classList.remove('walking');
+                }
+
+                // Check for nearby interactables
+                checkInteractions();
+
+                // Interact with space or E
+                if (keys[' '] || keys['e']) {
+                    keys[' '] = false;
+                    keys['e'] = false;
+                    interactWithNearest();
+                }
+
+                gameLoop = requestAnimationFrame(update);
+            }
+            update();
+        }
+
+        function checkInteractions() {
+            const objects = document.querySelectorAll('.world-object');
+            objects.forEach(obj => {
+                const objX = parseInt(obj.dataset.x);
+                const objY = parseInt(obj.dataset.y);
+                const dist = Math.hypot(gameState.player.x - objX, gameState.player.y - objY);
+
+                if (dist < 60) {
+                    obj.classList.add('interactable');
+                    showPrompt(obj);
+                } else {
+                    obj.classList.remove('interactable');
+                    hidePrompt(obj);
+                }
+            });
+        }
+
+        function showPrompt(obj) {
+            if (!obj.querySelector('.interact-prompt')) {
+                const prompt = document.createElement('div');
+                prompt.className = 'interact-prompt';
+                prompt.textContent = '[E] ' + (obj.dataset.action || 'Interact');
+                prompt.style.left = '50%';
+                prompt.style.top = '-30px';
+                obj.appendChild(prompt);
+            }
+        }
+
+        function hidePrompt(obj) {
+            const prompt = obj.querySelector('.interact-prompt');
+            if (prompt) prompt.remove();
+        }
+
+        function interactWithNearest() {
+            const objects = document.querySelectorAll('.world-object.interactable');
+            if (objects.length > 0) {
+                const obj = objects[0];
+                const action = obj.dataset.callback;
+                if (action && window[action]) {
+                    window[action](obj);
+                }
+            }
+        }
+
+        // Update UI
+        function updateUI() {
+            document.getElementById('gold').textContent = gameState.gold;
+            document.getElementById('bombs').textContent = gameState.bombs;
+            document.getElementById('birds-found').textContent = gameState.birdsFound;
+        }
+
+        // Show message
+        function showMessage(text, duration = 2000) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.style.display = 'block';
+            setTimeout(() => {
+                msg.style.display = 'none';
+            }, duration);
+        }
+
+        // Create explosion effect
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.textContent = '💥';
+            explosion.style.left = x + 'px';
+            explosion.style.top = y + 'px';
+            document.body.appendChild(explosion);
+            setTimeout(() => explosion.remove(), 500);
+        }
+
+        // Room Renderers
+        function renderIntro() {
+            document.getElementById('current-room').textContent = 'Start';
+            return `
+                <div class="intro-screen">
+                    <h2>You wanted birds to race...</h2>
+                    <p>But they all flapped away into a dark cave! 🦇</p>
+                    <div class="intro-birds">🐦 🐦 🐦 🐦</div>
+                    <p>Enter the cave to find them!</p>
+                    <p style="margin-top: 20px; color: #aaa;">You'll need to:</p>
+                    <p>🔧 Pull pins to solve puzzles</p>
+                    <p>💣 Blow up rocks blocking your path</p>
+                    <p>🤝 Trade with cave dwellers</p>
+                    <button class="start-btn" onclick="goToRoom('entrance')">Enter The Cave 🕳️</button>
+                </div>
+            `;
+        }
+
+        function renderEntrance() {
+            document.getElementById('current-room').textContent = 'Cave Entrance';
+            gameState.player.x = 350;
+            gameState.player.y = 300;
+            return `
+                <div class="room-title">🕳️ Cave Entrance</div>
+                <div class="game-world" id="game-world">
+                    <div class="player" id="player" style="left: ${gameState.player.x}px; top: ${gameState.player.y}px;">🧑</div>
+
+                    <!-- Doors to other rooms -->
+                    <div class="world-object" data-x="100" data-y="80" data-action="Pin Puzzle" data-callback="gotoPinPuzzle1" style="left: 100px; top: 80px;">🚪</div>
+                    <div class="world-object" data-x="300" data-y="80" data-action="Trading Post" data-callback="gotoTradingPost" style="left: 300px; top: 80px;">🏪</div>
+                    <div class="world-object" data-x="500" data-y="80" data-action="Blocked Tunnel" data-callback="gotoRockWall" style="left: 500px; top: 80px;">🪨</div>
+                    <div class="world-object" data-x="650" data-y="80" data-action="${gameState.puzzlesSolved.pin1 ? 'Deep Chamber' : 'Locked'}" data-callback="${gameState.puzzlesSolved.pin1 ? 'gotoPinPuzzle2' : 'lockedDoor'}" style="left: 650px; top: 80px;">${gameState.puzzlesSolved.pin1 ? '🚪' : '🔒'}</div>
+
+                    ${gameState.birdsFound >= 5 ? '<div class="world-object" data-x="350" data-y="150" data-action="START RACE!" data-callback="gotoRace" style="left: 350px; top: 150px; font-size: 3rem;">🏁</div>' : ''}
+
+                    <!-- Decorations -->
+                    <div style="position: absolute; left: 50px; top: 200px; font-size: 2rem;">🦇</div>
+                    <div style="position: absolute; left: 700px; top: 250px; font-size: 2rem;">🕷️</div>
+                    <div style="position: absolute; left: 200px; top: 320px; font-size: 1.5rem;">🍄</div>
+                </div>
+                <div class="controls-hint">WASD or Arrow Keys to move | E or Space to interact</div>
+                <div class="inventory" style="margin-top: 10px; justify-content: center;">
+                    ${gameState.inventory.map(item => `<span class="inv-item">${item}</span>`).join('')}
+                </div>
+            `;
+        }
+
+        function gotoPinPuzzle1() { goToRoom('pin-puzzle-1'); }
+        function gotoPinPuzzle2() { goToRoom('pin-puzzle-2'); }
+        function gotoTradingPost() { goToRoom('trading-post'); }
+        function gotoRockWall() { goToRoom('rock-wall-1'); }
+        function gotoRace() { goToRoom('race'); }
+        function gotoEntrance() { goToRoom('entrance'); }
+        function lockedDoor() { showMessage('🔒 Solve the first pin puzzle to unlock!'); }
+
+        function renderPinPuzzle1() {
+            document.getElementById('current-room').textContent = 'Pin Puzzle 1';
+            gameState.player.x = 350;
+            gameState.player.y = 320;
+
+            if (gameState.puzzlesSolved.pin1) {
+                return `
+                    <div class="room-title">🔧 Pin Puzzle Chamber</div>
+                    <div class="game-world">
+                        <div class="player" id="player" style="left: ${gameState.player.x}px; top: ${gameState.player.y}px;">🧑</div>
+                        <div style="position: absolute; left: 300px; top: 150px; font-size: 5rem;">✅ 🐦</div>
+                        <div class="world-object" data-x="100" data-y="320" data-action="Exit" data-callback="gotoEntrance" style="left: 100px; top: 320px;">🚪</div>
+                    </div>
+                    <div class="controls-hint">WASD to move | E to interact | Puzzle Complete!</div>
+                `;
+            }
+
+            return `
+                <div class="room-title">🔧 Pin Puzzle Chamber - Save the bird from water!</div>
+                <div class="game-world">
+                    <div class="player" id="player" style="left: ${gameState.player.x}px; top: ${gameState.player.y}px;">🧑</div>
+
+                    <!-- Exit door -->
+                    <div class="world-object" data-x="100" data-y="320" data-action="Exit" data-callback="gotoEntrance" style="left: 100px; top: 320px;">🚪</div>
+
+                    <!-- Bird and hazards -->
+                    <div style="position: absolute; left: 330px; top: 80px; font-size: 3rem;">🐦</div>
+                    <div class="water" style="left: 250px; top: 250px; width: 200px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">💧💧💧</div>
+
+                    <!-- Pins - walk up and interact -->
+                    <div class="world-object" data-x="280" data-y="150" data-action="Pull Pin 1" data-callback="interactPin1_1" data-pin="1" id="pin1-1" style="left: 280px; top: 150px; font-size: 2.5rem;">📍</div>
+                    <div class="world-object" data-x="380" data-y="150" data-action="Take Apple" data-callback="interactPin1_2" data-pin="2" id="pin1-2" style="left: 380px; top: 150px; font-size: 2.5rem;">🍎</div>
+                    <div class="world-object" data-x="480" data-y="150" data-action="Pull Pin 3" data-callback="interactPin1_3" data-pin="3" id="pin1-3" style="left: 480px; top: 150px; font-size: 2.5rem;">📍</div>
+                </div>
+                <div class="controls-hint">WASD to move | Walk to pins and press E to pull | Find the right order!</div>
+            `;
+        }
+
+        function interactPin1_1(obj) { pullPin1(1); obj.style.opacity = '0.3'; }
+        function interactPin1_2(obj) {
+            pullPin1(2);
+            obj.style.opacity = '0.3';
+            if (!gameState.inventory.includes('🍎 Shiny Apple')) {
+                gameState.inventory.push('🍎 Shiny Apple');
+                showMessage('🍎 You took the Shiny Apple!', 2000);
+            }
+        }
+        function interactPin1_3(obj) { pullPin1(3); obj.style.opacity = '0.3'; }
+
+        let pin1State = { pulled: [], correct: randomSolutions.pin1Order };
+
+        function pullPin1(pinNum) {
+            const pin = document.getElementById(`pin1-${pinNum}`);
+            if (!pin || pin.style.opacity === '0') return;
+
+            pin1State.pulled.push(pinNum);
+            pin.style.opacity = '0';
+            pin.style.pointerEvents = 'none';
+
+            showMessage(`Pulled pin ${pinNum}!`);
+
+            if (pin1State.pulled.length === 3) {
+                setTimeout(() => {
+                    if (JSON.stringify(pin1State.pulled) === JSON.stringify(pin1State.correct)) {
+                        gameState.puzzlesSolved.pin1 = true;
+                        gameState.birdsFound++;
+                        if (!gameState.birdsCollected.includes('blue')) {
+                            gameState.birdsCollected.push('blue');
+                        }
+                        updateUI();
+                        showMessage('🎉 Bird rescued! You found the Blue Bird!', 3000);
+                        setTimeout(() => goToRoom('entrance'), 2000);
+                    } else {
+                        showMessage('💀 Wrong order! The bird got wet! Try again...', 2000);
+                        pin1State.pulled = [];
+                        setTimeout(() => renderRoom(), 1500);
+                    }
+                }, 500);
+            }
+        }
+
+        function renderPinPuzzle2() {
+            document.getElementById('current-room').textContent = 'Pin Puzzle 2';
+            gameState.player.x = 350;
+            gameState.player.y = 320;
+
+            if (gameState.puzzlesSolved.pin2) {
+                return `
+                    <div class="room-title">🔐 Deep Chamber</div>
+                    <div class="game-world">
+                        <div class="player" id="player" style="left: ${gameState.player.x}px; top: ${gameState.player.y}px;">🧑</div>
+                        <div style="position: absolute; left: 300px; top: 150px; font-size: 5rem;">✅ 🐦</div>
+                        <div class="world-object" data-x="100" data-y="320" data-action="Exit" data-callback="gotoEntrance" style="left: 100px; top: 320px;">🚪</div>
+                    </div>
+                    <div class="controls-hint">WASD to move | E to interact | Puzzle Complete!</div>
+                `;
+            }
+
+            return `
+                <div class="room-title">🔐 Deep Chamber - Lava Puzzle! 🔥</div>
+                <div class="game-world">
+                    <div class="player" id="player" style="left: ${gameState.player.x}px; top: ${gameState.player.y}px;">🧑</div>
+
+                    <!-- Exit door -->
+                    <div class="world-object" data-x="100" data-y="320" data-action="Exit" data-callback="gotoEntrance" style="left: 100px; top: 320px;">🚪</div>
+
+                    <!-- Bird and hazards -->
+                    <div style="position: absolute; left: 330px; top: 60px; font-size: 3rem;">🐦</div>
+                    <div class="lava" style="left: 200px; top: 270px; width: 300px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🔥🔥🔥🔥</div>
+                    <div style="position: absolute; left: 250px; top: 180px; font-size: 2rem;">⚙️</div>
+                    <div style="position: absolute; left: 450px; top: 180px; font-size: 2rem;">⚙️</div>
+
+                    <!-- Pins -->
+                    <div class="world-object" data-x="230" data-y="120" data-action="Pull Pin 1" data-callback="interactPin2_1" id="pin2-1" style="left: 230px; top: 120px; font-size: 2.5rem;">📍</div>
+                    <div class="world-object" data-x="330" data-y="120" data-action="Pull Pin 2" data-callback="interactPin2_2" id="pin2-2" style="left: 330px; top: 120px; font-size: 2.5rem;">📍</div>
+                    <div class="world-object" data-x="430" data-y="120" data-action="Pull Pin 3" data-callback="interactPin2_3" id="pin2-3" style="left: 430px; top: 120px; font-size: 2.5rem;">📍</div>
+                    <div class="world-object" data-x="530" data-y="120" data-action="Pull Pin 4" data-callback="interactPin2_4" id="pin2-4" style="left: 530px; top: 120px; font-size: 2.5rem;">📍</div>
+                </div>
+                <div class="controls-hint">WASD to move | Walk to pins and press E to pull | Find the right order!</div>
+            `;
+        }
+
+        function interactPin2_1(obj) { pullPin2(1); obj.style.opacity = '0.3'; }
+        function interactPin2_2(obj) { pullPin2(2); obj.style.opacity = '0.3'; }
+        function interactPin2_3(obj) { pullPin2(3); obj.style.opacity = '0.3'; }
+        function interactPin2_4(obj) { pullPin2(4); obj.style.opacity = '0.3'; }
+
+        let pin2State = { pulled: [], correct: randomSolutions.pin2Order };
+
+        function pullPin2(pinNum) {
+            const pin = document.getElementById(`pin2-${pinNum}`);
+            if (!pin || pin.style.opacity === '0') return;
+
+            pin2State.pulled.push(pinNum);
+            pin.style.opacity = '0';
+            pin.style.pointerEvents = 'none';
+
+            showMessage(`Pulled pin ${pinNum}!`);
+
+            if (pin2State.pulled.length === 4) {
+                setTimeout(() => {
+                    if (JSON.stringify(pin2State.pulled) === JSON.stringify(pin2State.correct)) {
+                        gameState.puzzlesSolved.pin2 = true;
+                        gameState.birdsFound++;
+                        if (!gameState.birdsCollected.includes('red')) {
+                            gameState.birdsCollected.push('red');
+                        }
+                        updateUI();
+                        showMessage('🎉 Bird rescued! You found the Red Bird!', 3000);
+                        setTimeout(() => goToRoom('entrance'), 2000);
+                    } else {
+                        showMessage('🔥 Wrong order! The bird fell in lava! Try again...', 2000);
+                        pin2State.pulled = [];
+                        setTimeout(() => renderRoom(), 1500);
+                    }
+                }, 500);
+            }
+        }
+
+        function renderTradingPost() {
+            document.getElementById('current-room').textContent = 'Trading Post';
+            gameState.player.x = 350;
+            gameState.player.y = 320;
+            return `
+                <div class="room-title">🏪 Cave Trading Post</div>
+                <div class="game-world">
+                    <div class="player" id="player" style="left: ${gameState.player.x}px; top: ${gameState.player.y}px;">🧑</div>
+
+                    <!-- Exit door -->
+                    <div class="world-object" data-x="50" data-y="320" data-action="Exit" data-callback="gotoEntrance" style="left: 50px; top: 320px;">🚪</div>
+
+                    <!-- Traders -->
+                    <div class="world-object" data-x="150" data-y="100" data-action="Buy Bomb (20g)" data-callback="interactMiner" style="left: 150px; top: 100px; font-size: 3rem;">🧙‍♂️</div>
+                    <div style="position: absolute; left: 130px; top: 160px; color: #aaa; font-size: 0.8rem; text-align: center; width: 80px;">Old Miner<br>💣 20g</div>
+
+                    <div class="world-object" data-x="320" data-y="100" data-action="${gameState.birdsCollected.includes('green') ? 'Already Traded' : 'Trade Apple for Bird'}" data-callback="interactBatKeeper" style="left: 320px; top: 100px; font-size: 3rem;">🦇</div>
+                    <div style="position: absolute; left: 290px; top: 160px; color: #aaa; font-size: 0.8rem; text-align: center; width: 100px;">Bat Keeper<br>🐦 wants 🍎</div>
+
+                    <div class="world-object" data-x="490" data-y="100" data-action="Buy Apple (30g)" data-callback="interactMushroom" style="left: 490px; top: 100px; font-size: 3rem;">🍄</div>
+                    <div style="position: absolute; left: 460px; top: 160px; color: #aaa; font-size: 0.8rem; text-align: center; width: 100px;">Mushroom Man<br>🍎 30g</div>
+
+                    <div class="world-object" data-x="650" data-y="100" data-action="Sell Gem (40g)" data-callback="interactGoblin" style="left: 650px; top: 100px; font-size: 3rem;">👺</div>
+                    <div style="position: absolute; left: 620px; top: 160px; color: #aaa; font-size: 0.8rem; text-align: center; width: 100px;">Gem Goblin<br>💎 → 40g</div>
+                </div>
+                <div class="controls-hint">WASD to move | E to trade</div>
+                <div class="inventory" style="margin-top: 10px; justify-content: center;">
+                    ${gameState.inventory.map(item => `<span class="inv-item">${item}</span>`).join('')}
+                </div>
+            `;
+        }
+
+        function interactMiner() {
+            if (gameState.gold >= 20) {
+                buyBomb();
+                renderRoom();
+            } else {
+                showMessage('Not enough gold! Need 20g');
+            }
+        }
+
+        function interactBatKeeper() {
+            if (gameState.birdsCollected.includes('green')) {
+                showMessage('Already traded for the bird!');
+            } else if (gameState.inventory.includes('🍎 Shiny Apple')) {
+                tradeBird();
+                renderRoom();
+            } else {
+                showMessage('Bring me a Shiny Apple for my bird!');
+            }
+        }
+
+        function interactMushroom() {
+            if (gameState.inventory.includes('🍎 Shiny Apple')) {
+                showMessage('You already have an apple!');
+            } else if (gameState.gold >= 30) {
+                buyApple();
+                renderRoom();
+            } else {
+                showMessage('Not enough gold! Need 30g');
+            }
+        }
+
+        function interactGoblin() {
+            if (gameState.inventory.includes('💎 Cave Gem')) {
+                sellGem();
+                renderRoom();
+            } else {
+                showMessage('Find gems by blowing up rocks!');
+            }
+        }
+
+        function buyBomb() {
+            if (gameState.gold >= 20) {
+                gameState.gold -= 20;
+                gameState.bombs++;
+                updateUI();
+                showMessage('💣 Bought a bomb!');
+                renderRoom();
+            }
+        }
+
+        function buyApple() {
+            if (gameState.gold >= 30 && !gameState.inventory.includes('🍎 Shiny Apple')) {
+                gameState.gold -= 30;
+                gameState.inventory.push('🍎 Shiny Apple');
+                updateUI();
+                showMessage('🍎 Bought a Shiny Apple!');
+                renderRoom();
+            }
+        }
+
+        function tradeBird() {
+            if (gameState.inventory.includes('🍎 Shiny Apple') && !gameState.birdsCollected.includes('green')) {
+                gameState.inventory = gameState.inventory.filter(i => i !== '🍎 Shiny Apple');
+                gameState.birdsFound++;
+                gameState.birdsCollected.push('green');
+                updateUI();
+                showMessage('🐦 The Bat Keeper gave you the Green Bird!', 3000);
+                renderRoom();
+            }
+        }
+
+        function sellGem() {
+            if (gameState.inventory.includes('💎 Cave Gem')) {
+                gameState.inventory = gameState.inventory.filter(i => i !== '💎 Cave Gem');
+                gameState.gold += 40;
+                updateUI();
+                showMessage('💰 Sold gem for 40 gold!');
+                renderRoom();
+            }
+        }
+
+        function renderRockWall1() {
+            document.getElementById('current-room').textContent = 'Blocked Tunnel';
+            gameState.player.x = 100;
+            gameState.player.y = 320;
+
+            const rockPositions = [
+                { id: 1, x: 200, y: 80 },
+                { id: 2, x: 280, y: 80 },
+                { id: 3, x: 360, y: 80 },
+                { id: 4, x: 440, y: 80 },
+                { id: 5, x: 520, y: 80 },
+                { id: 6, x: 200, y: 160 },
+                { id: 7, x: 280, y: 160 },
+                { id: 8, x: 360, y: 160 },
+                { id: 9, x: 440, y: 160 },
+                { id: 10, x: 520, y: 160 },
+            ];
+
+            const rocks = rockPositions.map(r => ({
+                ...r,
+                hasGem: randomSolutions.gemRocks.includes(r.id),
+                hasBird: r.id === randomSolutions.birdRocks.yellow ? 'yellow' :
+                         r.id === randomSolutions.birdRocks.purple ? 'purple' : false
+            }));
+
+            return `
+                <div class="room-title">🪨 Blocked Tunnel - Bombs: ${gameState.bombs}</div>
+                <div class="game-world">
+                    <div class="player" id="player" style="left: ${gameState.player.x}px; top: ${gameState.player.y}px;">🧑</div>
+
+                    <!-- Exit door -->
+                    <div class="world-object" data-x="50" data-y="320" data-action="Exit" data-callback="gotoEntrance" style="left: 50px; top: 320px;">🚪</div>
+
+                    <!-- Rocks -->
+                    ${rocks.map(rock => {
+                        const destroyed = gameState.rocksDestroyed.includes(rock.id);
+                        let content = '🪨';
+                        let action = 'Place Bomb';
+                        let callback = `blowUpRock${rock.id}`;
+
+                        if (destroyed) {
+                            if (rock.hasBird === 'yellow' && !gameState.birdsCollected.includes('yellow')) {
+                                content = '🐦';
+                                action = 'Catch Yellow Bird';
+                                callback = 'catchYellowBird';
+                            } else if (rock.hasBird === 'purple' && !gameState.birdsCollected.includes('purple')) {
+                                content = '🐦';
+                                action = 'Catch Purple Bird';
+                                callback = 'catchPurpleBird';
+                            } else if (rock.hasGem && !gameState.inventory.includes('💎 Cave Gem')) {
+                                content = '💎';
+                                action = 'Take Gem';
+                                callback = 'takeGem';
+                            } else {
+                                content = '💨';
+                                action = 'Empty';
+                                callback = 'emptyRock';
+                            }
+                        }
+
+                        return `<div class="world-object" data-x="${rock.x}" data-y="${rock.y}" data-action="${action}" data-callback="${callback}" data-rock="${rock.id}" style="left: ${rock.x}px; top: ${rock.y}px; font-size: 2.5rem;">${content}</div>`;
+                    }).join('')}
+                </div>
+                <div class="controls-hint">WASD to move | E to interact with rocks | 💣 Bombs: ${gameState.bombs}</div>
+            `;
+        }
+
+        // Generate rock interaction functions
+        for (let i = 1; i <= 10; i++) {
+            window['blowUpRock' + i] = function(obj) {
+                const rockId = parseInt(obj.dataset.rock);
+                if (gameState.bombs > 0 && !gameState.rocksDestroyed.includes(rockId)) {
+                    gameState.bombs--;
+                    gameState.rocksDestroyed.push(rockId);
+                    const rect = obj.getBoundingClientRect();
+                    createExplosion(rect.left, rect.top);
+                    updateUI();
+                    showMessage('💥 BOOM!');
+                    setTimeout(() => renderRoom(), 500);
+                } else if (gameState.bombs <= 0) {
+                    showMessage('No bombs! Buy more at the Trading Post!');
+                }
+            };
+        }
+
+        function catchYellowBird() {
+            if (!gameState.birdsCollected.includes('yellow')) {
+                gameState.birdsFound++;
+                gameState.birdsCollected.push('yellow');
+                updateUI();
+                showMessage('🐦 You caught the Yellow Bird!', 3000);
+                renderRoom();
+            }
+        }
+
+        function catchPurpleBird() {
+            if (!gameState.birdsCollected.includes('purple')) {
+                gameState.birdsFound++;
+                gameState.birdsCollected.push('purple');
+                updateUI();
+                showMessage('🐦 You caught the Purple Bird!', 3000);
+                renderRoom();
+            }
+        }
+
+        function takeGem() {
+            if (!gameState.inventory.includes('💎 Cave Gem')) {
+                gameState.inventory.push('💎 Cave Gem');
+                showMessage('💎 Found a Cave Gem! Sell it at the Trading Post!');
+                renderRoom();
+            }
+        }
+
+        function emptyRock() {
+            showMessage('Nothing here...');
+        }
+
+
+        function renderRace() {
+            document.getElementById('current-room').textContent = 'THE RACE!';
+
+            if (gameState.birdsFound < 5) {
+                return `
+                    <div class="room-title">🏁 Race Track</div>
+                    <div class="room-description">You need all 5 birds to start the race!</div>
+                    <div class="nav-buttons">
+                        <button class="nav-btn" onclick="goToRoom('entrance')">← Back to Find More Birds</button>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="room-title">🏁 THE GREAT BIRD RACE! 🏁</div>
+                <div class="room-description">You found all the birds! Now watch them RACE!</div>
+                <div class="race-track">
+                    <div class="finish-line"></div>
+                    <div class="track-lane">
+                        <span style="color: #3b82f6;">Blue Bird</span>
+                        <div class="racing-bird" id="bird-blue" style="left: 10px;">🐦</div>
+                    </div>
+                    <div class="track-lane">
+                        <span style="color: #ef4444;">Red Bird</span>
+                        <div class="racing-bird" id="bird-red" style="left: 10px;">🐦</div>
+                    </div>
+                    <div class="track-lane">
+                        <span style="color: #22c55e;">Green Bird</span>
+                        <div class="racing-bird" id="bird-green" style="left: 10px;">🐦</div>
+                    </div>
+                    <div class="track-lane">
+                        <span style="color: #eab308;">Yellow Bird</span>
+                        <div class="racing-bird" id="bird-yellow" style="left: 10px;">🐦</div>
+                    </div>
+                    <div class="track-lane">
+                        <span style="color: #a855f7;">Purple Bird</span>
+                        <div class="racing-bird" id="bird-purple" style="left: 10px;">🐦</div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <button class="start-race-btn" onclick="startRace()" id="race-btn">🏁 START RACE!</button>
+                </div>
+            `;
+        }
+
+        function startRace() {
+            document.getElementById('race-btn').disabled = true;
+            document.getElementById('race-btn').textContent = 'Racing...';
+
+            const birds = ['blue', 'red', 'green', 'yellow', 'purple'];
+            const positions = { blue: 10, red: 10, green: 10, yellow: 10, purple: 10 };
+            const finishLine = 650;
+            let winner = null;
+
+            const raceInterval = setInterval(() => {
+                birds.forEach(bird => {
+                    if (!winner) {
+                        positions[bird] += Math.random() * 15 + 5;
+                        document.getElementById(`bird-${bird}`).style.left = positions[bird] + 'px';
+
+                        if (positions[bird] >= finishLine && !winner) {
+                            winner = bird;
+                        }
+                    }
+                });
+
+                if (winner) {
+                    clearInterval(raceInterval);
+                    const colors = { blue: '🔵', red: '🔴', green: '🟢', yellow: '🟡', purple: '🟣' };
+                    showMessage(`🎉 ${colors[winner]} ${winner.toUpperCase()} BIRD WINS! 🎉`, 3000);
+                    document.getElementById('race-btn').textContent = `${winner.toUpperCase()} WINS! 🏆`;
+
+                    // Celebration!
+                    for (let i = 0; i < 5; i++) {
+                        setTimeout(() => {
+                            createExplosion(Math.random() * window.innerWidth, Math.random() * window.innerHeight);
+                        }, i * 200);
+                    }
+
+                    // Show YOU WON screen
+                    setTimeout(() => {
+                        document.getElementById('game-area').innerHTML = `
+                            <div style="text-align: center; padding: 50px;">
+                                <h1 style="font-size: 4rem; color: #ffd700; text-shadow: 0 0 20px #ffd700;">🏆 YOU WON! 🏆</h1>
+                                <p style="font-size: 2rem; margin: 20px 0;">You got the birds to race!</p>
+                                <div style="font-size: 3rem; margin: 30px 0;">🐦 🐦 🐦 🐦 🐦</div>
+                                <p style="color: #aaa; margin: 20px 0;">Winner: ${colors[winner]} ${winner.toUpperCase()} BIRD</p>
+                                <button class="start-btn" onclick="location.reload()">Play Again</button>
+                            </div>
+                        `;
+                    }, 2000);
+                }
+            }, 100);
+        }
+
+        // Room navigation
+        function goToRoom(room) {
+            gameState.currentRoom = room;
+            pin1State.pulled = [];
+            pin2State.pulled = [];
+            renderRoom();
+        }
+
+        function renderRoom() {
+            const gameArea = document.getElementById('game-area');
+
+            switch (gameState.currentRoom) {
+                case 'intro':
+                    gameArea.innerHTML = renderIntro();
+                    break;
+                case 'entrance':
+                    gameArea.innerHTML = renderEntrance();
+                    startGameLoop();
+                    break;
+                case 'pin-puzzle-1':
+                    gameArea.innerHTML = renderPinPuzzle1();
+                    startGameLoop();
+                    break;
+                case 'pin-puzzle-2':
+                    gameArea.innerHTML = renderPinPuzzle2();
+                    startGameLoop();
+                    break;
+                case 'trading-post':
+                    gameArea.innerHTML = renderTradingPost();
+                    startGameLoop();
+                    break;
+                case 'rock-wall-1':
+                    gameArea.innerHTML = renderRockWall1();
+                    startGameLoop();
+                    break;
+                case 'race':
+                    gameArea.innerHTML = renderRace();
+                    break;
+            }
+        }
+
+        // Initialize game
+        renderRoom();
+    </script>
+</body>
+</html>
