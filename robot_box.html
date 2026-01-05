@@ -2192,6 +2192,50 @@
             }
         });
 
+        // Touch controls
+        let touchJoystick = { active: false, startX: 0, startY: 0 };
+        let lastTapTime = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            if (storeOpen) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchJoystick.active = true;
+            touchJoystick.startX = touch.clientX;
+            touchJoystick.startY = touch.clientY;
+
+            // Double tap to attack
+            const now = Date.now();
+            if (now - lastTapTime < 300) {
+                keys.Space = true;
+                setTimeout(() => { keys.Space = false; }, 100);
+            }
+            lastTapTime = now;
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!touchJoystick.active || storeOpen) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchJoystick.startX;
+            const dy = touch.clientY - touchJoystick.startY;
+            const deadzone = 20;
+
+            keys.ArrowLeft = dx < -deadzone;
+            keys.ArrowRight = dx > deadzone;
+            keys.ArrowUp = dy < -deadzone;
+            keys.ArrowDown = dy > deadzone;
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchJoystick.active = false;
+            keys.ArrowLeft = false;
+            keys.ArrowRight = false;
+            keys.ArrowUp = false;
+            keys.ArrowDown = false;
+        }, { passive: false });
+
         // Initialize game
         loadInventory();
         loadDailyData();

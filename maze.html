@@ -2702,6 +2702,52 @@
             game.keys[e.key] = false;
         });
 
+        // Touch controls
+        let touchJoystick = { active: false, startX: 0, startY: 0 };
+        let lastTapTime = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchJoystick.active = true;
+            touchJoystick.startX = touch.clientX;
+            touchJoystick.startY = touch.clientY;
+
+            // Double tap to attack
+            const now = Date.now();
+            if (now - lastTapTime < 300) {
+                playerAttack();
+            }
+            lastTapTime = now;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!touchJoystick.active) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchJoystick.startX;
+            const dy = touch.clientY - touchJoystick.startY;
+            const deadzone = 20;
+
+            game.keys['ArrowLeft'] = dx < -deadzone;
+            game.keys['a'] = dx < -deadzone;
+            game.keys['ArrowRight'] = dx > deadzone;
+            game.keys['d'] = dx > deadzone;
+            game.keys['ArrowUp'] = dy < -deadzone;
+            game.keys['w'] = dy < -deadzone;
+            game.keys['ArrowDown'] = dy > deadzone;
+            game.keys['s'] = dy > deadzone;
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchJoystick.active = false;
+            game.keys['ArrowLeft'] = false; game.keys['a'] = false;
+            game.keys['ArrowRight'] = false; game.keys['d'] = false;
+            game.keys['ArrowUp'] = false; game.keys['w'] = false;
+            game.keys['ArrowDown'] = false; game.keys['s'] = false;
+        }, { passive: false });
+
         // Restart game
         function restartGame() {
             // Clear all monsters

@@ -2101,6 +2101,73 @@
             }
         });
 
+        // Touch controls
+        let touchJoystick = { active: false, startX: 0, startY: 0, id: null };
+        let lastTapTime = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            if (shopOpen || robotShopOpen) return;
+            if (e.target.tagName === 'BUTTON') return;
+
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = container.getBoundingClientRect();
+            const touchX = touch.clientX - rect.left;
+
+            // Left half = joystick for movement, Right half = shoot
+            if (touchX < rect.width / 2) {
+                touchJoystick.active = true;
+                touchJoystick.startX = touch.clientX;
+                touchJoystick.startY = touch.clientY;
+                touchJoystick.id = touch.identifier;
+            } else {
+                // Right side = shoot, double tap = jump
+                const now = Date.now();
+                if (now - lastTapTime < 300) {
+                    if (!isJumping) {
+                        isJumping = true;
+                        velocityY = jumpForce;
+                    }
+                } else {
+                    shoot();
+                }
+                lastTapTime = now;
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!touchJoystick.active || shopOpen || robotShopOpen) return;
+            e.preventDefault();
+
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                if (touch.identifier === touchJoystick.id) {
+                    const dx = touch.clientX - touchJoystick.startX;
+                    const dy = touch.clientY - touchJoystick.startY;
+                    const deadzone = 20;
+
+                    keys.left = dx < -deadzone;
+                    keys.right = dx > deadzone;
+                    keys.forward = dy < -deadzone;
+                    keys.backward = dy > deadzone;
+                }
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === touchJoystick.id) {
+                    touchJoystick.active = false;
+                    touchJoystick.id = null;
+                    keys.left = false;
+                    keys.right = false;
+                    keys.forward = false;
+                    keys.backward = false;
+                }
+            }
+        }, { passive: false });
+
         // Movement speed
         const moveSpeed = 0.15;
         let bobAngle = 0;

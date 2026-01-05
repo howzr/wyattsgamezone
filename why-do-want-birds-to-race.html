@@ -633,6 +633,59 @@
             keys[e.code] = false;
         });
 
+        // Touch controls - virtual joystick
+        let touchJoystick = { active: false, startX: 0, startY: 0 };
+        let lastTouchTap = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            touchJoystick.active = true;
+            touchJoystick.startX = touch.clientX;
+            touchJoystick.startY = touch.clientY;
+
+            // Double tap to interact (like pressing E)
+            const now = Date.now();
+            if (now - lastTouchTap < 300) {
+                keys[' '] = true;
+                keys['e'] = true;
+                setTimeout(() => { keys[' '] = false; keys['e'] = false; }, 100);
+            }
+            lastTouchTap = now;
+
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!touchJoystick.active) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchJoystick.startX;
+            const dy = touch.clientY - touchJoystick.startY;
+            const deadzone = 20;
+
+            keys['ArrowLeft'] = dx < -deadzone;
+            keys['arrowleft'] = dx < -deadzone;
+            keys['a'] = dx < -deadzone;
+            keys['ArrowRight'] = dx > deadzone;
+            keys['arrowright'] = dx > deadzone;
+            keys['d'] = dx > deadzone;
+            keys['ArrowUp'] = dy < -deadzone;
+            keys['arrowup'] = dy < -deadzone;
+            keys['w'] = dy < -deadzone;
+            keys['ArrowDown'] = dy > deadzone;
+            keys['arrowdown'] = dy > deadzone;
+            keys['s'] = dy > deadzone;
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchJoystick.active = false;
+            keys['ArrowLeft'] = false; keys['arrowleft'] = false; keys['a'] = false;
+            keys['ArrowRight'] = false; keys['arrowright'] = false; keys['d'] = false;
+            keys['ArrowUp'] = false; keys['arrowup'] = false; keys['w'] = false;
+            keys['ArrowDown'] = false; keys['arrowdown'] = false; keys['s'] = false;
+        }, { passive: false });
+
         // Player movement
         let gameLoop;
         function startGameLoop() {
@@ -812,7 +865,7 @@
                     <div style="position: absolute; left: 700px; top: 250px; font-size: 2rem;">🕷️</div>
                     <div style="position: absolute; left: 200px; top: 320px; font-size: 1.5rem;">🍄</div>
                 </div>
-                <div class="controls-hint">WASD or Arrow Keys to move | E or Space to interact</div>
+                <div class="controls-hint">WASD/Arrows to move | E/Space to interact | Touch: Drag to move, Double-tap to interact</div>
                 <div class="inventory" style="margin-top: 10px; justify-content: center;">
                     ${gameState.inventory.map(item => `<span class="inv-item">${item}</span>`).join('')}
                 </div>

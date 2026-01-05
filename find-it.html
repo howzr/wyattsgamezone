@@ -637,6 +637,40 @@
         function stopMiniGame() { if (miniGameTimer) { clearInterval(miniGameTimer); clearTimeout(miniGameTimer); } miniGameTimer = null; currentMiniGame = null; document.removeEventListener('keydown', pacmanKeyHandler); document.removeEventListener('keydown', snakeKeyHandler); document.removeEventListener('keydown', flappyKeyHandler); document.removeEventListener('keydown', tetrisKeyHandler); document.removeEventListener('keydown', breakoutKeyHandler); document.removeEventListener('keydown', pongKeyHandler); document.removeEventListener('keydown', invadersKeyHandler); document.removeEventListener('keydown', doodleKeyHandler); document.removeEventListener('keydown', crossyKeyHandler); document.removeEventListener('keydown', game2048KeyHandler); document.removeEventListener('keydown', asteroidsKeyHandler); document.removeEventListener('keyup', asteroidsKeyHandler); document.removeEventListener('keydown', runnerKeyHandler); document.removeEventListener('keydown', geometryKeyHandler); minigameContainer.removeEventListener('click', flappyClick); minigameContainer.removeEventListener('click', geometryClick); }
         function restartMiniGame() { startMiniGame(currentMiniGame); }
 
+        // Touch controls for mini-games - converts swipes to arrow key events
+        let mgTouchStart = { x: 0, y: 0 };
+        document.getElementById('minigame-container').addEventListener('touchstart', (e) => {
+            if (!currentMiniGame) return;
+            mgTouchStart.x = e.touches[0].clientX;
+            mgTouchStart.y = e.touches[0].clientY;
+            // Tap for games like flappy, geometry
+            if (['flappy', 'geometry'].includes(currentMiniGame)) {
+                const tapEvent = new MouseEvent('click', { bubbles: true });
+                e.target.dispatchEvent(tapEvent);
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        document.getElementById('minigame-container').addEventListener('touchend', (e) => {
+            if (!currentMiniGame) return;
+            const dx = e.changedTouches[0].clientX - mgTouchStart.x;
+            const dy = e.changedTouches[0].clientY - mgTouchStart.y;
+            const minSwipe = 30;
+            let key = null;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (dx > minSwipe) key = 'ArrowRight';
+                else if (dx < -minSwipe) key = 'ArrowLeft';
+            } else {
+                if (dy > minSwipe) key = 'ArrowDown';
+                else if (dy < -minSwipe) key = 'ArrowUp';
+            }
+            if (key) {
+                const event = new KeyboardEvent('keydown', { key: key, bubbles: true });
+                document.dispatchEvent(event);
+            }
+            e.preventDefault();
+        }, { passive: false });
+
         function startClickerGame() {
             miniGameScore = 0; miniGameTime = 15; updateMiniGameDisplay(); spawnClickerDot();
             miniGameTimer = setInterval(() => { miniGameTime--; updateMiniGameDisplay(); if (miniGameTime <= 0) endClickerGame(); }, 1000);
