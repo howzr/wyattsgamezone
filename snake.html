@@ -123,7 +123,7 @@
         <div class="compass"><span id="direction">E</span></div>
         <canvas id="gameCanvas" width="800" height="500"></canvas>
         <canvas id="minimap" class="minimap" width="150" height="150"></canvas>
-        <p class="instructions">Arrow keys / WASD to move | Compete against AI snakes!</p>
+        <p class="instructions">Arrow keys / WASD / Swipe to move | Compete against AI snakes!</p>
 
         <div class="game-over" id="gameOver">
             <h2 id="gameOverTitle">Game Over!</h2>
@@ -721,6 +721,46 @@
                     break;
             }
         });
+
+        // Touch controls - swipe gestures
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const minSwipeDistance = 30;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (!player.alive) return;
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal swipe
+                if (Math.abs(deltaX) > minSwipeDistance) {
+                    if (deltaX > 0 && player.direction.x !== -1) {
+                        player.nextDirection = { x: 1, y: 0 };
+                    } else if (deltaX < 0 && player.direction.x !== 1) {
+                        player.nextDirection = { x: -1, y: 0 };
+                    }
+                }
+            } else {
+                // Vertical swipe
+                if (Math.abs(deltaY) > minSwipeDistance) {
+                    if (deltaY > 0 && player.direction.y !== -1) {
+                        player.nextDirection = { x: 0, y: 1 };
+                    } else if (deltaY < 0 && player.direction.y !== 1) {
+                        player.nextDirection = { x: 0, y: -1 };
+                    }
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
 
         // Start
         initGame();

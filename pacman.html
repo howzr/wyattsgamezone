@@ -57,7 +57,7 @@
         <div id="lives">Lives: ●●●</div>
         <canvas id="gameCanvas"></canvas>
         <div id="message"></div>
-        <div id="controls">Arrow Keys or WASD to move | Space to start/restart</div>
+        <div id="controls">Arrow Keys / WASD / Swipe to move | Tap or Space to start</div>
     </div>
 
     <script>
@@ -568,6 +568,46 @@
                     break;
             }
         });
+
+        // Touch controls - swipe gestures
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const minSwipeDistance = 30;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+
+            // Tap to start game
+            if (gameState !== 'playing') {
+                initGame();
+                gameState = 'playing';
+                messageEl.textContent = '';
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (gameState !== 'playing') return;
+
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal swipe
+                if (Math.abs(deltaX) > minSwipeDistance) {
+                    pacman.nextDirection = deltaX > 0 ? 'right' : 'left';
+                }
+            } else {
+                // Vertical swipe
+                if (Math.abs(deltaY) > minSwipeDistance) {
+                    pacman.nextDirection = deltaY > 0 ? 'down' : 'up';
+                }
+            }
+            e.preventDefault();
+        }, { passive: false });
 
         // Initialize and show start message
         initGame();

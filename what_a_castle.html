@@ -745,7 +745,7 @@
         <div class="controls-info">
             <span><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> Move</span>
             <span><kbd>Space</kbd> Attack</span>
-            <span>Defeat all enemies to proceed!</span>
+            <span>Touch: Drag to move, Double-tap to attack</span>
         </div>
     </div>
 
@@ -2099,6 +2099,62 @@
         document.addEventListener('keyup', (e) => {
             game.keys[e.code] = false;
         });
+
+        // Touch controls
+        let touchJoystick = { active: false, startX: 0, startY: 0 };
+        let lastTapTime = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const touchX = touch.clientX - rect.left;
+            const touchY = touch.clientY - rect.top;
+
+            // If showing map, continue
+            if (game.showingMap) {
+                hideCastleMap();
+                proceedToNextRoom();
+                return;
+            }
+
+            // Double tap to attack
+            const now = Date.now();
+            if (now - lastTapTime < 300) {
+                if (game.player && game.running && !game.showingBanner) {
+                    game.player.attack();
+                }
+            }
+            lastTapTime = now;
+
+            // Start joystick
+            touchJoystick.active = true;
+            touchJoystick.startX = touch.clientX;
+            touchJoystick.startY = touch.clientY;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!touchJoystick.active) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchJoystick.startX;
+            const dy = touch.clientY - touchJoystick.startY;
+            const deadzone = 20;
+
+            game.keys['ArrowLeft'] = dx < -deadzone;
+            game.keys['ArrowRight'] = dx > deadzone;
+            game.keys['ArrowUp'] = dy < -deadzone;
+            game.keys['ArrowDown'] = dy > deadzone;
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchJoystick.active = false;
+            game.keys['ArrowLeft'] = false;
+            game.keys['ArrowRight'] = false;
+            game.keys['ArrowUp'] = false;
+            game.keys['ArrowDown'] = false;
+        }, { passive: false });
 
         document.getElementById('startBtn').addEventListener('click', startGame);
         document.getElementById('restartBtn1').addEventListener('click', startGame);

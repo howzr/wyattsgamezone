@@ -164,7 +164,7 @@
                 <small style="color: #ffd700;">Best: <span id="endless-high">0</span></small>
             </button>
         </div>
-        <div id="instructions">Left/Right: Move | Up: Jump over barrels / Climb Ladders | Reach the top!</div>
+        <div id="instructions">Left/Right: Move | Up: Jump/Climb | Touch: Left side=Left, Right side=Right, Center=Jump</div>
         <button id="pause-btn" onclick="togglePause()" style="display: none;">PAUSE</button>
     </div>
 
@@ -514,6 +514,85 @@
             if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.up = false;
             if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
         });
+
+        // Touch controls
+        let activeTouches = {};
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (isPaused || showingModeSelect) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                const screenThird = canvas.width / 3;
+
+                activeTouches[touch.identifier] = { x: touchX, y: touchY };
+
+                if (touchX < screenThird) {
+                    keys.left = true;
+                } else if (touchX > screenThird * 2) {
+                    keys.right = true;
+                } else {
+                    // Middle third - jump or climb
+                    keys.up = true;
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (isPaused) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                const screenThird = canvas.width / 3;
+
+                // Update touch position and keys based on new position
+                const oldTouch = activeTouches[touch.identifier];
+                if (oldTouch) {
+                    const oldThird = oldTouch.x < screenThird ? 'left' : (oldTouch.x > screenThird * 2 ? 'right' : 'middle');
+                    const newThird = touchX < screenThird ? 'left' : (touchX > screenThird * 2 ? 'right' : 'middle');
+
+                    if (oldThird !== newThird) {
+                        // Moved to different zone
+                        if (oldThird === 'left') keys.left = false;
+                        if (oldThird === 'right') keys.right = false;
+                        if (oldThird === 'middle') keys.up = false;
+
+                        if (newThird === 'left') keys.left = true;
+                        if (newThird === 'right') keys.right = true;
+                        if (newThird === 'middle') keys.up = true;
+                    }
+                }
+
+                activeTouches[touch.identifier] = { x: touchX, y: touchY };
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const screenThird = canvas.width / 3;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const oldTouch = activeTouches[touch.identifier];
+
+                if (oldTouch) {
+                    if (oldTouch.x < screenThird) keys.left = false;
+                    else if (oldTouch.x > screenThird * 2) keys.right = false;
+                    else keys.up = false;
+                }
+
+                delete activeTouches[touch.identifier];
+            }
+        }, { passive: false });
 
         // Spawn barrel - bird throws it forward far
         function spawnBarrel(bird) {

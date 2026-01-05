@@ -84,7 +84,7 @@
     <p class="instructions">Jump across the gummy chairs to escape the hungry eater!</p>
     <canvas id="gameCanvas" width="800" height="500"></canvas>
     <div class="controls">
-        <span>Arrow Keys</span> to move | <span>Up Arrow</span> to jump
+        <span>Arrow Keys</span> to move | <span>Up Arrow</span> to jump | Touch: Left/Right sides to move, Center to jump
     </div>
         <div id="message"></div>
     <button id="restartBtn" onclick="restartGame()">Play Again!</button>
@@ -271,6 +271,81 @@
             }
         });
         document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        // Touch controls
+        let activeTouches = {};
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameOver) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                const screenThird = canvas.width / 3;
+
+                activeTouches[touch.identifier] = { x: touchX, y: touchY };
+
+                if (touchX < screenThird) {
+                    keys['ArrowLeft'] = true;
+                } else if (touchX > screenThird * 2) {
+                    keys['ArrowRight'] = true;
+                } else {
+                    // Middle third - jump
+                    keys['ArrowUp'] = true;
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameOver) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const screenThird = canvas.width / 3;
+
+                const oldTouch = activeTouches[touch.identifier];
+                if (oldTouch) {
+                    const oldZone = oldTouch.x < screenThird ? 'left' : (oldTouch.x > screenThird * 2 ? 'right' : 'middle');
+                    const newZone = touchX < screenThird ? 'left' : (touchX > screenThird * 2 ? 'right' : 'middle');
+
+                    if (oldZone !== newZone) {
+                        if (oldZone === 'left') keys['ArrowLeft'] = false;
+                        if (oldZone === 'right') keys['ArrowRight'] = false;
+                        if (oldZone === 'middle') keys['ArrowUp'] = false;
+
+                        if (newZone === 'left') keys['ArrowLeft'] = true;
+                        if (newZone === 'right') keys['ArrowRight'] = true;
+                        if (newZone === 'middle') keys['ArrowUp'] = true;
+                    }
+                }
+
+                activeTouches[touch.identifier] = { x: touchX, y: touch.clientY - rect.top };
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const screenThird = canvas.width / 3;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const oldTouch = activeTouches[touch.identifier];
+
+                if (oldTouch) {
+                    if (oldTouch.x < screenThird) keys['ArrowLeft'] = false;
+                    else if (oldTouch.x > screenThird * 2) keys['ArrowRight'] = false;
+                    else keys['ArrowUp'] = false;
+                }
+
+                delete activeTouches[touch.identifier];
+            }
+        }, { passive: false });
 
         function drawGummyChair(platform) {
             const x = platform.x - cameraX;

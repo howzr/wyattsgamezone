@@ -100,9 +100,9 @@
             <p>Survive the endless waves of zombies!</p>
             <div id="controls">
                 <p>WASD or Arrow Keys - Move</p>
-                <p>Mouse - Aim</p>
-                <p>Click - Shoot</p>
-                <p>R - Reload</p>
+                <p>Mouse - Aim | Click - Shoot | R - Reload</p>
+                <p>Touch: Left side to move, Right side to aim/shoot</p>
+                <p>Double-tap right side to reload</p>
             </div>
             <button onclick="startGame()">START GAME</button>
         </div>
@@ -179,6 +179,91 @@
                 shoot();
             }
         });
+
+        // Touch controls
+        let touchJoystick = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+        let lastTapTime = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const touchX = touch.clientX - rect.left;
+            const touchY = touch.clientY - rect.top;
+
+            // Left side of screen = joystick for movement
+            if (touchX < canvas.width / 2) {
+                touchJoystick.active = true;
+                touchJoystick.startX = touchX;
+                touchJoystick.startY = touchY;
+                touchJoystick.currentX = touchX;
+                touchJoystick.currentY = touchY;
+            } else {
+                // Right side = aim and shoot
+                mouseX = touchX;
+                mouseY = touchY;
+
+                // Double tap to reload
+                const now = Date.now();
+                if (now - lastTapTime < 300) {
+                    if (!player.reloading && player.ammo < player.maxAmmo) {
+                        player.reloading = true;
+                        player.reloadTime = 60;
+                    }
+                } else {
+                    // Single tap = shoot
+                    if (gameRunning && player.ammo > 0 && !player.reloading) {
+                        shoot();
+                    }
+                }
+                lastTapTime = now;
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+
+                if (touchJoystick.active && touchX < canvas.width / 2) {
+                    touchJoystick.currentX = touchX;
+                    touchJoystick.currentY = touchY;
+
+                    // Calculate movement from joystick
+                    const dx = touchJoystick.currentX - touchJoystick.startX;
+                    const dy = touchJoystick.currentY - touchJoystick.startY;
+                    const deadzone = 10;
+
+                    keys['a'] = dx < -deadzone;
+                    keys['d'] = dx > deadzone;
+                    keys['w'] = dy < -deadzone;
+                    keys['s'] = dy > deadzone;
+                } else if (touchX >= canvas.width / 2) {
+                    // Right side = aiming
+                    mouseX = touchX;
+                    mouseY = touchY;
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            // Check if joystick touch ended
+            if (e.touches.length === 0 || !Array.from(e.touches).some(t => {
+                const rect = canvas.getBoundingClientRect();
+                return (t.clientX - rect.left) < canvas.width / 2;
+            })) {
+                touchJoystick.active = false;
+                keys['a'] = false;
+                keys['d'] = false;
+                keys['w'] = false;
+                keys['s'] = false;
+            }
+        }, { passive: false });
 
         function shoot() {
             player.ammo--;

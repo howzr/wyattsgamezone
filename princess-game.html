@@ -133,7 +133,7 @@
             </div>
         </div>
         <canvas id="gameCanvas" width="800" height="500"></canvas>
-        <p class="instructions">Use Arrow Keys to move. Collect stars to power up! Avoid the dark orbs!</p>
+        <p class="instructions">Arrow Keys or Touch to move. Collect stars to power up! Avoid the dark orbs!</p>
     </div>
 
     <div class="game-over" id="gameOver">
@@ -558,6 +558,44 @@
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
         });
+
+        // Touch controls - virtual joystick
+        let touchJoystick = { active: false, startX: 0, startY: 0 };
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (!gameRunning) {
+                restartGame();
+                return;
+            }
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchJoystick.active = true;
+            touchJoystick.startX = touch.clientX;
+            touchJoystick.startY = touch.clientY;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!touchJoystick.active) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchJoystick.startX;
+            const dy = touch.clientY - touchJoystick.startY;
+            const deadzone = 15;
+
+            keys['ArrowLeft'] = dx < -deadzone;
+            keys['ArrowRight'] = dx > deadzone;
+            keys['ArrowUp'] = dy < -deadzone;
+            keys['ArrowDown'] = dy > deadzone;
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchJoystick.active = false;
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+            keys['ArrowUp'] = false;
+            keys['ArrowDown'] = false;
+        }, { passive: false });
 
         // Start game
         for (let i = 0; i < 5; i++) spawnStar();
