@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Crown Crush">
-    <title>Crown Crush - Match 3 Puzzle</title>
+    <meta name="apple-mobile-web-app-title" content="Save The King">
+    <title>Save The King - Pull The Pin Puzzle</title>
     <style>
         * {
             margin: 0;
@@ -31,110 +31,88 @@
 
         h1 {
             color: #ffd700;
-            font-size: 2.2em;
+            font-size: 2em;
             text-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0,0,0,0.5);
             margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .crown {
-            font-size: 1.2em;
         }
 
         .game-info {
             display: flex;
-            gap: 30px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
+            gap: 20px;
+            margin-bottom: 10px;
         }
 
         .info-box {
             background: linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
             border: 2px solid rgba(255, 215, 0, 0.5);
             border-radius: 15px;
-            padding: 10px 25px;
+            padding: 8px 20px;
             text-align: center;
-            min-width: 120px;
         }
 
         .info-label {
             color: rgba(255,255,255,0.7);
-            font-size: 0.75em;
+            font-size: 0.7em;
             text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .info-value {
             color: #fff;
-            font-size: 1.5em;
+            font-size: 1.3em;
             font-weight: bold;
-            text-shadow: 0 0 10px rgba(255,255,255,0.3);
         }
 
         #gameCanvas {
             border-radius: 20px;
-            box-shadow: 0 0 40px rgba(138, 43, 226, 0.5), inset 0 0 60px rgba(0,0,0,0.3);
-            background: linear-gradient(180deg, #2a1a5e, #1a0a3e);
+            box-shadow: 0 0 40px rgba(138, 43, 226, 0.5);
+            background: #87CEEB;
             touch-action: none;
+        }
+
+        #message {
+            color: #ffd700;
+            font-size: 1.1em;
+            margin-top: 10px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            text-align: center;
         }
 
         .buttons {
             display: flex;
             gap: 15px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
+            margin-top: 10px;
         }
 
         .btn {
             background: linear-gradient(180deg, #ffd700, #ff9500);
             border: none;
             border-radius: 25px;
-            padding: 12px 30px;
+            padding: 12px 25px;
             font-size: 1em;
             font-weight: bold;
             color: #1a0a3e;
             cursor: pointer;
             transition: all 0.2s;
             box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
-            min-height: 50px;
             touch-action: manipulation;
         }
 
         .btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
-        }
-
-        .btn:active {
-            transform: scale(0.98);
         }
 
         .btn.secondary {
             background: linear-gradient(180deg, #8a2be2, #6a1bb2);
             color: #fff;
-            box-shadow: 0 4px 15px rgba(138, 43, 226, 0.4);
         }
 
-        #message {
-            color: #ffd700;
-            font-size: 1.2em;
-            margin-top: 15px;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-            min-height: 30px;
-            text-align: center;
-        }
-
-        .level-complete {
+        .overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: none;
             justify-content: center;
             align-items: center;
@@ -142,38 +120,34 @@
             z-index: 100;
         }
 
-        .level-complete.show {
+        .overlay.show {
             display: flex;
         }
 
-        .level-complete h2 {
-            color: #ffd700;
-            font-size: 3em;
+        .overlay h2 {
+            font-size: 2.5em;
             margin-bottom: 20px;
-            text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            text-shadow: 0 0 30px currentColor;
         }
 
-        .level-complete p {
+        .overlay.win h2 { color: #ffd700; }
+        .overlay.lose h2 { color: #ff4757; }
+
+        .overlay p {
             color: #fff;
-            font-size: 1.5em;
-            margin-bottom: 30px;
+            font-size: 1.3em;
+            margin-bottom: 25px;
         }
 
-        .stars {
-            font-size: 3em;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 500px) {
-            h1 { font-size: 1.5em; }
-            .info-box { padding: 8px 15px; min-width: 90px; }
-            .info-value { font-size: 1.2em; }
-            .btn { padding: 10px 20px; font-size: 0.9em; }
+        .hint {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.9em;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
-    <h1><span class="crown">👑</span> Crown Crush <span class="crown">👑</span></h1>
+    <h1>👑 Save The King! 👑</h1>
 
     <div class="game-info">
         <div class="info-box">
@@ -181,721 +155,654 @@
             <div class="info-value" id="level">1</div>
         </div>
         <div class="info-box">
-            <div class="info-label">Score</div>
+            <div class="info-label">Rescued</div>
             <div class="info-value" id="score">0</div>
         </div>
-        <div class="info-box">
-            <div class="info-label">Moves</div>
-            <div class="info-value" id="moves">20</div>
-        </div>
-        <div class="info-box">
-            <div class="info-label">Target</div>
-            <div class="info-value" id="target">1000</div>
-        </div>
     </div>
 
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
 
-    <div id="message">Match 3 or more gems!</div>
+    <div id="message">Pull the pins to save the King!</div>
+    <div class="hint">Tap or drag the pins in the right order</div>
 
     <div class="buttons">
-        <button class="btn" onclick="resetLevel()">Restart Level</button>
-        <button class="btn secondary" onclick="newGame()">New Game</button>
+        <button class="btn" onclick="resetLevel()">Retry</button>
+        <button class="btn secondary" onclick="skipLevel()">Skip</button>
     </div>
 
-    <div class="level-complete" id="levelComplete">
-        <h2>Level Complete!</h2>
-        <div class="stars" id="stars">⭐⭐⭐</div>
-        <p id="levelScore">Score: 0</p>
+    <div class="overlay win" id="winOverlay">
+        <h2>👑 King Saved! 👑</h2>
+        <p id="winText">You're a hero!</p>
         <button class="btn" onclick="nextLevel()">Next Level</button>
+    </div>
+
+    <div class="overlay lose" id="loseOverlay">
+        <h2>💀 King Lost! 💀</h2>
+        <p id="loseText">Try again!</p>
+        <button class="btn" onclick="resetLevel()">Try Again</button>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Game constants
-        const GRID_SIZE = 8;
-        const GEM_SIZE = 48;
-        const PADDING = 4;
-        const BOARD_OFFSET = (canvas.width - GRID_SIZE * GEM_SIZE) / 2;
+        // Game state
+        let level = 1;
+        let score = 0;
+        let gameOver = false;
+        let won = false;
+        let pins = [];
+        let liquids = [];
+        let king = null;
+        let treasure = null;
+        let walls = [];
+        let dangers = [];
+        let particles = [];
 
-        // Gem types with colors and shapes
-        const GEM_TYPES = [
-            { color: '#ff4757', gradient: ['#ff6b7a', '#ff2f44'], shape: 'diamond' },    // Red
-            { color: '#2ed573', gradient: ['#5fe094', '#1fb854'], shape: 'circle' },     // Green
-            { color: '#3498db', gradient: ['#5dade2', '#2980b9'], shape: 'square' },     // Blue
-            { color: '#f39c12', gradient: ['#f5b041', '#d68910'], shape: 'triangle' },   // Orange
-            { color: '#9b59b6', gradient: ['#af7ac5', '#7d3c98'], shape: 'hexagon' },    // Purple
-            { color: '#1abc9c', gradient: ['#48c9b0', '#17a589'], shape: 'star' }        // Teal
+        // Physics
+        const GRAVITY = 0.3;
+        const LIQUID_SPREAD = 2;
+
+        // Levels configuration
+        const levels = [
+            // Level 1 - Simple intro
+            {
+                king: { x: 300, y: 420, saved: false },
+                treasure: { x: 300, y: 320 },
+                pins: [
+                    { x: 200, y: 250, width: 10, height: 80, pulled: false }
+                ],
+                walls: [
+                    { x: 150, y: 180, width: 120, height: 15 },
+                    { x: 150, y: 180, width: 15, height: 160 },
+                    { x: 255, y: 180, width: 15, height: 160 }
+                ],
+                liquids: [
+                    { x: 165, y: 190, width: 90, height: 60, type: 'gold', particles: [] }
+                ],
+                dangers: [],
+                hint: "Pull the pin to drop gold to the King!"
+            },
+            // Level 2 - Avoid lava
+            {
+                king: { x: 300, y: 420, saved: false },
+                treasure: { x: 300, y: 280 },
+                pins: [
+                    { x: 200, y: 200, width: 10, height: 80, pulled: false },
+                    { x: 320, y: 320, width: 10, height: 80, pulled: false }
+                ],
+                walls: [
+                    { x: 150, y: 130, width: 120, height: 15 },
+                    { x: 150, y: 130, width: 15, height: 150 },
+                    { x: 255, y: 130, width: 15, height: 150 },
+                    { x: 270, y: 250, width: 120, height: 15 },
+                    { x: 270, y: 250, width: 15, height: 150 },
+                    { x: 375, y: 250, width: 15, height: 150 }
+                ],
+                liquids: [
+                    { x: 165, y: 145, width: 90, height: 50, type: 'gold', particles: [] },
+                    { x: 285, y: 265, width: 90, height: 50, type: 'lava', particles: [] }
+                ],
+                dangers: [],
+                hint: "Get gold but avoid the lava!"
+            },
+            // Level 3 - Water flood
+            {
+                king: { x: 100, y: 420, saved: false },
+                treasure: { x: 100, y: 300 },
+                pins: [
+                    { x: 180, y: 200, width: 10, height: 100, pulled: false },
+                    { x: 50, y: 350, width: 80, height: 10, pulled: false }
+                ],
+                walls: [
+                    { x: 30, y: 280, width: 15, height: 200 },
+                    { x: 170, y: 280, width: 15, height: 200 },
+                    { x: 185, y: 130, width: 150, height: 15 },
+                    { x: 185, y: 130, width: 15, height: 170 },
+                    { x: 320, y: 130, width: 15, height: 350 }
+                ],
+                liquids: [
+                    { x: 200, y: 145, width: 120, height: 80, type: 'water', particles: [] }
+                ],
+                dangers: [],
+                hint: "Drain the water, then get to treasure!"
+            },
+            // Level 4 - Multi-step
+            {
+                king: { x: 320, y: 420, saved: false },
+                treasure: { x: 320, y: 320 },
+                pins: [
+                    { x: 100, y: 180, width: 10, height: 80, pulled: false },
+                    { x: 220, y: 280, width: 10, height: 80, pulled: false },
+                    { x: 270, y: 180, width: 10, height: 80, pulled: false }
+                ],
+                walls: [
+                    { x: 50, y: 120, width: 120, height: 15 },
+                    { x: 50, y: 120, width: 15, height: 140 },
+                    { x: 155, y: 120, width: 15, height: 140 },
+                    { x: 170, y: 210, width: 120, height: 15 },
+                    { x: 170, y: 210, width: 15, height: 150 },
+                    { x: 275, y: 210, width: 15, height: 150 },
+                    { x: 280, y: 120, width: 100, height: 15 },
+                    { x: 280, y: 120, width: 15, height: 140 },
+                    { x: 365, y: 120, width: 15, height: 360 }
+                ],
+                liquids: [
+                    { x: 65, y: 135, width: 90, height: 45, type: 'gold', particles: [] },
+                    { x: 185, y: 225, width: 90, height: 45, type: 'lava', particles: [] },
+                    { x: 295, y: 135, width: 70, height: 45, type: 'water', particles: [] }
+                ],
+                dangers: [],
+                hint: "Think carefully about the order!"
+            },
+            // Level 5 - Tight timing
+            {
+                king: { x: 200, y: 420, saved: false },
+                treasure: { x: 200, y: 250 },
+                pins: [
+                    { x: 130, y: 180, width: 10, height: 60, pulled: false },
+                    { x: 260, y: 180, width: 10, height: 60, pulled: false },
+                    { x: 195, y: 300, width: 10, height: 80, pulled: false }
+                ],
+                walls: [
+                    { x: 80, y: 120, width: 120, height: 15 },
+                    { x: 80, y: 120, width: 15, height: 120 },
+                    { x: 185, y: 120, width: 15, height: 120 },
+                    { x: 200, y: 120, width: 120, height: 15 },
+                    { x: 200, y: 120, width: 15, height: 120 },
+                    { x: 305, y: 120, width: 15, height: 120 },
+                    { x: 150, y: 380, width: 100, height: 15 },
+                    { x: 150, y: 300, width: 15, height: 95 },
+                    { x: 235, y: 300, width: 15, height: 95 }
+                ],
+                liquids: [
+                    { x: 95, y: 135, width: 90, height: 40, type: 'lava', particles: [] },
+                    { x: 215, y: 135, width: 90, height: 40, type: 'gold', particles: [] }
+                ],
+                dangers: [],
+                hint: "Block the lava first!"
+            },
+            // Level 6+
+            {
+                king: { x: 320, y: 430, saved: false },
+                treasure: { x: 80, y: 430 },
+                pins: [
+                    { x: 195, y: 150, width: 10, height: 100, pulled: false },
+                    { x: 195, y: 320, width: 10, height: 100, pulled: false }
+                ],
+                walls: [
+                    { x: 50, y: 100, width: 15, height: 380 },
+                    { x: 50, y: 100, width: 310, height: 15 },
+                    { x: 345, y: 100, width: 15, height: 380 },
+                    { x: 50, y: 250, width: 150, height: 15 },
+                    { x: 200, y: 250, width: 160, height: 15 }
+                ],
+                liquids: [
+                    { x: 65, y: 115, width: 130, height: 60, type: 'gold', particles: [] },
+                    { x: 205, y: 115, width: 140, height: 60, type: 'lava', particles: [] }
+                ],
+                dangers: [],
+                hint: "Guide the gold to the King!"
+            }
         ];
 
-        // Game state
-        let grid = [];
-        let selectedGem = null;
-        let score = 0;
-        let moves = 20;
-        let level = 1;
-        let targetScore = 1000;
-        let animating = false;
-        let particles = [];
-        let floatingTexts = [];
+        function loadLevel(levelNum) {
+            const levelData = levels[(levelNum - 1) % levels.length];
 
-        // Initialize game
-        function init() {
-            createGrid();
-            removeInitialMatches();
-            draw();
+            king = { ...levelData.king };
+            treasure = levelData.treasure ? { ...levelData.treasure } : null;
+            pins = levelData.pins.map(p => ({ ...p }));
+            walls = levelData.walls.map(w => ({ ...w }));
+            liquids = levelData.liquids.map(l => ({
+                ...l,
+                particles: createLiquidParticles(l)
+            }));
+            dangers = levelData.dangers ? levelData.dangers.map(d => ({ ...d })) : [];
+
+            document.getElementById('message').textContent = levelData.hint || "Pull the pins to save the King!";
+            gameOver = false;
+            won = false;
+            particles = [];
         }
 
-        function createGrid() {
-            grid = [];
-            for (let row = 0; row < GRID_SIZE; row++) {
-                grid[row] = [];
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    grid[row][col] = {
-                        type: Math.floor(Math.random() * GEM_TYPES.length),
-                        x: col * GEM_SIZE + BOARD_OFFSET,
-                        y: row * GEM_SIZE + BOARD_OFFSET,
-                        targetY: row * GEM_SIZE + BOARD_OFFSET,
-                        scale: 1,
-                        special: null // null, 'bomb', 'lightning', 'crown'
-                    };
+        function createLiquidParticles(liquid) {
+            const particles = [];
+            const cols = Math.floor(liquid.width / 8);
+            const rows = Math.floor(liquid.height / 8);
+
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    particles.push({
+                        x: liquid.x + i * 8 + 4,
+                        y: liquid.y + j * 8 + 4,
+                        vx: 0,
+                        vy: 0,
+                        settled: true
+                    });
                 }
             }
-        }
-
-        function removeInitialMatches() {
-            let hasMatches = true;
-            while (hasMatches) {
-                hasMatches = false;
-                for (let row = 0; row < GRID_SIZE; row++) {
-                    for (let col = 0; col < GRID_SIZE; col++) {
-                        if (checkMatchAt(row, col)) {
-                            grid[row][col].type = Math.floor(Math.random() * GEM_TYPES.length);
-                            hasMatches = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        function checkMatchAt(row, col) {
-            const type = grid[row][col].type;
-
-            // Check horizontal
-            let hCount = 1;
-            for (let c = col - 1; c >= 0 && grid[row][c].type === type; c--) hCount++;
-            for (let c = col + 1; c < GRID_SIZE && grid[row][c].type === type; c++) hCount++;
-
-            // Check vertical
-            let vCount = 1;
-            for (let r = row - 1; r >= 0 && grid[r][col].type === type; r--) vCount++;
-            for (let r = row + 1; r < GRID_SIZE && grid[r][col].type === type; r++) vCount++;
-
-            return hCount >= 3 || vCount >= 3;
+            return particles;
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Clear canvas with sky background
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw board background
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.roundRect(BOARD_OFFSET - 5, BOARD_OFFSET - 5,
-                         GRID_SIZE * GEM_SIZE + 10, GRID_SIZE * GEM_SIZE + 10, 15);
-            ctx.fill();
+            // Draw ground
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, canvas.height - 35, canvas.width, 10);
 
-            // Draw grid cells
-            for (let row = 0; row < GRID_SIZE; row++) {
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    const x = col * GEM_SIZE + BOARD_OFFSET;
-                    const y = row * GEM_SIZE + BOARD_OFFSET;
+            // Draw walls
+            walls.forEach(wall => {
+                const gradient = ctx.createLinearGradient(wall.x, wall.y, wall.x + wall.width, wall.y);
+                gradient.addColorStop(0, '#666');
+                gradient.addColorStop(0.5, '#888');
+                gradient.addColorStop(1, '#666');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
 
-                    ctx.fillStyle = (row + col) % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
-                    ctx.fillRect(x, y, GEM_SIZE, GEM_SIZE);
-                }
-            }
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
+            });
 
-            // Draw gems
-            for (let row = 0; row < GRID_SIZE; row++) {
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    const gem = grid[row][col];
-                    if (gem && gem.type >= 0) {
-                        drawGem(gem, row, col);
+            // Draw liquids
+            liquids.forEach(liquid => {
+                liquid.particles.forEach(p => {
+                    let color;
+                    if (liquid.type === 'gold') {
+                        color = '#FFD700';
+                    } else if (liquid.type === 'lava') {
+                        const flicker = Math.sin(Date.now() / 100 + p.x) * 20;
+                        color = `rgb(${255}, ${Math.floor(80 + flicker)}, 0)`;
+                    } else if (liquid.type === 'water') {
+                        color = '#4169E1';
                     }
+
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+
+            // Draw treasure
+            if (treasure) {
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(treasure.x - 25, treasure.y, 50, 35);
+                ctx.fillStyle = '#D2691E';
+                ctx.fillRect(treasure.x - 22, treasure.y + 3, 44, 29);
+                ctx.fillStyle = '#FFD700';
+                ctx.fillRect(treasure.x - 5, treasure.y + 10, 10, 15);
+
+                // Sparkle
+                ctx.fillStyle = '#FFF';
+                ctx.beginPath();
+                ctx.arc(treasure.x - 10, treasure.y + 8, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw pins
+            pins.forEach(pin => {
+                if (!pin.pulled) {
+                    // Pin body
+                    ctx.fillStyle = '#C0C0C0';
+                    ctx.fillRect(pin.x, pin.y, pin.width, pin.height);
+
+                    // Pin head (circle)
+                    ctx.fillStyle = '#FF4444';
+                    ctx.beginPath();
+                    ctx.arc(pin.x + pin.width/2, pin.y - 12, 15, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#CC0000';
+                    ctx.beginPath();
+                    ctx.arc(pin.x + pin.width/2, pin.y - 12, 10, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Shine
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.beginPath();
+                    ctx.arc(pin.x + pin.width/2 - 4, pin.y - 16, 4, 0, Math.PI * 2);
+                    ctx.fill();
                 }
-            }
+            });
 
-            // Draw selection highlight
-            if (selectedGem) {
-                const x = selectedGem.col * GEM_SIZE + BOARD_OFFSET;
-                const y = selectedGem.row * GEM_SIZE + BOARD_OFFSET;
-                ctx.strokeStyle = '#ffd700';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(x + 2, y + 2, GEM_SIZE - 4, GEM_SIZE - 4);
+            // Draw King
+            drawKing(king.x, king.y);
 
-                // Glow effect
-                ctx.shadowColor = '#ffd700';
-                ctx.shadowBlur = 15;
-                ctx.strokeRect(x + 2, y + 2, GEM_SIZE - 4, GEM_SIZE - 4);
-                ctx.shadowBlur = 0;
-            }
-
-            // Draw particles
+            // Draw effects particles
             particles.forEach((p, i) => {
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.2;
+                p.vy += 0.1;
                 p.life -= 0.02;
 
                 if (p.life > 0) {
                     ctx.globalAlpha = p.life;
                     ctx.fillStyle = p.color;
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.globalAlpha = 1;
                 }
             });
             particles = particles.filter(p => p.life > 0);
 
-            // Draw floating texts
-            floatingTexts.forEach((t, i) => {
-                t.y -= 1.5;
-                t.life -= 0.02;
-
-                if (t.life > 0) {
-                    ctx.globalAlpha = t.life;
-                    ctx.fillStyle = '#ffd700';
-                    ctx.font = 'bold 20px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('+' + t.value, t.x, t.y);
-                    ctx.globalAlpha = 1;
-                }
-            });
-            floatingTexts = floatingTexts.filter(t => t.life > 0);
+            // Win/lose effects
+            if (won) {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else if (gameOver) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
 
             requestAnimationFrame(draw);
         }
 
-        function drawGem(gem, row, col) {
-            const gemType = GEM_TYPES[gem.type];
-            const x = gem.x + GEM_SIZE / 2;
-            const y = gem.y + GEM_SIZE / 2;
-            const size = (GEM_SIZE - PADDING * 2) / 2 * gem.scale;
-
-            ctx.save();
-            ctx.translate(x, y);
-
-            // Create gradient
-            const gradient = ctx.createRadialGradient(-size/3, -size/3, 0, 0, 0, size);
-            gradient.addColorStop(0, gemType.gradient[0]);
-            gradient.addColorStop(1, gemType.gradient[1]);
-            ctx.fillStyle = gradient;
-
-            // Draw shape based on type
+        function drawKing(x, y) {
+            // Body
+            ctx.fillStyle = '#4169E1';
             ctx.beginPath();
-            switch (gemType.shape) {
-                case 'diamond':
-                    ctx.moveTo(0, -size);
-                    ctx.lineTo(size, 0);
-                    ctx.lineTo(0, size);
-                    ctx.lineTo(-size, 0);
-                    break;
-                case 'circle':
-                    ctx.arc(0, 0, size, 0, Math.PI * 2);
-                    break;
-                case 'square':
-                    ctx.roundRect(-size, -size, size * 2, size * 2, 8);
-                    break;
-                case 'triangle':
-                    ctx.moveTo(0, -size);
-                    ctx.lineTo(size, size * 0.7);
-                    ctx.lineTo(-size, size * 0.7);
-                    break;
-                case 'hexagon':
-                    for (let i = 0; i < 6; i++) {
-                        const angle = (i * Math.PI * 2) / 6 - Math.PI / 2;
-                        const px = Math.cos(angle) * size;
-                        const py = Math.sin(angle) * size;
-                        if (i === 0) ctx.moveTo(px, py);
-                        else ctx.lineTo(px, py);
-                    }
-                    break;
-                case 'star':
-                    for (let i = 0; i < 5; i++) {
-                        const outerAngle = (i * Math.PI * 2) / 5 - Math.PI / 2;
-                        const innerAngle = outerAngle + Math.PI / 5;
-                        const outerX = Math.cos(outerAngle) * size;
-                        const outerY = Math.sin(outerAngle) * size;
-                        const innerX = Math.cos(innerAngle) * size * 0.5;
-                        const innerY = Math.sin(innerAngle) * size * 0.5;
-                        if (i === 0) ctx.moveTo(outerX, outerY);
-                        else ctx.lineTo(outerX, outerY);
-                        ctx.lineTo(innerX, innerY);
-                    }
-                    break;
-            }
+            ctx.moveTo(x - 20, y + 50);
+            ctx.lineTo(x - 25, y + 10);
+            ctx.lineTo(x + 25, y + 10);
+            ctx.lineTo(x + 20, y + 50);
             ctx.closePath();
             ctx.fill();
 
-            // Add shine effect
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            // Cape
+            ctx.fillStyle = '#DC143C';
             ctx.beginPath();
-            ctx.ellipse(-size/4, -size/4, size/3, size/5, -Math.PI/4, 0, Math.PI * 2);
+            ctx.moveTo(x - 20, y + 15);
+            ctx.quadraticCurveTo(x - 35, y + 35, x - 25, y + 55);
+            ctx.lineTo(x - 18, y + 50);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x + 20, y + 15);
+            ctx.quadraticCurveTo(x + 35, y + 35, x + 25, y + 55);
+            ctx.lineTo(x + 18, y + 50);
+            ctx.closePath();
             ctx.fill();
 
-            // Draw special indicator
-            if (gem.special === 'bomb') {
-                ctx.fillStyle = '#000';
-                ctx.beginPath();
-                ctx.arc(0, 0, size * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#ff0';
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('💥', 0, 0);
-            } else if (gem.special === 'lightning') {
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 18px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('⚡', 0, 0);
-            } else if (gem.special === 'crown') {
-                ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 18px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('👑', 0, 0);
-            }
+            // Head
+            ctx.fillStyle = '#FFDAB9';
+            ctx.beginPath();
+            ctx.arc(x, y - 5, 20, 0, Math.PI * 2);
+            ctx.fill();
 
-            ctx.restore();
-        }
+            // Crown
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.moveTo(x - 18, y - 15);
+            ctx.lineTo(x - 15, y - 35);
+            ctx.lineTo(x - 8, y - 25);
+            ctx.lineTo(x, y - 40);
+            ctx.lineTo(x + 8, y - 25);
+            ctx.lineTo(x + 15, y - 35);
+            ctx.lineTo(x + 18, y - 15);
+            ctx.closePath();
+            ctx.fill();
 
-        function getGridPosition(clientX, clientY) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (clientX - rect.left) * scaleX;
-            const y = (clientY - rect.top) * scaleY;
+            // Crown jewels
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(x, y - 28, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#0000FF';
+            ctx.beginPath();
+            ctx.arc(x - 10, y - 20, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + 10, y - 20, 3, 0, Math.PI * 2);
+            ctx.fill();
 
-            const col = Math.floor((x - BOARD_OFFSET) / GEM_SIZE);
-            const row = Math.floor((y - BOARD_OFFSET) / GEM_SIZE);
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x - 7, y - 8, 3, 0, Math.PI * 2);
+            ctx.arc(x + 7, y - 8, 3, 0, Math.PI * 2);
+            ctx.fill();
 
-            if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
-                return { row, col };
-            }
-            return null;
-        }
-
-        function handleClick(clientX, clientY) {
-            if (animating || moves <= 0) return;
-
-            const pos = getGridPosition(clientX, clientY);
-            if (!pos) return;
-
-            if (selectedGem) {
-                const rowDiff = Math.abs(selectedGem.row - pos.row);
-                const colDiff = Math.abs(selectedGem.col - pos.col);
-
-                if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
-                    // Adjacent gem - try swap
-                    trySwap(selectedGem.row, selectedGem.col, pos.row, pos.col);
-                    selectedGem = null;
-                } else if (selectedGem.row === pos.row && selectedGem.col === pos.col) {
-                    // Same gem - deselect
-                    selectedGem = null;
-                } else {
-                    // Different gem - select new
-                    selectedGem = pos;
-                }
+            // Expression based on state
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (won) {
+                // Happy smile
+                ctx.arc(x, y, 10, 0.1 * Math.PI, 0.9 * Math.PI);
+            } else if (gameOver) {
+                // Sad face
+                ctx.arc(x, y + 15, 10, 1.1 * Math.PI, 1.9 * Math.PI);
             } else {
-                selectedGem = pos;
+                // Neutral/worried
+                ctx.moveTo(x - 8, y + 5);
+                ctx.lineTo(x + 8, y + 5);
             }
+            ctx.stroke();
+
+            // Beard
+            ctx.fillStyle = '#8B4513';
+            ctx.beginPath();
+            ctx.moveTo(x - 12, y + 5);
+            ctx.quadraticCurveTo(x, y + 25, x + 12, y + 5);
+            ctx.fill();
         }
 
-        async function trySwap(row1, col1, row2, col2) {
-            animating = true;
+        function update() {
+            if (gameOver) return;
 
-            // Swap gems
-            const temp = grid[row1][col1];
-            grid[row1][col1] = grid[row2][col2];
-            grid[row2][col2] = temp;
+            // Update liquid particles
+            liquids.forEach(liquid => {
+                liquid.particles.forEach(p => {
+                    if (!p.settled) {
+                        p.vy += GRAVITY;
+                        p.x += p.vx;
+                        p.y += p.vy;
 
-            // Animate swap
-            await animateSwap(row1, col1, row2, col2);
+                        // Wall collision
+                        walls.forEach(wall => {
+                            if (p.x > wall.x && p.x < wall.x + wall.width &&
+                                p.y > wall.y && p.y < wall.y + wall.height) {
+                                // Push out
+                                const fromLeft = p.x - wall.x;
+                                const fromRight = wall.x + wall.width - p.x;
+                                const fromTop = p.y - wall.y;
+                                const fromBottom = wall.y + wall.height - p.y;
 
-            // Check for matches
-            const matches = findMatches();
+                                const min = Math.min(fromLeft, fromRight, fromTop, fromBottom);
 
-            if (matches.length > 0) {
-                moves--;
-                updateUI();
-                await processMatches(matches);
-            } else {
-                // Swap back
-                const temp = grid[row1][col1];
-                grid[row1][col1] = grid[row2][col2];
-                grid[row2][col2] = temp;
-                await animateSwap(row1, col1, row2, col2);
-            }
+                                if (min === fromTop) {
+                                    p.y = wall.y - 1;
+                                    p.vy = 0;
+                                    p.vx += (Math.random() - 0.5) * 2;
+                                } else if (min === fromBottom) {
+                                    p.y = wall.y + wall.height + 1;
+                                    p.vy = Math.abs(p.vy) * 0.5;
+                                } else if (min === fromLeft) {
+                                    p.x = wall.x - 1;
+                                    p.vx = -Math.abs(p.vx) * 0.5;
+                                } else {
+                                    p.x = wall.x + wall.width + 1;
+                                    p.vx = Math.abs(p.vx) * 0.5;
+                                }
+                            }
+                        });
 
-            animating = false;
-            checkGameState();
-        }
+                        // Pin collision
+                        pins.forEach(pin => {
+                            if (!pin.pulled &&
+                                p.x > pin.x && p.x < pin.x + pin.width &&
+                                p.y > pin.y && p.y < pin.y + pin.height) {
+                                p.y = pin.y - 1;
+                                p.vy = 0;
+                                p.vx += (Math.random() - 0.5);
+                            }
+                        });
 
-        function animateSwap(row1, col1, row2, col2) {
-            return new Promise(resolve => {
-                const gem1 = grid[row1][col1];
-                const gem2 = grid[row2][col2];
+                        // Ground collision
+                        if (p.y > canvas.height - 35) {
+                            p.y = canvas.height - 35;
+                            p.vy = 0;
+                            p.vx *= 0.8;
+                            if (Math.abs(p.vx) < 0.1) p.vx = 0;
+                        }
 
-                const targetX1 = col1 * GEM_SIZE + BOARD_OFFSET;
-                const targetY1 = row1 * GEM_SIZE + BOARD_OFFSET;
-                const targetX2 = col2 * GEM_SIZE + BOARD_OFFSET;
-                const targetY2 = row2 * GEM_SIZE + BOARD_OFFSET;
+                        // Side walls
+                        if (p.x < 5) { p.x = 5; p.vx = Math.abs(p.vx) * 0.5; }
+                        if (p.x > canvas.width - 5) { p.x = canvas.width - 5; p.vx = -Math.abs(p.vx) * 0.5; }
 
-                let progress = 0;
-                const startX1 = gem1.x, startY1 = gem1.y;
-                const startX2 = gem2.x, startY2 = gem2.y;
-
-                function animate() {
-                    progress += 0.1;
-                    if (progress >= 1) {
-                        gem1.x = targetX1;
-                        gem1.y = targetY1;
-                        gem2.x = targetX2;
-                        gem2.y = targetY2;
-                        resolve();
-                        return;
+                        // Damping
+                        p.vx *= 0.99;
                     }
+                });
 
-                    const ease = 1 - Math.pow(1 - progress, 3);
-                    gem1.x = startX1 + (targetX1 - startX1) * ease;
-                    gem1.y = startY1 + (targetY1 - startY1) * ease;
-                    gem2.x = startX2 + (targetX2 - startX2) * ease;
-                    gem2.y = startY2 + (targetY2 - startY2) * ease;
+                // Check liquid touching king
+                liquid.particles.forEach(p => {
+                    const dx = p.x - king.x;
+                    const dy = p.y - king.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    requestAnimationFrame(animate);
+                    if (dist < 40) {
+                        if (liquid.type === 'gold') {
+                            // Win!
+                            if (!won && !gameOver) {
+                                won = true;
+                                gameOver = true;
+                                score++;
+                                createCelebration();
+                                setTimeout(() => {
+                                    document.getElementById('winOverlay').classList.add('show');
+                                }, 1000);
+                            }
+                        } else if (liquid.type === 'lava' || liquid.type === 'water') {
+                            // Lose!
+                            if (!gameOver) {
+                                gameOver = true;
+                                createSadEffect();
+                                setTimeout(() => {
+                                    document.getElementById('loseOverlay').classList.add('show');
+                                }, 1000);
+                            }
+                        }
+                    }
+                });
+            });
+
+            updateUI();
+            setTimeout(update, 16);
+        }
+
+        function pullPin(pin) {
+            if (pin.pulled || gameOver) return;
+
+            pin.pulled = true;
+
+            // Release liquids that were held by this pin
+            liquids.forEach(liquid => {
+                liquid.particles.forEach(p => {
+                    // Check if particle was resting on this pin
+                    if (p.x > pin.x - 20 && p.x < pin.x + pin.width + 20 &&
+                        p.y < pin.y + 10 && p.y > pin.y - 50) {
+                        p.settled = false;
+                        p.vy = 1;
+                    }
+                });
+            });
+
+            // Make all particles of liquids above this pin active
+            liquids.forEach(liquid => {
+                const liquidBottom = Math.max(...liquid.particles.map(p => p.y));
+                if (liquidBottom < pin.y + 20) {
+                    liquid.particles.forEach(p => {
+                        if (p.x > pin.x - 50 && p.x < pin.x + pin.width + 50) {
+                            p.settled = false;
+                        }
+                    });
                 }
-                animate();
             });
         }
 
-        function findMatches() {
-            const matches = [];
-            const checked = new Set();
-
-            for (let row = 0; row < GRID_SIZE; row++) {
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    const type = grid[row][col].type;
-
-                    // Check horizontal
-                    let hMatch = [{ row, col }];
-                    for (let c = col + 1; c < GRID_SIZE && grid[row][c].type === type; c++) {
-                        hMatch.push({ row, col: c });
-                    }
-
-                    if (hMatch.length >= 3) {
-                        const key = hMatch.map(p => `${p.row},${p.col}`).sort().join('|');
-                        if (!checked.has(key)) {
-                            checked.add(key);
-                            matches.push(hMatch);
-                        }
-                    }
-
-                    // Check vertical
-                    let vMatch = [{ row, col }];
-                    for (let r = row + 1; r < GRID_SIZE && grid[r][col].type === type; r++) {
-                        vMatch.push({ row: r, col });
-                    }
-
-                    if (vMatch.length >= 3) {
-                        const key = vMatch.map(p => `${p.row},${p.col}`).sort().join('|');
-                        if (!checked.has(key)) {
-                            checked.add(key);
-                            matches.push(vMatch);
-                        }
-                    }
-                }
-            }
-
-            return matches;
-        }
-
-        async function processMatches(matches) {
-            let combo = 1;
-
-            while (matches.length > 0) {
-                // Calculate score
-                let matchScore = 0;
-                const allMatched = new Set();
-
-                matches.forEach(match => {
-                    match.forEach(pos => {
-                        allMatched.add(`${pos.row},${pos.col}`);
-                    });
-
-                    // Bonus for longer matches
-                    const baseScore = 50;
-                    const lengthBonus = (match.length - 3) * 25;
-                    matchScore += (baseScore + lengthBonus) * combo;
-
-                    // Create special gems for 4+ matches
-                    if (match.length === 4) {
-                        const midIndex = Math.floor(match.length / 2);
-                        const specialPos = match[midIndex];
-                        grid[specialPos.row][specialPos.col].special = 'lightning';
-                    } else if (match.length >= 5) {
-                        const midIndex = Math.floor(match.length / 2);
-                        const specialPos = match[midIndex];
-                        grid[specialPos.row][specialPos.col].special = 'bomb';
-                    }
-                });
-
-                score += matchScore;
-                updateUI();
-
-                // Create particles and floating text
-                allMatched.forEach(key => {
-                    const [row, col] = key.split(',').map(Number);
-                    const gem = grid[row][col];
-                    const gemType = GEM_TYPES[gem.type];
-
-                    // Particles
-                    for (let i = 0; i < 8; i++) {
-                        particles.push({
-                            x: gem.x + GEM_SIZE / 2,
-                            y: gem.y + GEM_SIZE / 2,
-                            vx: (Math.random() - 0.5) * 8,
-                            vy: (Math.random() - 0.5) * 8 - 3,
-                            color: gemType.color,
-                            size: Math.random() * 6 + 3,
-                            life: 1
-                        });
-                    }
-                });
-
-                // Show combo text
-                if (combo > 1) {
-                    floatingTexts.push({
-                        x: canvas.width / 2,
-                        y: canvas.height / 2,
-                        value: `${combo}x COMBO!`,
-                        life: 1.5
-                    });
-                }
-
-                floatingTexts.push({
-                    x: canvas.width / 2,
-                    y: canvas.height / 2 + 30,
-                    value: matchScore,
+        function createCelebration() {
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: king.x,
+                    y: king.y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: -Math.random() * 10,
+                    color: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1'][Math.floor(Math.random() * 4)],
+                    size: Math.random() * 6 + 2,
                     life: 1
                 });
-
-                // Animate removal
-                await animateRemoval(allMatched);
-
-                // Drop gems
-                await dropGems();
-
-                // Fill new gems
-                await fillNewGems();
-
-                // Check for cascades
-                matches = findMatches();
-                combo++;
             }
-
-            document.getElementById('message').textContent = combo > 2 ?
-                `Amazing ${combo - 1}x Combo!` : 'Match 3 or more gems!';
         }
 
-        function animateRemoval(matchedSet) {
-            return new Promise(resolve => {
-                let progress = 0;
-
-                function animate() {
-                    progress += 0.1;
-
-                    matchedSet.forEach(key => {
-                        const [row, col] = key.split(',').map(Number);
-                        if (grid[row][col]) {
-                            grid[row][col].scale = 1 - progress;
-                        }
-                    });
-
-                    if (progress >= 1) {
-                        matchedSet.forEach(key => {
-                            const [row, col] = key.split(',').map(Number);
-                            // Keep special gems, clear regular ones
-                            if (grid[row][col] && !grid[row][col].special) {
-                                grid[row][col].type = -1;
-                            } else if (grid[row][col] && grid[row][col].special) {
-                                grid[row][col].scale = 1;
-                                grid[row][col].special = null;
-                            }
-                        });
-                        resolve();
-                        return;
-                    }
-
-                    requestAnimationFrame(animate);
-                }
-                animate();
-            });
-        }
-
-        function dropGems() {
-            return new Promise(resolve => {
-                let dropping = false;
-
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    let emptyRow = GRID_SIZE - 1;
-
-                    for (let row = GRID_SIZE - 1; row >= 0; row--) {
-                        if (grid[row][col].type >= 0) {
-                            if (row !== emptyRow) {
-                                grid[emptyRow][col] = grid[row][col];
-                                grid[row][col] = { type: -1, x: col * GEM_SIZE + BOARD_OFFSET, y: row * GEM_SIZE + BOARD_OFFSET, scale: 1 };
-                                grid[emptyRow][col].targetY = emptyRow * GEM_SIZE + BOARD_OFFSET;
-                                dropping = true;
-                            }
-                            emptyRow--;
-                        }
-                    }
-                }
-
-                if (!dropping) {
-                    resolve();
-                    return;
-                }
-
-                let progress = 0;
-                function animate() {
-                    progress += 0.08;
-                    let stillDropping = false;
-
-                    for (let row = 0; row < GRID_SIZE; row++) {
-                        for (let col = 0; col < GRID_SIZE; col++) {
-                            const gem = grid[row][col];
-                            if (gem.type >= 0 && gem.y < gem.targetY) {
-                                gem.y += (gem.targetY - gem.y) * 0.3 + 2;
-                                if (gem.y > gem.targetY) gem.y = gem.targetY;
-                                else stillDropping = true;
-                            }
-                        }
-                    }
-
-                    if (!stillDropping) {
-                        resolve();
-                        return;
-                    }
-                    requestAnimationFrame(animate);
-                }
-                animate();
-            });
-        }
-
-        function fillNewGems() {
-            return new Promise(resolve => {
-                let newGems = [];
-
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    let emptyCount = 0;
-                    for (let row = 0; row < GRID_SIZE; row++) {
-                        if (grid[row][col].type < 0) {
-                            emptyCount++;
-                            grid[row][col] = {
-                                type: Math.floor(Math.random() * GEM_TYPES.length),
-                                x: col * GEM_SIZE + BOARD_OFFSET,
-                                y: -emptyCount * GEM_SIZE + BOARD_OFFSET,
-                                targetY: row * GEM_SIZE + BOARD_OFFSET,
-                                scale: 1,
-                                special: null
-                            };
-                            newGems.push(grid[row][col]);
-                        }
-                    }
-                }
-
-                if (newGems.length === 0) {
-                    resolve();
-                    return;
-                }
-
-                function animate() {
-                    let stillFalling = false;
-
-                    newGems.forEach(gem => {
-                        if (gem.y < gem.targetY) {
-                            gem.y += (gem.targetY - gem.y) * 0.25 + 3;
-                            if (gem.y > gem.targetY) gem.y = gem.targetY;
-                            else stillFalling = true;
-                        }
-                    });
-
-                    if (!stillFalling) {
-                        resolve();
-                        return;
-                    }
-                    requestAnimationFrame(animate);
-                }
-                animate();
-            });
+        function createSadEffect() {
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: king.x,
+                    y: king.y - 20,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: -Math.random() * 5,
+                    color: '#666',
+                    size: Math.random() * 4 + 1,
+                    life: 1
+                });
+            }
         }
 
         function updateUI() {
-            document.getElementById('score').textContent = score;
-            document.getElementById('moves').textContent = moves;
             document.getElementById('level').textContent = level;
-            document.getElementById('target').textContent = targetScore;
+            document.getElementById('score').textContent = score;
         }
 
-        function checkGameState() {
-            if (score >= targetScore) {
-                // Level complete!
-                const stars = score >= targetScore * 2 ? '⭐⭐⭐' :
-                             score >= targetScore * 1.5 ? '⭐⭐' : '⭐';
-                document.getElementById('stars').textContent = stars;
-                document.getElementById('levelScore').textContent = `Score: ${score}`;
-                document.getElementById('levelComplete').classList.add('show');
-            } else if (moves <= 0) {
-                document.getElementById('message').textContent = 'Out of moves! Try again?';
-            }
+        function getClickPosition(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function handleClick(clientX, clientY) {
+            const pos = getClickPosition(clientX, clientY);
+
+            // Check if clicking on a pin
+            pins.forEach(pin => {
+                if (!pin.pulled &&
+                    pos.x > pin.x - 20 && pos.x < pin.x + pin.width + 20 &&
+                    pos.y > pin.y - 30 && pos.y < pin.y + pin.height + 10) {
+                    pullPin(pin);
+                }
+            });
         }
 
         function nextLevel() {
-            document.getElementById('levelComplete').classList.remove('show');
+            document.getElementById('winOverlay').classList.remove('show');
             level++;
-            targetScore = 1000 + (level - 1) * 500;
-            moves = Math.max(15, 25 - level);
-            score = 0;
-            createGrid();
-            removeInitialMatches();
-            updateUI();
-            document.getElementById('message').textContent = `Level ${level} - Target: ${targetScore}`;
+            loadLevel(level);
         }
 
         function resetLevel() {
-            moves = Math.max(15, 25 - level + 1);
-            score = 0;
-            createGrid();
-            removeInitialMatches();
-            updateUI();
-            document.getElementById('message').textContent = 'Match 3 or more gems!';
+            document.getElementById('winOverlay').classList.remove('show');
+            document.getElementById('loseOverlay').classList.remove('show');
+            loadLevel(level);
         }
 
-        function newGame() {
-            document.getElementById('levelComplete').classList.remove('show');
-            level = 1;
-            targetScore = 1000;
-            moves = 20;
-            score = 0;
-            createGrid();
-            removeInitialMatches();
-            updateUI();
-            document.getElementById('message').textContent = 'Match 3 or more gems!';
+        function skipLevel() {
+            document.getElementById('loseOverlay').classList.remove('show');
+            level++;
+            loadLevel(level);
         }
 
         // Event listeners
@@ -914,8 +821,9 @@
         }, { passive: false });
 
         // Start game
-        init();
+        loadLevel(1);
         draw();
+        update();
     </script>
 </body>
 </html>
