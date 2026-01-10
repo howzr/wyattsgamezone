@@ -256,6 +256,12 @@
         <button class="btn" onclick="nextLevel()">Save Next King!</button>
     </div>
 
+    <div class="level-complete" id="loseOverlay" style="background: rgba(50,0,0,0.9);">
+        <h2 style="color: #ff4444;">💀 The King Died! 💀</h2>
+        <p style="color: #aaa;">The traps got him...</p>
+        <button class="btn" onclick="resetLevel()">Try Again</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -353,15 +359,32 @@
         }
 
         let rescued = false;
+        let kingDead = false;
         let dangerTime = 0;
         let swordY = -30;
         let monsterX = -40;
         let lavaHeight = 0;
         let spikeY = -20;
+        let maxMoves = 20;
+        let shakeAmount = 0;
 
         function drawKing() {
             kingCtx.clearRect(0, 0, kingCanvas.width, kingCanvas.height);
             dangerTime += 0.05;
+
+            // Calculate danger based on moves remaining (not score)
+            const movesUsed = maxMoves - moves;
+            const danger = Math.min(1, movesUsed / maxMoves);
+
+            // Screen shake when danger is high
+            let offsetX = 0, offsetY = 0;
+            if (danger > 0.7 && !rescued && !kingDead) {
+                shakeAmount = Math.sin(dangerTime * 20) * (danger - 0.7) * 8;
+                offsetX = shakeAmount;
+            }
+
+            kingCtx.save();
+            kingCtx.translate(offsetX, offsetY);
 
             // Dark dungeon background
             const bgGrad = kingCtx.createLinearGradient(0, 0, 0, kingCanvas.height);
@@ -381,12 +404,87 @@
             const kingX = kingCanvas.width / 2;
             const kingY = 75;
 
-            if (!rescued) {
-                // Animate dangers based on how close to losing
-                const danger = 1 - Math.min(1, score / targetScore);
+            if (kingDead) {
+                // GAME OVER - traps got the King!
 
-                // Rising lava from bottom
-                lavaHeight = 25 * danger + Math.sin(dangerTime * 2) * 3;
+                // Full lava
+                const lavaGrad = kingCtx.createLinearGradient(0, 40, 0, kingCanvas.height);
+                lavaGrad.addColorStop(0, '#ff4500');
+                lavaGrad.addColorStop(1, '#8B0000');
+                kingCtx.fillStyle = lavaGrad;
+                kingCtx.fillRect(0, 40, kingCanvas.width, kingCanvas.height);
+
+                // Bubbling intensely
+                kingCtx.fillStyle = '#ff6600';
+                for (let i = 0; i < 10; i++) {
+                    const bx = Math.random() * kingCanvas.width;
+                    const by = 40 + Math.random() * 30;
+                    kingCtx.beginPath();
+                    kingCtx.arc(bx, by, 3 + Math.random() * 5, 0, Math.PI * 2);
+                    kingCtx.fill();
+                }
+
+                // Spikes all the way down
+                kingCtx.fillStyle = '#666';
+                for (let i = 0; i < 7; i++) {
+                    kingCtx.beginPath();
+                    kingCtx.moveTo(i * 30 + 15, 0);
+                    kingCtx.lineTo(i * 30 + 25, 40);
+                    kingCtx.lineTo(i * 30 + 5, 40);
+                    kingCtx.closePath();
+                    kingCtx.fill();
+                }
+
+                // Monsters celebrating
+                drawMonster(50, 20, false, true);
+                drawMonster(120, 25, true, true);
+
+                // Crown floating in lava
+                kingCtx.fillStyle = '#FFD700';
+                kingCtx.beginPath();
+                const crownY = 50 + Math.sin(dangerTime * 2) * 3;
+                kingCtx.moveTo(kingX - 8, crownY);
+                kingCtx.lineTo(kingX - 6, crownY - 12);
+                kingCtx.lineTo(kingX - 3, crownY - 6);
+                kingCtx.lineTo(kingX, crownY - 15);
+                kingCtx.lineTo(kingX + 3, crownY - 6);
+                kingCtx.lineTo(kingX + 6, crownY - 12);
+                kingCtx.lineTo(kingX + 8, crownY);
+                kingCtx.closePath();
+                kingCtx.fill();
+
+                // Skull where king was
+                kingCtx.fillStyle = '#ddd';
+                kingCtx.beginPath();
+                kingCtx.arc(kingX, 70, 12, 0, Math.PI * 2);
+                kingCtx.fill();
+                kingCtx.fillStyle = '#000';
+                kingCtx.beginPath();
+                kingCtx.arc(kingX - 4, 67, 3, 0, Math.PI * 2);
+                kingCtx.arc(kingX + 4, 67, 3, 0, Math.PI * 2);
+                kingCtx.fill();
+                kingCtx.beginPath();
+                kingCtx.moveTo(kingX - 3, 75);
+                kingCtx.lineTo(kingX + 3, 75);
+                kingCtx.lineTo(kingX + 3, 78);
+                kingCtx.lineTo(kingX + 1, 78);
+                kingCtx.lineTo(kingX + 1, 76);
+                kingCtx.lineTo(kingX - 1, 76);
+                kingCtx.lineTo(kingX - 1, 78);
+                kingCtx.lineTo(kingX - 3, 78);
+                kingCtx.closePath();
+                kingCtx.fill();
+
+                // Dark overlay
+                kingCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                kingCtx.fillRect(0, 0, kingCanvas.width, kingCanvas.height);
+
+                document.getElementById('dangerLabel').textContent = '💀 THE KING IS DEAD! 💀';
+                document.getElementById('dangerLabel').style.color = '#ff0000';
+
+            } else if (!rescued) {
+                // Rising lava from bottom - based on moves used
+                lavaHeight = 10 + (50 * danger) + Math.sin(dangerTime * 2) * 3;
                 const lavaGrad = kingCtx.createLinearGradient(0, kingCanvas.height - lavaHeight, 0, kingCanvas.height);
                 lavaGrad.addColorStop(0, '#ff4500');
                 lavaGrad.addColorStop(0.5, '#ff0000');
@@ -394,76 +492,124 @@
                 kingCtx.fillStyle = lavaGrad;
                 kingCtx.fillRect(0, kingCanvas.height - lavaHeight, kingCanvas.width, lavaHeight);
 
-                // Lava bubbles
+                // Lava bubbles - more when danger is high
                 kingCtx.fillStyle = '#ff6600';
-                for (let i = 0; i < 5; i++) {
-                    const bx = 20 + i * 40 + Math.sin(dangerTime + i) * 5;
+                const bubbleCount = 3 + Math.floor(danger * 7);
+                for (let i = 0; i < bubbleCount; i++) {
+                    const bx = 20 + i * (180 / bubbleCount) + Math.sin(dangerTime + i) * 5;
                     const by = kingCanvas.height - lavaHeight + Math.sin(dangerTime * 3 + i) * 5;
                     kingCtx.beginPath();
-                    kingCtx.arc(bx, by, 4 + Math.sin(dangerTime + i) * 2, 0, Math.PI * 2);
+                    kingCtx.arc(bx, by, 3 + Math.sin(dangerTime + i) * 2 + danger * 3, 0, Math.PI * 2);
                     kingCtx.fill();
                 }
 
-                // Falling swords from top
-                swordY = -10 + (30 * danger) + Math.sin(dangerTime * 1.5) * 8;
-                drawSword(30, swordY, 0.8);
-                drawSword(170, swordY + 10, 0.8);
+                // Falling swords from top - closer as danger increases
+                swordY = -20 + (50 * danger) + Math.sin(dangerTime * 1.5) * 8;
+                drawSword(25, swordY, 0.7);
+                drawSword(175, swordY + 5, 0.7);
 
-                // Spikes from ceiling
-                spikeY = -5 + (20 * danger) + Math.sin(dangerTime * 2) * 5;
-                kingCtx.fillStyle = '#666';
+                // Spikes from ceiling - descending
+                spikeY = -15 + (35 * danger) + Math.sin(dangerTime * 2) * 5;
+                kingCtx.fillStyle = '#555';
                 for (let i = 0; i < 7; i++) {
                     kingCtx.beginPath();
                     kingCtx.moveTo(i * 30 + 15, spikeY);
-                    kingCtx.lineTo(i * 30 + 25, spikeY + 25);
-                    kingCtx.lineTo(i * 30 + 5, spikeY + 25);
+                    kingCtx.lineTo(i * 30 + 25, spikeY + 30);
+                    kingCtx.lineTo(i * 30 + 5, spikeY + 30);
                     kingCtx.closePath();
                     kingCtx.fill();
                 }
-                // Spike shine
-                kingCtx.fillStyle = '#888';
+                kingCtx.fillStyle = '#777';
                 for (let i = 0; i < 7; i++) {
                     kingCtx.beginPath();
                     kingCtx.moveTo(i * 30 + 15, spikeY);
-                    kingCtx.lineTo(i * 30 + 18, spikeY + 15);
-                    kingCtx.lineTo(i * 30 + 12, spikeY + 15);
+                    kingCtx.lineTo(i * 30 + 18, spikeY + 18);
+                    kingCtx.lineTo(i * 30 + 12, spikeY + 18);
                     kingCtx.closePath();
                     kingCtx.fill();
                 }
 
-                // Monster approaching from left
-                monsterX = -20 + (50 * danger) + Math.sin(dangerTime) * 5;
-                drawMonster(monsterX, 60);
+                // Monsters approaching - trying to break in!
+                monsterX = -30 + (70 * danger) + Math.sin(dangerTime) * 5;
 
-                // Monster approaching from right
-                drawMonster(kingCanvas.width - monsterX - 30, 70, true);
-            }
+                // Left monster banging on wall
+                drawMonster(monsterX, 55, false, false, danger > 0.5);
 
-            // Draw the King
-            drawKingCharacter(kingX, kingY, 0.6);
+                // Right monster trying to get in
+                drawMonster(kingCanvas.width - monsterX - 30, 60, true, false, danger > 0.6);
 
-            if (rescued) {
+                // Cracks in the walls when monsters bang
+                if (danger > 0.5) {
+                    kingCtx.strokeStyle = '#222';
+                    kingCtx.lineWidth = 2;
+                    // Left cracks
+                    kingCtx.beginPath();
+                    kingCtx.moveTo(monsterX + 35, 50);
+                    kingCtx.lineTo(monsterX + 45, 60);
+                    kingCtx.lineTo(monsterX + 40, 75);
+                    kingCtx.stroke();
+                    // Right cracks
+                    kingCtx.beginPath();
+                    kingCtx.moveTo(kingCanvas.width - monsterX - 35, 55);
+                    kingCtx.lineTo(kingCanvas.width - monsterX - 45, 65);
+                    kingCtx.lineTo(kingCanvas.width - monsterX - 40, 80);
+                    kingCtx.stroke();
+                }
+
+                // Draw the King (scared!)
+                drawKingCharacter(kingX, kingY, 0.55, danger);
+
+                // Warning flashes when danger is high
+                if (danger > 0.8) {
+                    const flash = Math.sin(dangerTime * 10) > 0 ? 0.2 : 0;
+                    kingCtx.fillStyle = `rgba(255, 0, 0, ${flash})`;
+                    kingCtx.fillRect(0, 0, kingCanvas.width, kingCanvas.height);
+                }
+
+                // Update danger label based on danger level
+                if (danger > 0.8) {
+                    document.getElementById('dangerLabel').textContent = '🔥 CRITICAL! SAVE HIM NOW! 🔥';
+                } else if (danger > 0.5) {
+                    document.getElementById('dangerLabel').textContent = '⚠️ HURRY! Traps closing in! ⚠️';
+                } else {
+                    document.getElementById('dangerLabel').textContent = '⚠️ DANGER! Save the King! ⚠️';
+                }
+                document.getElementById('dangerLabel').style.color = danger > 0.7 ? '#ff0000' : '#ff4444';
+
+            } else {
+                // RESCUED! Victory scene
+
+                // Draw the King (happy!)
+                drawKingCharacter(kingX, kingY, 0.55, 0, true);
+
                 // Victory glow
                 kingCtx.fillStyle = `rgba(255, 215, 0, ${0.2 + Math.sin(dangerTime * 3) * 0.1})`;
                 kingCtx.fillRect(0, 0, kingCanvas.width, kingCanvas.height);
 
-                // Sparkles
+                // Sparkles everywhere
                 kingCtx.fillStyle = '#fff';
-                for (let i = 0; i < 8; i++) {
-                    const sx = Math.sin(dangerTime + i * 0.8) * 80 + 100;
-                    const sy = Math.cos(dangerTime + i * 0.8) * 40 + 60;
+                for (let i = 0; i < 12; i++) {
+                    const sx = Math.sin(dangerTime * 2 + i * 0.5) * 90 + 100;
+                    const sy = Math.cos(dangerTime * 2 + i * 0.5) * 50 + 60;
+                    const size = 2 + Math.sin(dangerTime * 3 + i) * 1;
                     kingCtx.beginPath();
-                    kingCtx.arc(sx, sy, 2, 0, Math.PI * 2);
+                    kingCtx.arc(sx, sy, size, 0, Math.PI * 2);
                     kingCtx.fill();
                 }
 
-                document.getElementById('dangerLabel').textContent = '✨ KING SAVED! ✨';
+                // Confetti
+                for (let i = 0; i < 15; i++) {
+                    const cx = (dangerTime * 30 + i * 40) % 220 - 10;
+                    const cy = (dangerTime * 50 + i * 30) % 140 - 10;
+                    kingCtx.fillStyle = ['#ff0', '#f0f', '#0ff', '#0f0', '#f00'][i % 5];
+                    kingCtx.fillRect(cx, cy, 6, 6);
+                }
+
+                document.getElementById('dangerLabel').textContent = '👑 KING SAVED! 👑';
                 document.getElementById('dangerLabel').style.color = '#ffd700';
-            } else {
-                document.getElementById('dangerLabel').textContent = '⚠️ DANGER! Save the King! ⚠️';
-                document.getElementById('dangerLabel').style.color = '#ff4444';
             }
 
+            kingCtx.restore();
             requestAnimationFrame(drawKing);
         }
 
@@ -497,10 +643,31 @@
             kingCtx.restore();
         }
 
-        function drawMonster(x, y, flip = false) {
+        function drawMonster(x, y, flip = false, celebrating = false, attacking = false) {
             kingCtx.save();
             kingCtx.translate(x, y);
             if (flip) kingCtx.scale(-1, 1);
+
+            // Attacking animation - arm raised
+            if (attacking) {
+                const armSwing = Math.sin(dangerTime * 8) * 15;
+                kingCtx.fillStyle = '#4a0080';
+                kingCtx.beginPath();
+                kingCtx.moveTo(28, 15);
+                kingCtx.lineTo(40 + armSwing, -5 + Math.abs(armSwing/2));
+                kingCtx.lineTo(45 + armSwing, 0 + Math.abs(armSwing/2));
+                kingCtx.lineTo(32, 20);
+                kingCtx.closePath();
+                kingCtx.fill();
+
+                // Claws
+                kingCtx.fillStyle = '#fff';
+                kingCtx.beginPath();
+                kingCtx.moveTo(40 + armSwing, -5);
+                kingCtx.lineTo(48 + armSwing, -12);
+                kingCtx.lineTo(43 + armSwing, -3);
+                kingCtx.fill();
+            }
 
             // Body
             kingCtx.fillStyle = '#4a0080';
@@ -508,28 +675,58 @@
             kingCtx.arc(15, 20, 18, 0, Math.PI * 2);
             kingCtx.fill();
 
-            // Eyes (glowing red)
-            kingCtx.fillStyle = '#ff0000';
-            kingCtx.shadowColor = '#ff0000';
-            kingCtx.shadowBlur = 8;
-            kingCtx.beginPath();
-            kingCtx.arc(8, 15, 4, 0, Math.PI * 2);
-            kingCtx.arc(22, 15, 4, 0, Math.PI * 2);
-            kingCtx.fill();
-            kingCtx.shadowBlur = 0;
+            // Eyes (glowing red, or happy if celebrating)
+            if (celebrating) {
+                // Happy curved eyes
+                kingCtx.strokeStyle = '#ff0';
+                kingCtx.lineWidth = 3;
+                kingCtx.beginPath();
+                kingCtx.arc(8, 15, 5, 0.2 * Math.PI, 0.8 * Math.PI);
+                kingCtx.stroke();
+                kingCtx.beginPath();
+                kingCtx.arc(22, 15, 5, 0.2 * Math.PI, 0.8 * Math.PI);
+                kingCtx.stroke();
+            } else {
+                kingCtx.fillStyle = '#ff0000';
+                kingCtx.shadowColor = '#ff0000';
+                kingCtx.shadowBlur = attacking ? 15 : 8;
+                kingCtx.beginPath();
+                kingCtx.arc(8, 15, attacking ? 5 : 4, 0, Math.PI * 2);
+                kingCtx.arc(22, 15, attacking ? 5 : 4, 0, Math.PI * 2);
+                kingCtx.fill();
+                kingCtx.shadowBlur = 0;
+            }
 
-            // Teeth
-            kingCtx.fillStyle = '#fff';
-            kingCtx.beginPath();
-            kingCtx.moveTo(5, 28);
-            kingCtx.lineTo(8, 35);
-            kingCtx.lineTo(11, 28);
-            kingCtx.fill();
-            kingCtx.beginPath();
-            kingCtx.moveTo(19, 28);
-            kingCtx.lineTo(22, 35);
-            kingCtx.lineTo(25, 28);
-            kingCtx.fill();
+            // Mouth
+            if (celebrating) {
+                // Big happy smile
+                kingCtx.fillStyle = '#300060';
+                kingCtx.beginPath();
+                kingCtx.arc(15, 28, 8, 0, Math.PI);
+                kingCtx.fill();
+                kingCtx.fillStyle = '#ff0';
+                kingCtx.fillRect(11, 28, 3, 4);
+                kingCtx.fillRect(16, 28, 3, 4);
+            } else {
+                // Teeth - more aggressive when attacking
+                kingCtx.fillStyle = '#fff';
+                const teethSize = attacking ? 10 : 7;
+                kingCtx.beginPath();
+                kingCtx.moveTo(5, 28);
+                kingCtx.lineTo(8, 28 + teethSize);
+                kingCtx.lineTo(11, 28);
+                kingCtx.fill();
+                kingCtx.beginPath();
+                kingCtx.moveTo(12, 28);
+                kingCtx.lineTo(15, 28 + teethSize - 2);
+                kingCtx.lineTo(18, 28);
+                kingCtx.fill();
+                kingCtx.beginPath();
+                kingCtx.moveTo(19, 28);
+                kingCtx.lineTo(22, 28 + teethSize);
+                kingCtx.lineTo(25, 28);
+                kingCtx.fill();
+            }
 
             // Horns
             kingCtx.fillStyle = '#2a0050';
@@ -546,126 +743,180 @@
             kingCtx.closePath();
             kingCtx.fill();
 
+            // Drool when attacking
+            if (attacking) {
+                kingCtx.fillStyle = '#8f8';
+                kingCtx.beginPath();
+                const droolY = 35 + Math.sin(dangerTime * 5) * 3;
+                kingCtx.ellipse(10, droolY, 2, 4 + Math.sin(dangerTime * 3) * 2, 0, 0, Math.PI * 2);
+                kingCtx.fill();
+            }
+
             kingCtx.restore();
         }
 
-        function drawKingCharacter(x, y, s) {
+        function drawKingCharacter(x, y, s, danger = 0, isRescued = false) {
+            // Shake when scared
+            const shakeX = !isRescued && danger > 0.5 ? Math.sin(dangerTime * 15) * danger * 3 : 0;
+
             // Body
             kingCtx.fillStyle = '#4169E1';
             kingCtx.beginPath();
-            kingCtx.moveTo(x - 14*s, y + 35*s);
-            kingCtx.lineTo(x - 17*s, y + 8*s);
-            kingCtx.lineTo(x + 17*s, y + 8*s);
-            kingCtx.lineTo(x + 14*s, y + 35*s);
+            kingCtx.moveTo(x - 14*s + shakeX, y + 35*s);
+            kingCtx.lineTo(x - 17*s + shakeX, y + 8*s);
+            kingCtx.lineTo(x + 17*s + shakeX, y + 8*s);
+            kingCtx.lineTo(x + 14*s + shakeX, y + 35*s);
             kingCtx.closePath();
             kingCtx.fill();
 
-            // Cape
+            // Cape (fluttering when scared)
             kingCtx.fillStyle = '#DC143C';
+            const capeWave = !isRescued ? Math.sin(dangerTime * 8) * 5 * danger : 0;
             kingCtx.beginPath();
-            kingCtx.moveTo(x - 14*s, y + 10*s);
-            kingCtx.quadraticCurveTo(x - 24*s, y + 24*s, x - 17*s, y + 38*s);
-            kingCtx.lineTo(x - 12*s, y + 35*s);
+            kingCtx.moveTo(x - 14*s + shakeX, y + 10*s);
+            kingCtx.quadraticCurveTo(x - 24*s - capeWave + shakeX, y + 24*s, x - 17*s + shakeX, y + 38*s);
+            kingCtx.lineTo(x - 12*s + shakeX, y + 35*s);
             kingCtx.closePath();
             kingCtx.fill();
             kingCtx.beginPath();
-            kingCtx.moveTo(x + 14*s, y + 10*s);
-            kingCtx.quadraticCurveTo(x + 24*s, y + 24*s, x + 17*s, y + 38*s);
-            kingCtx.lineTo(x + 12*s, y + 35*s);
+            kingCtx.moveTo(x + 14*s + shakeX, y + 10*s);
+            kingCtx.quadraticCurveTo(x + 24*s + capeWave + shakeX, y + 24*s, x + 17*s + shakeX, y + 38*s);
+            kingCtx.lineTo(x + 12*s + shakeX, y + 35*s);
             kingCtx.closePath();
             kingCtx.fill();
+
+            // Arms raised in fear when danger is high
+            if (!isRescued && danger > 0.6) {
+                kingCtx.fillStyle = '#FFDAB9';
+                // Left arm up
+                kingCtx.beginPath();
+                kingCtx.ellipse(x - 18*s + shakeX, y - 5*s, 4*s, 8*s, -0.3, 0, Math.PI * 2);
+                kingCtx.fill();
+                // Right arm up
+                kingCtx.beginPath();
+                kingCtx.ellipse(x + 18*s + shakeX, y - 5*s, 4*s, 8*s, 0.3, 0, Math.PI * 2);
+                kingCtx.fill();
+            }
 
             // Head
             kingCtx.fillStyle = '#FFDAB9';
             kingCtx.beginPath();
-            kingCtx.arc(x, y - 4*s, 14*s, 0, Math.PI * 2);
+            kingCtx.arc(x + shakeX, y - 4*s, 14*s, 0, Math.PI * 2);
             kingCtx.fill();
 
-            // Crown
+            // Crown (tilted when scared)
+            kingCtx.save();
+            kingCtx.translate(x + shakeX, y - 11*s);
+            if (!isRescued && danger > 0.3) {
+                kingCtx.rotate(Math.sin(dangerTime * 10) * 0.1 * danger);
+            }
             kingCtx.fillStyle = '#FFD700';
             kingCtx.beginPath();
-            kingCtx.moveTo(x - 12*s, y - 11*s);
-            kingCtx.lineTo(x - 10*s, y - 26*s);
-            kingCtx.lineTo(x - 5*s, y - 18*s);
-            kingCtx.lineTo(x, y - 29*s);
-            kingCtx.lineTo(x + 5*s, y - 18*s);
-            kingCtx.lineTo(x + 10*s, y - 26*s);
-            kingCtx.lineTo(x + 12*s, y - 11*s);
+            kingCtx.moveTo(-12*s, 0);
+            kingCtx.lineTo(-10*s, -15*s);
+            kingCtx.lineTo(-5*s, -7*s);
+            kingCtx.lineTo(0, -18*s);
+            kingCtx.lineTo(5*s, -7*s);
+            kingCtx.lineTo(10*s, -15*s);
+            kingCtx.lineTo(12*s, 0);
             kingCtx.closePath();
             kingCtx.fill();
-
             // Crown jewel
             kingCtx.fillStyle = '#FF0000';
             kingCtx.beginPath();
-            kingCtx.arc(x, y - 20*s, 2.5*s, 0, Math.PI * 2);
+            kingCtx.arc(0, -9*s, 2.5*s, 0, Math.PI * 2);
             kingCtx.fill();
+            kingCtx.restore();
 
-            // Eyes - always worried when in danger
+            // Eyes based on fear level
             kingCtx.fillStyle = '#000';
-            if (rescued) {
-                // Happy eyes
-                kingCtx.beginPath();
-                kingCtx.arc(x - 5*s, y - 5*s, 2.5*s, 0, Math.PI * 2);
-                kingCtx.arc(x + 5*s, y - 5*s, 2.5*s, 0, Math.PI * 2);
-                kingCtx.fill();
-            } else {
-                // Scared eyes (wide)
-                kingCtx.beginPath();
-                kingCtx.arc(x - 5*s, y - 5*s, 3.5*s, 0, Math.PI * 2);
-                kingCtx.arc(x + 5*s, y - 5*s, 3.5*s, 0, Math.PI * 2);
-                kingCtx.fill();
-                kingCtx.fillStyle = '#fff';
-                kingCtx.beginPath();
-                kingCtx.arc(x - 6*s, y - 6*s, 1.5*s, 0, Math.PI * 2);
-                kingCtx.arc(x + 4*s, y - 6*s, 1.5*s, 0, Math.PI * 2);
-                kingCtx.fill();
-                // Worried eyebrows
+            if (isRescued) {
+                // Happy closed eyes
                 kingCtx.strokeStyle = '#000';
                 kingCtx.lineWidth = 2;
                 kingCtx.beginPath();
-                kingCtx.moveTo(x - 9*s, y - 12*s);
-                kingCtx.lineTo(x - 2*s, y - 10*s);
-                kingCtx.moveTo(x + 9*s, y - 12*s);
-                kingCtx.lineTo(x + 2*s, y - 10*s);
+                kingCtx.arc(x - 5*s + shakeX, y - 5*s, 4*s, 0.1 * Math.PI, 0.9 * Math.PI);
+                kingCtx.stroke();
+                kingCtx.beginPath();
+                kingCtx.arc(x + 5*s + shakeX, y - 5*s, 4*s, 0.1 * Math.PI, 0.9 * Math.PI);
+                kingCtx.stroke();
+            } else {
+                // Scared eyes - bigger when more danger
+                const eyeSize = 2.5 + danger * 2;
+                kingCtx.beginPath();
+                kingCtx.arc(x - 5*s + shakeX, y - 5*s, eyeSize*s, 0, Math.PI * 2);
+                kingCtx.arc(x + 5*s + shakeX, y - 5*s, eyeSize*s, 0, Math.PI * 2);
+                kingCtx.fill();
+
+                // White reflection (pupils dilated in fear)
+                kingCtx.fillStyle = '#fff';
+                kingCtx.beginPath();
+                kingCtx.arc(x - 6*s + shakeX, y - 6*s, (1 + danger)*s, 0, Math.PI * 2);
+                kingCtx.arc(x + 4*s + shakeX, y - 6*s, (1 + danger)*s, 0, Math.PI * 2);
+                kingCtx.fill();
+
+                // Worried eyebrows - more angled when more scared
+                kingCtx.strokeStyle = '#000';
+                kingCtx.lineWidth = 2;
+                kingCtx.beginPath();
+                kingCtx.moveTo(x - 10*s + shakeX, y - 12*s - danger * 3*s);
+                kingCtx.lineTo(x - 2*s + shakeX, y - 10*s);
+                kingCtx.moveTo(x + 10*s + shakeX, y - 12*s - danger * 3*s);
+                kingCtx.lineTo(x + 2*s + shakeX, y - 10*s);
                 kingCtx.stroke();
             }
 
             // Mouth
-            kingCtx.strokeStyle = '#000';
-            kingCtx.lineWidth = 2;
-            kingCtx.beginPath();
-            if (rescued) {
-                kingCtx.arc(x, y + 2*s, 6*s, 0.1 * Math.PI, 0.9 * Math.PI);
-            } else {
-                // Scared open mouth
-                kingCtx.fillStyle = '#000';
+            if (isRescued) {
+                // Big happy smile
+                kingCtx.strokeStyle = '#000';
+                kingCtx.lineWidth = 2;
                 kingCtx.beginPath();
-                kingCtx.ellipse(x, y + 5*s, 5*s, 7*s, 0, 0, Math.PI * 2);
+                kingCtx.arc(x + shakeX, y + 2*s, 7*s, 0.1 * Math.PI, 0.9 * Math.PI);
+                kingCtx.stroke();
+            } else {
+                // Scared screaming mouth - bigger when more danger
+                const mouthHeight = 5 + danger * 5;
+                kingCtx.fillStyle = '#300';
+                kingCtx.beginPath();
+                kingCtx.ellipse(x + shakeX, y + 5*s, 5*s, mouthHeight*s, 0, 0, Math.PI * 2);
                 kingCtx.fill();
+
+                // Tongue if really scared
+                if (danger > 0.7) {
+                    kingCtx.fillStyle = '#c66';
+                    kingCtx.beginPath();
+                    kingCtx.ellipse(x + shakeX, y + 8*s, 3*s, 4*s, 0, 0, Math.PI);
+                    kingCtx.fill();
+                }
             }
-            kingCtx.stroke();
 
             // Beard
             kingCtx.fillStyle = '#8B4513';
             kingCtx.beginPath();
-            kingCtx.moveTo(x - 8*s, y + 4*s);
-            kingCtx.quadraticCurveTo(x, y + 18*s, x + 8*s, y + 4*s);
+            kingCtx.moveTo(x - 8*s + shakeX, y + 4*s);
+            kingCtx.quadraticCurveTo(x + shakeX, y + 18*s, x + 8*s + shakeX, y + 4*s);
             kingCtx.fill();
 
-            // Sweat drops when scared
-            if (!rescued) {
+            // Sweat drops - more when more scared
+            if (!isRescued) {
                 kingCtx.fillStyle = '#87CEEB';
-                kingCtx.beginPath();
-                kingCtx.ellipse(x + 12*s, y - 2*s + Math.sin(dangerTime * 5) * 2, 2*s, 3*s, 0, 0, Math.PI * 2);
-                kingCtx.fill();
+                const sweatCount = Math.floor(1 + danger * 3);
+                for (let i = 0; i < sweatCount; i++) {
+                    const sweatY = y - 2*s + Math.sin(dangerTime * 5 + i) * 3 + i * 8;
+                    const sweatX = x + 13*s + shakeX + Math.sin(dangerTime * 3 + i * 2) * 2;
+                    kingCtx.beginPath();
+                    kingCtx.ellipse(sweatX, sweatY, 2*s, 3*s, 0, 0, Math.PI * 2);
+                    kingCtx.fill();
+                }
             }
 
-            // Blush when happy
-            if (rescued) {
+            // Blush and sparkles when happy
+            if (isRescued) {
                 kingCtx.fillStyle = 'rgba(255, 150, 150, 0.5)';
                 kingCtx.beginPath();
-                kingCtx.arc(x - 10*s, y, 3*s, 0, Math.PI * 2);
-                kingCtx.arc(x + 10*s, y, 3*s, 0, Math.PI * 2);
+                kingCtx.arc(x - 10*s + shakeX, y, 3*s, 0, Math.PI * 2);
+                kingCtx.arc(x + 10*s + shakeX, y, 3*s, 0, Math.PI * 2);
                 kingCtx.fill();
             }
         }
@@ -1178,6 +1429,7 @@
         function checkGameState() {
             if (score >= targetScore) {
                 rescued = true;
+                kingDead = false;
                 setKingMood('excited', getRandomPhrase('win'));
                 const stars = score >= targetScore * 2 ? '⭐⭐⭐' :
                              score >= targetScore * 1.5 ? '⭐⭐' : '⭐';
@@ -1187,17 +1439,26 @@
                     document.getElementById('levelComplete').classList.add('show');
                 }, 500);
             } else if (moves <= 0) {
+                // King dies!
+                kingDead = true;
+                rescued = false;
                 setKingMood('worried', getRandomPhrase('lose'));
+                setTimeout(() => {
+                    document.getElementById('loseOverlay').classList.add('show');
+                }, 1500);
             }
         }
 
         function nextLevel() {
             document.getElementById('levelComplete').classList.remove('show');
+            document.getElementById('loseOverlay').classList.remove('show');
             level++;
             targetScore = 1000 + (level - 1) * 500;
             moves = Math.max(15, 25 - level);
+            maxMoves = moves;
             score = 0;
             rescued = false;
+            kingDead = false;
             createGrid();
             removeInitialMatches();
             updateUI();
@@ -1205,9 +1466,13 @@
         }
 
         function resetLevel() {
+            document.getElementById('levelComplete').classList.remove('show');
+            document.getElementById('loseOverlay').classList.remove('show');
             moves = Math.max(15, 25 - level + 1);
+            maxMoves = moves;
             score = 0;
             rescued = false;
+            kingDead = false;
             createGrid();
             removeInitialMatches();
             updateUI();
@@ -1216,11 +1481,14 @@
 
         function newGame() {
             document.getElementById('levelComplete').classList.remove('show');
+            document.getElementById('loseOverlay').classList.remove('show');
             level = 1;
             targetScore = 1000;
             moves = 20;
+            maxMoves = 20;
             score = 0;
             rescued = false;
+            kingDead = false;
             createGrid();
             removeInitialMatches();
             updateUI();
