@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gummy Chairs">
     <title>The Gummy Chairs - Escape the Eater!</title>
     <style>
         * {
@@ -19,6 +22,14 @@
             align-items: center;
             font-family: 'Comic Sans MS', cursive, sans-serif;
             overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        canvas {
+            touch-action: none;
         }
 
         h1 {
@@ -108,118 +119,118 @@
                 color: "#55efc4",
                 eaterSpeed: 2,
                 platforms: [
-                    { x: 0, y: 420, width: 200, height: 50, color: '#55efc4' },
-                    { x: 280, y: 400, width: 120, height: 80, color: '#81ecec' },
-                    { x: 480, y: 390, width: 130, height: 90, color: '#55efc4' },
-                    { x: 690, y: 380, width: 120, height: 80, color: '#81ecec' },
-                    { x: 890, y: 370, width: 140, height: 90, color: '#55efc4' },
-                    { x: 1110, y: 360, width: 130, height: 80, color: '#81ecec' },
-                    { x: 1320, y: 350, width: 150, height: 100, color: '#00b894' }
+                    { x: 0, y: 380, width: 450, height: 120, color: '#55efc4' },
+                    { x: 600, y: 360, width: 350, height: 160, color: '#81ecec' },
+                    { x: 1150, y: 350, width: 360, height: 170, color: '#55efc4' },
+                    { x: 1700, y: 340, width: 350, height: 160, color: '#81ecec' },
+                    { x: 2250, y: 330, width: 370, height: 170, color: '#55efc4' },
+                    { x: 2820, y: 320, width: 360, height: 160, color: '#81ecec' },
+                    { x: 3380, y: 310, width: 400, height: 180, color: '#00b894' }
                 ],
                 obstacles: [],
-                finishX: 1340
+                finishX: 3400
             },
             2: {
                 name: "Blue Ocean",
                 color: "#74b9ff",
                 eaterSpeed: 2.5,
                 platforms: [
-                    { x: 0, y: 420, width: 180, height: 50, color: '#74b9ff' },
-                    { x: 260, y: 400, width: 120, height: 80, color: '#0984e3' },
-                    { x: 460, y: 380, width: 120, height: 90, color: '#74b9ff' },
-                    { x: 660, y: 390, width: 120, height: 80, color: '#0984e3' },
-                    { x: 860, y: 370, width: 120, height: 90, color: '#74b9ff' },
-                    { x: 1060, y: 360, width: 120, height: 80, color: '#0984e3' },
-                    { x: 1260, y: 350, width: 120, height: 90, color: '#74b9ff' },
-                    { x: 1460, y: 340, width: 150, height: 100, color: '#00b894' }
+                    { x: 0, y: 380, width: 420, height: 120, color: '#74b9ff' },
+                    { x: 580, y: 360, width: 340, height: 160, color: '#0984e3' },
+                    { x: 1120, y: 340, width: 340, height: 170, color: '#74b9ff' },
+                    { x: 1660, y: 350, width: 340, height: 160, color: '#0984e3' },
+                    { x: 2200, y: 330, width: 340, height: 170, color: '#74b9ff' },
+                    { x: 2740, y: 320, width: 340, height: 160, color: '#0984e3' },
+                    { x: 3280, y: 310, width: 340, height: 170, color: '#74b9ff' },
+                    { x: 3820, y: 300, width: 400, height: 180, color: '#00b894' }
                 ],
                 obstacles: [
-                    { x: 320, y: 375, width: 25, height: 25 },
-                    { x: 710, y: 365, width: 25, height: 25 },
-                    { x: 1110, y: 335, width: 25, height: 25 }
+                    { x: 700, y: 335, width: 25, height: 25 },
+                    { x: 1780, y: 325, width: 25, height: 25 },
+                    { x: 2860, y: 295, width: 25, height: 25 }
                 ],
-                finishX: 1480
+                finishX: 3840
             },
             3: {
                 name: "Purple Mountains",
                 color: "#a29bfe",
                 eaterSpeed: 3,
                 platforms: [
-                    { x: 0, y: 420, width: 160, height: 50, color: '#a29bfe' },
-                    { x: 240, y: 400, width: 110, height: 80, color: '#6c5ce7' },
-                    { x: 430, y: 380, width: 110, height: 70, color: '#a29bfe' },
-                    { x: 620, y: 390, width: 110, height: 80, color: '#6c5ce7' },
-                    { x: 810, y: 370, width: 110, height: 70, color: '#a29bfe' },
-                    { x: 1000, y: 360, width: 110, height: 80, color: '#6c5ce7' },
-                    { x: 1190, y: 350, width: 110, height: 70, color: '#a29bfe' },
-                    { x: 1380, y: 340, width: 110, height: 80, color: '#6c5ce7' },
-                    { x: 1570, y: 330, width: 150, height: 100, color: '#00b894' }
+                    { x: 0, y: 380, width: 400, height: 120, color: '#a29bfe' },
+                    { x: 560, y: 360, width: 320, height: 160, color: '#6c5ce7' },
+                    { x: 1080, y: 340, width: 320, height: 150, color: '#a29bfe' },
+                    { x: 1600, y: 350, width: 320, height: 160, color: '#6c5ce7' },
+                    { x: 2120, y: 330, width: 320, height: 150, color: '#a29bfe' },
+                    { x: 2640, y: 320, width: 320, height: 160, color: '#6c5ce7' },
+                    { x: 3160, y: 310, width: 320, height: 150, color: '#a29bfe' },
+                    { x: 3680, y: 300, width: 320, height: 160, color: '#6c5ce7' },
+                    { x: 4200, y: 290, width: 400, height: 180, color: '#00b894' }
                 ],
                 obstacles: [
-                    { x: 280, y: 375, width: 25, height: 25 },
-                    { x: 470, y: 355, width: 25, height: 25 },
-                    { x: 850, y: 345, width: 25, height: 25 },
-                    { x: 1040, y: 335, width: 25, height: 25 },
-                    { x: 1420, y: 315, width: 25, height: 25 }
+                    { x: 680, y: 335, width: 25, height: 25 },
+                    { x: 1200, y: 315, width: 25, height: 25 },
+                    { x: 2240, y: 305, width: 25, height: 25 },
+                    { x: 2760, y: 295, width: 25, height: 25 },
+                    { x: 3800, y: 275, width: 25, height: 25 }
                 ],
-                finishX: 1590
+                finishX: 4220
             },
             4: {
                 name: "Pink Candy Land",
                 color: "#fd79a8",
                 eaterSpeed: 3.5,
                 platforms: [
-                    { x: 0, y: 420, width: 150, height: 50, color: '#fd79a8' },
-                    { x: 230, y: 400, width: 100, height: 70, color: '#e84393' },
-                    { x: 410, y: 380, width: 100, height: 60, color: '#fd79a8' },
-                    { x: 590, y: 390, width: 100, height: 70, color: '#e84393' },
-                    { x: 770, y: 370, width: 100, height: 60, color: '#fd79a8' },
-                    { x: 950, y: 360, width: 100, height: 70, color: '#e84393' },
-                    { x: 1130, y: 350, width: 100, height: 60, color: '#fd79a8' },
-                    { x: 1310, y: 340, width: 100, height: 70, color: '#e84393' },
-                    { x: 1490, y: 330, width: 100, height: 60, color: '#fd79a8' },
-                    { x: 1670, y: 320, width: 150, height: 100, color: '#00b894' }
+                    { x: 0, y: 380, width: 380, height: 120, color: '#fd79a8' },
+                    { x: 540, y: 360, width: 300, height: 150, color: '#e84393' },
+                    { x: 1040, y: 340, width: 300, height: 140, color: '#fd79a8' },
+                    { x: 1540, y: 350, width: 300, height: 150, color: '#e84393' },
+                    { x: 2040, y: 330, width: 300, height: 140, color: '#fd79a8' },
+                    { x: 2540, y: 320, width: 300, height: 150, color: '#e84393' },
+                    { x: 3040, y: 310, width: 300, height: 140, color: '#fd79a8' },
+                    { x: 3540, y: 300, width: 300, height: 150, color: '#e84393' },
+                    { x: 4040, y: 290, width: 300, height: 140, color: '#fd79a8' },
+                    { x: 4540, y: 280, width: 400, height: 180, color: '#00b894' }
                 ],
                 obstacles: [
-                    { x: 260, y: 375, width: 25, height: 25 },
-                    { x: 440, y: 355, width: 25, height: 25 },
-                    { x: 620, y: 365, width: 25, height: 25 },
-                    { x: 800, y: 345, width: 25, height: 25 },
-                    { x: 980, y: 335, width: 25, height: 25 },
-                    { x: 1160, y: 325, width: 25, height: 25 },
-                    { x: 1520, y: 305, width: 25, height: 25 }
+                    { x: 660, y: 335, width: 25, height: 25 },
+                    { x: 1160, y: 315, width: 25, height: 25 },
+                    { x: 1660, y: 325, width: 25, height: 25 },
+                    { x: 2160, y: 305, width: 25, height: 25 },
+                    { x: 2660, y: 295, width: 25, height: 25 },
+                    { x: 3160, y: 285, width: 25, height: 25 },
+                    { x: 4160, y: 265, width: 25, height: 25 }
                 ],
-                finishX: 1690
+                finishX: 4560
             },
             5: {
                 name: "Red Volcano",
                 color: "#d63031",
                 eaterSpeed: 4.5,
                 platforms: [
-                    { x: 0, y: 420, width: 140, height: 50, color: '#d63031' },
-                    { x: 220, y: 400, width: 100, height: 60, color: '#e17055' },
-                    { x: 400, y: 380, width: 100, height: 50, color: '#d63031' },
-                    { x: 580, y: 390, width: 100, height: 60, color: '#e17055' },
-                    { x: 760, y: 370, width: 100, height: 50, color: '#d63031' },
-                    { x: 940, y: 360, width: 100, height: 60, color: '#e17055' },
-                    { x: 1120, y: 350, width: 100, height: 50, color: '#d63031' },
-                    { x: 1300, y: 340, width: 100, height: 60, color: '#e17055' },
-                    { x: 1480, y: 330, width: 100, height: 50, color: '#d63031' },
-                    { x: 1660, y: 320, width: 100, height: 60, color: '#e17055' },
-                    { x: 1840, y: 310, width: 150, height: 100, color: '#00b894' }
+                    { x: 0, y: 380, width: 360, height: 120, color: '#d63031' },
+                    { x: 520, y: 360, width: 300, height: 140, color: '#e17055' },
+                    { x: 1020, y: 340, width: 300, height: 130, color: '#d63031' },
+                    { x: 1520, y: 350, width: 300, height: 140, color: '#e17055' },
+                    { x: 2020, y: 330, width: 300, height: 130, color: '#d63031' },
+                    { x: 2520, y: 320, width: 300, height: 140, color: '#e17055' },
+                    { x: 3020, y: 310, width: 300, height: 130, color: '#d63031' },
+                    { x: 3520, y: 300, width: 300, height: 140, color: '#e17055' },
+                    { x: 4020, y: 290, width: 300, height: 130, color: '#d63031' },
+                    { x: 4520, y: 280, width: 300, height: 140, color: '#e17055' },
+                    { x: 5020, y: 270, width: 400, height: 180, color: '#00b894' }
                 ],
                 obstacles: [
-                    { x: 250, y: 375, width: 25, height: 25 },
-                    { x: 430, y: 355, width: 25, height: 25 },
-                    { x: 610, y: 365, width: 25, height: 25 },
-                    { x: 790, y: 345, width: 25, height: 25 },
-                    { x: 970, y: 335, width: 25, height: 25 },
-                    { x: 1150, y: 325, width: 25, height: 25 },
-                    { x: 1330, y: 315, width: 25, height: 25 },
-                    { x: 1510, y: 305, width: 25, height: 25 },
-                    { x: 1690, y: 295, width: 25, height: 25 }
+                    { x: 640, y: 335, width: 25, height: 25 },
+                    { x: 1140, y: 315, width: 25, height: 25 },
+                    { x: 1640, y: 325, width: 25, height: 25 },
+                    { x: 2140, y: 305, width: 25, height: 25 },
+                    { x: 2640, y: 295, width: 25, height: 25 },
+                    { x: 3140, y: 285, width: 25, height: 25 },
+                    { x: 3640, y: 275, width: 25, height: 25 },
+                    { x: 4140, y: 265, width: 25, height: 25 },
+                    { x: 4640, y: 255, width: 25, height: 25 }
                 ],
-                finishX: 1860
+                finishX: 5040
             }
         };
 
@@ -227,8 +238,8 @@
         const player = {
             x: 50,
             y: 350,
-            width: 40,
-            height: 50,
+            width: 70,
+            height: 85,
             velX: 0,
             velY: 0,
             speed: 5,
@@ -279,14 +290,14 @@
             if (gameOver) return;
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
 
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 const touchX = touch.clientX - rect.left;
                 const touchY = touch.clientY - rect.top;
-                const screenThird = canvas.width / 3;
 
-                activeTouches[touch.identifier] = { x: touchX, y: touchY };
+                activeTouches[touch.identifier] = { x: touchX, y: touchY, screenThird: screenThird };
 
                 if (touchX < screenThird) {
                     keys['ArrowLeft'] = true;
@@ -303,11 +314,11 @@
             if (gameOver) return;
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
 
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 const touchX = touch.clientX - rect.left;
-                const screenThird = canvas.width / 3;
 
                 const oldTouch = activeTouches[touch.identifier];
                 if (oldTouch) {
@@ -325,13 +336,14 @@
                     }
                 }
 
-                activeTouches[touch.identifier] = { x: touchX, y: touch.clientY - rect.top };
+                activeTouches[touch.identifier] = { x: touchX, y: touch.clientY - rect.top, screenThird: screenThird };
             }
         }, { passive: false });
 
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const screenThird = canvas.width / 3;
+            const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
 
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
@@ -391,34 +403,34 @@
             // Body (gummy person)
             ctx.fillStyle = player.color;
             ctx.beginPath();
-            ctx.roundRect(x, y, player.width, player.height, 15);
+            ctx.roundRect(x, y, player.width, player.height, 20);
             ctx.fill();
 
             // Eyes
             ctx.fillStyle = 'white';
             ctx.beginPath();
-            ctx.arc(x + 12, y + 15, 8, 0, Math.PI * 2);
-            ctx.arc(x + 28, y + 15, 8, 0, Math.PI * 2);
+            ctx.arc(x + 20, y + 25, 14, 0, Math.PI * 2);
+            ctx.arc(x + 50, y + 25, 14, 0, Math.PI * 2);
             ctx.fill();
 
             // Pupils (looking at eater direction)
             ctx.fillStyle = '#2d3436';
             ctx.beginPath();
-            ctx.arc(x + 10, y + 15, 4, 0, Math.PI * 2);
-            ctx.arc(x + 26, y + 15, 4, 0, Math.PI * 2);
+            ctx.arc(x + 17, y + 25, 7, 0, Math.PI * 2);
+            ctx.arc(x + 47, y + 25, 7, 0, Math.PI * 2);
             ctx.fill();
 
             // Worried mouth
             ctx.strokeStyle = '#2d3436';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(x + 20, y + 38, 8, 0.2 * Math.PI, 0.8 * Math.PI);
+            ctx.arc(x + 35, y + 60, 14, 0.2 * Math.PI, 0.8 * Math.PI);
             ctx.stroke();
 
             // Shine
             ctx.fillStyle = 'rgba(255,255,255,0.4)';
             ctx.beginPath();
-            ctx.ellipse(x + 12, y + 10, 6, 4, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(x + 20, y + 15, 10, 6, -0.3, 0, Math.PI * 2);
             ctx.fill();
         }
 
