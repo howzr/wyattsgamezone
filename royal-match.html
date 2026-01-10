@@ -1806,7 +1806,9 @@
             kingDead = false;
             hazardLevel = 0;
             targetHazardLevel = 0;
-            hazardType = 'lava';
+            // Random hazard each new game
+            const hazards = ['lava', 'water', 'quicksand'];
+            hazardType = hazards[Math.floor(Math.random() * hazards.length)];
             createGrid();
             removeInitialMatches();
             updateUI();
