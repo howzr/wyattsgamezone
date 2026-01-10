@@ -297,6 +297,11 @@
         let kingMood = 'normal'; // normal, happy, excited, worried
         let lastCombo = 0;
 
+        // Lava system
+        let lavaLevel = 0; // How many rows from bottom are lava
+        let lavaAnimTime = 0;
+        let lavaBubbles = [];
+
         // King expressions
         const kingPhrases = {
             start: ["Help! I'm trapped!", "Free me!", "Match to rescue me!"],
@@ -933,6 +938,12 @@
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            lavaAnimTime += 0.05;
+
+            // Calculate lava level based on moves used
+            const movesUsed = maxMoves - moves;
+            const targetLavaRows = Math.min(6, Math.floor(movesUsed / 3)); // 1 row every 3 moves, max 6 rows
+            lavaLevel += (targetLavaRows - lavaLevel) * 0.05; // Smooth rise
 
             // Draw board background
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -950,27 +961,100 @@
                 }
             }
 
-            // Draw gems
+            // Draw gems (only if not submerged in lava)
             for (let row = 0; row < GRID_SIZE; row++) {
                 for (let col = 0; col < GRID_SIZE; col++) {
                     const gem = grid[row][col];
+                    const lavaRowStart = GRID_SIZE - Math.floor(lavaLevel);
                     if (gem && gem.type >= 0) {
+                        // Gems in lava are partially visible and sinking
+                        if (row >= lavaRowStart) {
+                            ctx.globalAlpha = 0.4;
+                        }
                         drawGem(gem, row, col);
+                        ctx.globalAlpha = 1;
                     }
                 }
             }
 
-            // Draw selection
-            if (selectedGem) {
-                const x = selectedGem.col * GEM_SIZE + BOARD_OFFSET;
-                const y = selectedGem.row * GEM_SIZE + BOARD_OFFSET;
-                ctx.strokeStyle = '#ffd700';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(x + 2, y + 2, GEM_SIZE - 5, GEM_SIZE - 5);
-                ctx.shadowColor = '#ffd700';
-                ctx.shadowBlur = 10;
-                ctx.strokeRect(x + 2, y + 2, GEM_SIZE - 5, GEM_SIZE - 5);
+            // Draw rising lava from bottom
+            if (lavaLevel > 0) {
+                const lavaHeight = lavaLevel * GEM_SIZE + Math.sin(lavaAnimTime * 2) * 5;
+                const lavaY = canvas.height - lavaHeight;
+
+                // Lava glow
+                ctx.shadowColor = '#ff4500';
+                ctx.shadowBlur = 30;
+
+                // Main lava gradient
+                const lavaGrad = ctx.createLinearGradient(0, lavaY, 0, canvas.height);
+                lavaGrad.addColorStop(0, 'rgba(255, 100, 0, 0.85)');
+                lavaGrad.addColorStop(0.3, 'rgba(255, 50, 0, 0.9)');
+                lavaGrad.addColorStop(1, 'rgba(139, 0, 0, 0.95)');
+                ctx.fillStyle = lavaGrad;
+
+                // Wavy lava surface
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height);
+                for (let x = 0; x <= canvas.width; x += 10) {
+                    const waveY = lavaY + Math.sin(x * 0.05 + lavaAnimTime * 3) * 8 + Math.sin(x * 0.1 + lavaAnimTime * 2) * 4;
+                    ctx.lineTo(x, waveY);
+                }
+                ctx.lineTo(canvas.width, canvas.height);
+                ctx.closePath();
+                ctx.fill();
+
                 ctx.shadowBlur = 0;
+
+                // Lava bubbles
+                ctx.fillStyle = '#ff6600';
+                for (let i = 0; i < 8; i++) {
+                    const bubbleX = (lavaAnimTime * 20 + i * 50) % canvas.width;
+                    const bubbleY = lavaY + 10 + Math.sin(lavaAnimTime * 4 + i * 2) * 15;
+                    const bubbleSize = 4 + Math.sin(lavaAnimTime * 3 + i) * 2;
+                    ctx.beginPath();
+                    ctx.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Bright spots on lava surface
+                ctx.fillStyle = 'rgba(255, 200, 0, 0.6)';
+                for (let i = 0; i < 5; i++) {
+                    const spotX = (i * 80 + 20) + Math.sin(lavaAnimTime + i) * 10;
+                    const spotY = lavaY + 15 + Math.sin(lavaAnimTime * 2 + i * 3) * 8;
+                    ctx.beginPath();
+                    ctx.ellipse(spotX, spotY, 15 + Math.sin(lavaAnimTime + i) * 5, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Ember particles rising from lava
+                ctx.fillStyle = '#ffaa00';
+                for (let i = 0; i < 12; i++) {
+                    const emberX = (i * 35 + lavaAnimTime * 15) % canvas.width;
+                    const emberY = lavaY - ((lavaAnimTime * 50 + i * 20) % 60);
+                    const emberSize = 2 + Math.random();
+                    ctx.globalAlpha = 1 - ((lavaAnimTime * 50 + i * 20) % 60) / 60;
+                    ctx.beginPath();
+                    ctx.arc(emberX, emberY, emberSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            // Draw selection (only if not in lava)
+            if (selectedGem) {
+                const lavaRowStart = GRID_SIZE - Math.floor(lavaLevel);
+                if (selectedGem.row < lavaRowStart) {
+                    const x = selectedGem.col * GEM_SIZE + BOARD_OFFSET;
+                    const y = selectedGem.row * GEM_SIZE + BOARD_OFFSET;
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x + 2, y + 2, GEM_SIZE - 5, GEM_SIZE - 5);
+                    ctx.shadowColor = '#ffd700';
+                    ctx.shadowBlur = 10;
+                    ctx.strokeRect(x + 2, y + 2, GEM_SIZE - 5, GEM_SIZE - 5);
+                    ctx.shadowBlur = 0;
+                }
             }
 
             // Draw particles
@@ -1110,7 +1194,17 @@
             const pos = getGridPosition(clientX, clientY);
             if (!pos) return;
 
+            // Can't select gems in lava
+            const lavaRowStart = GRID_SIZE - Math.floor(lavaLevel);
+            if (pos.row >= lavaRowStart) return;
+
             if (selectedGem) {
+                // Can't swap with gems in lava
+                if (selectedGem.row >= lavaRowStart) {
+                    selectedGem = null;
+                    return;
+                }
+
                 const rowDiff = Math.abs(selectedGem.row - pos.row);
                 const colDiff = Math.abs(selectedGem.col - pos.col);
                 if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
@@ -1457,6 +1551,7 @@
             score = 0;
             rescued = false;
             kingDead = false;
+            lavaLevel = 0;
             createGrid();
             removeInitialMatches();
             updateUI();
@@ -1471,6 +1566,7 @@
             score = 0;
             rescued = false;
             kingDead = false;
+            lavaLevel = 0;
             createGrid();
             removeInitialMatches();
             updateUI();
@@ -1487,6 +1583,7 @@
             score = 0;
             rescued = false;
             kingDead = false;
+            lavaLevel = 0;
             createGrid();
             removeInitialMatches();
             updateUI();
