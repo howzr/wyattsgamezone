@@ -81,13 +81,14 @@
         }
 
         .king-panel {
-            background: linear-gradient(180deg, rgba(255,215,0,0.2), rgba(255,215,0,0.05));
-            border: 3px solid #ffd700;
+            background: linear-gradient(180deg, rgba(100,100,100,0.3), rgba(50,50,50,0.2));
+            border: 3px solid #888;
             border-radius: 20px;
             padding: 10px 20px;
             display: flex;
             align-items: center;
             gap: 15px;
+            position: relative;
         }
 
         .king-panel canvas {
@@ -99,6 +100,26 @@
             font-size: 0.9em;
             min-width: 150px;
             line-height: 1.3;
+        }
+
+        .rescue-bar {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 8px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .rescue-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ff9500);
+            width: 0%;
+            transition: width 0.3s;
+            border-radius: 4px;
         }
 
         #gameCanvas {
@@ -212,8 +233,9 @@
 
     <div class="game-area">
         <div class="king-panel">
-            <canvas id="kingCanvas" width="60" height="80"></canvas>
-            <div class="king-speech" id="kingSpeech">Help me match gems!</div>
+            <canvas id="kingCanvas" width="70" height="90"></canvas>
+            <div class="king-speech" id="kingSpeech">Help! I'm trapped!</div>
+            <div class="rescue-bar"><div class="rescue-progress" id="rescueProgress"></div></div>
         </div>
         <canvas id="gameCanvas" width="400" height="400"></canvas>
     </div>
@@ -224,10 +246,10 @@
     </div>
 
     <div class="level-complete" id="levelComplete">
-        <h2>Level Complete!</h2>
+        <h2>👑 King Rescued! 👑</h2>
         <div class="stars" id="stars">⭐⭐⭐</div>
         <p id="levelScore">Score: 0</p>
-        <button class="btn" onclick="nextLevel()">Next Level</button>
+        <button class="btn" onclick="nextLevel()">Save Next King!</button>
     </div>
 
     <script>
@@ -267,13 +289,13 @@
 
         // King expressions
         const kingPhrases = {
-            start: ["Help me match gems!", "Let's play!", "Match 3 to win!"],
-            match: ["Good job!", "Nice one!", "Keep going!"],
-            combo: ["Amazing combo!", "Incredible!", "You're the best!"],
-            bigMatch: ["Spectacular!", "Royal match!", "Magnificent!"],
-            lowMoves: ["Running low!", "Be careful!", "Think wisely!"],
-            win: ["Splendid!", "You did it!", "Victory!"],
-            lose: ["Oh no!", "Try again!", "Don't give up!"]
+            start: ["Help! I'm trapped!", "Free me!", "Match to rescue me!"],
+            match: ["Keep going!", "Almost there!", "You can do it!"],
+            combo: ["Amazing!", "I feel hope!", "The bars shake!"],
+            bigMatch: ["Incredible!", "I see light!", "Freedom awaits!"],
+            lowMoves: ["Hurry please!", "Not much time!", "I'm scared!"],
+            win: ["I'm FREE!", "Thank you!", "My hero!"],
+            lose: ["Oh no...", "Try again!", "Don't give up!"]
         };
 
         function init() {
@@ -326,19 +348,27 @@
             return hCount >= 3 || vCount >= 3;
         }
 
+        let rescued = false;
+
         function drawKing() {
             kingCtx.clearRect(0, 0, kingCanvas.width, kingCanvas.height);
 
-            // Background
+            // Dark dungeon background
             const bgGrad = kingCtx.createLinearGradient(0, 0, 0, kingCanvas.height);
-            bgGrad.addColorStop(0, '#4a2c82');
-            bgGrad.addColorStop(1, '#2a1a4a');
+            bgGrad.addColorStop(0, '#2a2a3a');
+            bgGrad.addColorStop(1, '#1a1a2a');
             kingCtx.fillStyle = bgGrad;
             kingCtx.fillRect(0, 0, kingCanvas.width, kingCanvas.height);
 
+            // Stone texture
+            kingCtx.fillStyle = 'rgba(100,100,100,0.3)';
+            for (let i = 0; i < 5; i++) {
+                kingCtx.fillRect(Math.random() * 60, Math.random() * 80, 8, 8);
+            }
+
             const x = kingCanvas.width / 2;
-            const y = 50;
-            const s = 0.65; // scale
+            const y = 55;
+            const s = 0.7; // scale
 
             // Body
             kingCtx.fillStyle = '#4169E1';
@@ -444,6 +474,41 @@
                 kingCtx.arc(x - 10*s, y, 3*s, 0, Math.PI * 2);
                 kingCtx.arc(x + 10*s, y, 3*s, 0, Math.PI * 2);
                 kingCtx.fill();
+            }
+
+            // Draw cage bars if not rescued
+            if (!rescued) {
+                const barCount = 5;
+                const barSpacing = kingCanvas.width / (barCount + 1);
+                kingCtx.strokeStyle = '#555';
+                kingCtx.lineWidth = 4;
+                for (let i = 1; i <= barCount; i++) {
+                    kingCtx.beginPath();
+                    kingCtx.moveTo(i * barSpacing, 0);
+                    kingCtx.lineTo(i * barSpacing, kingCanvas.height);
+                    kingCtx.stroke();
+                }
+                // Horizontal bars
+                kingCtx.beginPath();
+                kingCtx.moveTo(0, 15);
+                kingCtx.lineTo(kingCanvas.width, 15);
+                kingCtx.moveTo(0, kingCanvas.height - 15);
+                kingCtx.lineTo(kingCanvas.width, kingCanvas.height - 15);
+                kingCtx.stroke();
+
+                // Bar highlights
+                kingCtx.strokeStyle = '#777';
+                kingCtx.lineWidth = 1;
+                for (let i = 1; i <= barCount; i++) {
+                    kingCtx.beginPath();
+                    kingCtx.moveTo(i * barSpacing - 1, 0);
+                    kingCtx.lineTo(i * barSpacing - 1, kingCanvas.height);
+                    kingCtx.stroke();
+                }
+            } else {
+                // Golden glow when rescued
+                kingCtx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+                kingCtx.fillRect(0, 0, kingCanvas.width, kingCanvas.height);
             }
 
             requestAnimationFrame(drawKing);
@@ -948,10 +1013,15 @@
             document.getElementById('moves').textContent = moves;
             document.getElementById('level').textContent = level;
             document.getElementById('target').textContent = targetScore;
+
+            // Update rescue progress bar
+            const progress = Math.min(100, (score / targetScore) * 100);
+            document.getElementById('rescueProgress').style.width = progress + '%';
         }
 
         function checkGameState() {
             if (score >= targetScore) {
+                rescued = true;
                 setKingMood('excited', getRandomPhrase('win'));
                 const stars = score >= targetScore * 2 ? '⭐⭐⭐' :
                              score >= targetScore * 1.5 ? '⭐⭐' : '⭐';
@@ -971,19 +1041,21 @@
             targetScore = 1000 + (level - 1) * 500;
             moves = Math.max(15, 25 - level);
             score = 0;
+            rescued = false;
             createGrid();
             removeInitialMatches();
             updateUI();
-            setKingMood('normal', getRandomPhrase('start'));
+            setKingMood('worried', getRandomPhrase('start'));
         }
 
         function resetLevel() {
             moves = Math.max(15, 25 - level + 1);
             score = 0;
+            rescued = false;
             createGrid();
             removeInitialMatches();
             updateUI();
-            setKingMood('normal', getRandomPhrase('start'));
+            setKingMood('worried', getRandomPhrase('start'));
         }
 
         function newGame() {
@@ -992,10 +1064,11 @@
             targetScore = 1000;
             moves = 20;
             score = 0;
+            rescued = false;
             createGrid();
             removeInitialMatches();
             updateUI();
-            setKingMood('normal', getRandomPhrase('start'));
+            setKingMood('worried', getRandomPhrase('start'));
         }
 
         // Events
