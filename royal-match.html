@@ -301,6 +301,7 @@
         let lavaLevel = 0; // How many rows from bottom are lava
         let lavaAnimTime = 0;
         let lavaBubbles = [];
+        let targetLavaLevel = 0; // Target lava level (rises on bad swaps)
 
         // King expressions
         const kingPhrases = {
@@ -940,10 +941,8 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             lavaAnimTime += 0.05;
 
-            // Calculate lava level based on moves used
-            const movesUsed = maxMoves - moves;
-            const targetLavaRows = Math.min(6, Math.floor(movesUsed / 3)); // 1 row every 3 moves, max 6 rows
-            lavaLevel += (targetLavaRows - lavaLevel) * 0.05; // Smooth rise
+            // Smooth lava rise toward target level
+            lavaLevel += (targetLavaLevel - lavaLevel) * 0.03;
 
             // Draw board background
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -1233,6 +1232,10 @@
                 updateUI();
                 await processMatches(matches);
             } else {
+                // Bad swap - lava rises!
+                targetLavaLevel = Math.min(GRID_SIZE, targetLavaLevel + 1);
+
+                // Swap back
                 const temp = grid[row1][col1];
                 grid[row1][col1] = grid[row2][col2];
                 grid[row2][col2] = temp;
@@ -1530,8 +1533,8 @@
                 setTimeout(() => {
                     document.getElementById('levelComplete').classList.add('show');
                 }, 500);
-            } else if (moves <= 0) {
-                // King dies!
+            } else if (moves <= 0 || targetLavaLevel >= GRID_SIZE) {
+                // King dies from lava or out of moves!
                 kingDead = true;
                 rescued = false;
                 setKingMood('worried', getRandomPhrase('lose'));
@@ -1552,6 +1555,7 @@
             rescued = false;
             kingDead = false;
             lavaLevel = 0;
+            targetLavaLevel = 0;
             createGrid();
             removeInitialMatches();
             updateUI();
@@ -1567,6 +1571,7 @@
             rescued = false;
             kingDead = false;
             lavaLevel = 0;
+            targetLavaLevel = 0;
             createGrid();
             removeInitialMatches();
             updateUI();
@@ -1584,6 +1589,7 @@
             rescued = false;
             kingDead = false;
             lavaLevel = 0;
+            targetLavaLevel = 0;
             createGrid();
             removeInitialMatches();
             updateUI();
