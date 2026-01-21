@@ -260,14 +260,14 @@
                     const count = 1 + Math.floor(Math.random() * difficulty / 3);
                     for (let i = 0; i < count; i++) {
                         obstacles.push({
-                            x: x + i * 35,
+                            x: x + i * 25,
                             y: floor,
                             type: 'spike',
-                            width: 30,
-                            height: 30
+                            width: 20,
+                            height: 20
                         });
                     }
-                    x += count * 35 + 150;
+                    x += count * 25 + 150;
                 }
                 // Moving platform obstacle
                 else if (obstacleType === 1 && difficulty > 1) {
@@ -364,8 +364,8 @@
                         x: x,
                         y: floor,
                         type: 'spike',
-                        width: 30,
-                        height: 30
+                        width: 20,
+                        height: 20
                     });
                     x += 150;
                 }
@@ -475,7 +475,7 @@
             }
 
             // Check floor 2
-            if (player.y + PLAYER_HEIGHT >= FLOOR2_Y && player.y + PLAYER_HEIGHT <= FLOOR2_Y + 20 &&
+            if (player.y + PLAYER_HEIGHT >= FLOOR2_Y && player.y + PLAYER_HEIGHT <= FLOOR2_Y + 10 &&
                 player.vy >= 0 && player.y < FLOOR2_Y) {
                 player.y = FLOOR2_Y - PLAYER_HEIGHT;
                 player.vy = 0;
@@ -652,9 +652,9 @@
 
             // Floor 2 (upper)
             ctx.fillStyle = land.floor;
-            ctx.fillRect(0, FLOOR2_Y, canvas.width, 20);
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 10);
             ctx.fillStyle = land.accent + '60';
-            ctx.fillRect(0, FLOOR2_Y, canvas.width, 5);
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 3);
 
             // Floor 1 (lower/ground)
             ctx.fillStyle = land.floor;
