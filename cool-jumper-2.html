@@ -477,6 +477,18 @@
             if (player.x < 0) player.x = 0;
             if (player.x > levelLength - PLAYER_WIDTH) player.x = levelLength - PLAYER_WIDTH;
 
+            // Check moving platform collision FIRST - before floor collision
+            for (const obs of obstacles) {
+                if (obs.type === 'moving') {
+                    // Kill if player touches or lands on platform
+                    if (player.x + PLAYER_WIDTH > obs.x - 5 && player.x < obs.x + obs.width + 5 &&
+                        player.y + PLAYER_HEIGHT >= obs.y - 5 && player.y <= obs.y + obs.height + 5) {
+                        loseLife();
+                        return;
+                    }
+                }
+            }
+
             // Floor collision
             player.grounded = false;
 
@@ -569,9 +581,9 @@
                     }
                 }
                 else if (obs.type === 'moving') {
-                    // Larger hitbox for moving platform - can't land on it
-                    if (player.x < obs.x + obs.width + 5 && player.x + PLAYER_WIDTH > obs.x - 5 &&
-                        player.y < obs.y + obs.height + 5 && player.y + PLAYER_HEIGHT > obs.y - 5) {
+                    // Large hitbox for moving platform - instant death on any touch
+                    if (player.x + PLAYER_WIDTH > obs.x - 10 && player.x < obs.x + obs.width + 10 &&
+                        player.y + PLAYER_HEIGHT > obs.y - 15 && player.y < obs.y + obs.height + 10) {
                         hit = true;
                     }
                 }
