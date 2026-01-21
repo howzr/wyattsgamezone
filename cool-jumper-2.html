@@ -568,8 +568,15 @@
                         hit = true;
                     }
                 }
-                else if (obs.type === 'moving' || obs.type === 'falling' || obs.type === 'blade' || obs.type === 'bouncer') {
-                    const obsY = obs.type === 'crusher' ? (obs.currentY || obs.y) : obs.y;
+                else if (obs.type === 'moving') {
+                    // Larger hitbox for moving platform - can't land on it
+                    if (player.x < obs.x + obs.width + 5 && player.x + PLAYER_WIDTH > obs.x - 5 &&
+                        player.y < obs.y + obs.height + 5 && player.y + PLAYER_HEIGHT > obs.y - 5) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'falling' || obs.type === 'blade' || obs.type === 'bouncer') {
+                    const obsY = obs.y;
                     if (px < obs.x + obs.width && px + pw > obs.x &&
                         py < obsY + obs.height && py + ph > obsY) {
                         hit = true;
