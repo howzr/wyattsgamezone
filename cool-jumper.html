@@ -469,20 +469,22 @@
             if (player.x < 0) player.x = 0;
             if (player.x > levelLength - PLAYER_WIDTH) player.x = levelLength - PLAYER_WIDTH;
 
-            // Check moving platform collision FIRST - before floor collision
+            // Floor collision
+            player.grounded = false;
+
+            // Check moving platforms - can stand on them
             for (const obs of obstacles) {
                 if (obs.type === 'moving') {
-                    // Kill if player touches or lands on platform
-                    if (player.x + PLAYER_WIDTH > obs.x - 5 && player.x < obs.x + obs.width + 5 &&
-                        player.y + PLAYER_HEIGHT >= obs.y - 5 && player.y <= obs.y + obs.height + 5) {
-                        loseLife();
-                        return;
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT >= obs.y && player.y + PLAYER_HEIGHT <= obs.y + 15 &&
+                        player.vy >= 0) {
+                        player.y = obs.y - PLAYER_HEIGHT;
+                        player.vy = 0;
+                        player.grounded = true;
+                        player.canDoubleJump = true;
                     }
                 }
             }
-
-            // Floor collision
-            player.grounded = false;
 
             // Check floor 1
             if (player.y + PLAYER_HEIGHT >= FLOOR1_Y && player.vy >= 0) {
@@ -572,13 +574,6 @@
                 if (obs.type === 'spike') {
                     if (px < obs.x + obs.width && px + pw > obs.x &&
                         py < obs.y && py + ph > obs.y - obs.height) {
-                        hit = true;
-                    }
-                }
-                else if (obs.type === 'moving') {
-                    // Large hitbox for moving platform - instant death on any touch
-                    if (player.x + PLAYER_WIDTH > obs.x - 10 && player.x < obs.x + obs.width + 10 &&
-                        player.y + PLAYER_HEIGHT > obs.y - 15 && player.y < obs.y + obs.height + 10) {
                         hit = true;
                     }
                 }
