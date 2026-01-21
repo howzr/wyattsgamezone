@@ -141,7 +141,7 @@
             <p>Obstacles get harder as you progress</p>
             <div class="controls">
                 <p>Arrow Keys - Move</p>
-                <p>Space - Jump</p>
+                <p>Space - Jump (press twice for double jump!)</p>
             </div>
             <button onclick="startGame()">Start Adventure</button>
             <div id="landProgress"></div>
@@ -191,7 +191,7 @@
 
         // Game constants
         const FLOOR1_Y = 350;
-        const FLOOR2_Y = 200;
+        const FLOOR2_Y = 70;
         const PLAYER_WIDTH = 40;
         const PLAYER_HEIGHT = 50;
         const GRAVITY = 0.6;
@@ -232,7 +232,9 @@
                 vx: 0,
                 vy: 0,
                 grounded: true,
-                facingRight: true
+                facingRight: true,
+                canDoubleJump: true,
+                spaceReleased: true
             };
         }
 
@@ -409,21 +411,45 @@
                 player.vx *= 0.8;
             }
 
-            // Jump
-            if (keys['Space'] && player.grounded) {
-                player.vy = JUMP_FORCE;
-                player.grounded = false;
-                // Jump particles
-                for (let i = 0; i < 5; i++) {
-                    particles.push({
-                        x: player.x + PLAYER_WIDTH / 2,
-                        y: player.y + PLAYER_HEIGHT,
-                        vx: (Math.random() - 0.5) * 4,
-                        vy: Math.random() * -2,
-                        life: 20,
-                        color: land.accent
-                    });
+            // Jump and Double Jump
+            if (keys['Space'] && player.spaceReleased) {
+                if (player.grounded) {
+                    // First jump
+                    player.vy = JUMP_FORCE;
+                    player.grounded = false;
+                    player.canDoubleJump = true;
+                    player.spaceReleased = false;
+                    // Jump particles
+                    for (let i = 0; i < 5; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: Math.random() * -2,
+                            life: 20,
+                            color: land.accent
+                        });
+                    }
+                } else if (player.canDoubleJump) {
+                    // Double jump
+                    player.vy = JUMP_FORCE;
+                    player.canDoubleJump = false;
+                    player.spaceReleased = false;
+                    // Double jump particles (more dramatic)
+                    for (let i = 0; i < 10; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT / 2,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 6,
+                            life: 25,
+                            color: '#fff'
+                        });
+                    }
                 }
+            }
+            if (!keys['Space']) {
+                player.spaceReleased = true;
             }
 
             // Apply gravity
@@ -445,6 +471,7 @@
                 player.y = FLOOR1_Y - PLAYER_HEIGHT;
                 player.vy = 0;
                 player.grounded = true;
+                player.canDoubleJump = true;
             }
 
             // Check floor 2
@@ -453,6 +480,7 @@
                 player.y = FLOOR2_Y - PLAYER_HEIGHT;
                 player.vy = 0;
                 player.grounded = true;
+                player.canDoubleJump = true;
             }
 
             // Fall off screen
