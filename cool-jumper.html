@@ -419,6 +419,9 @@
                     player.grounded = false;
                     player.canDoubleJump = true;
                     player.spaceReleased = false;
+                    // Jump boost - go farther when jumping
+                    if (keys['ArrowRight']) player.vx = 10;
+                    else if (keys['ArrowLeft']) player.vx = -10;
                     // Jump particles
                     for (let i = 0; i < 5; i++) {
                         particles.push({
@@ -435,6 +438,9 @@
                     player.vy = JUMP_FORCE;
                     player.canDoubleJump = false;
                     player.spaceReleased = false;
+                    // Jump boost for double jump too
+                    if (keys['ArrowRight']) player.vx = 10;
+                    else if (keys['ArrowLeft']) player.vx = -10;
                     // Double jump particles (more dramatic)
                     for (let i = 0; i < 10; i++) {
                         particles.push({
