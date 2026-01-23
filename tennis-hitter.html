@@ -108,20 +108,31 @@
             background: linear-gradient(45deg, #ffff00, #ffcc00);
             box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
         }
-        .score-select {
+        .score-input {
             display: flex;
             gap: 10px;
             justify-content: center;
+            align-items: center;
             margin: 15px 0;
         }
-        .score-select button {
-            padding: 10px 20px;
-            font-size: 18px;
-            min-width: 60px;
+        .score-input input {
+            width: 80px;
+            padding: 10px;
+            font-size: 24px;
+            text-align: center;
+            border: 3px solid #c8ff00;
+            border-radius: 10px;
+            background: #1a1a1a;
+            color: #fff;
+            font-weight: bold;
         }
-        .score-select button.selected {
-            background: linear-gradient(45deg, #ffff00, #ffcc00);
-            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        .score-input input:focus {
+            outline: none;
+            box-shadow: 0 0 15px rgba(200, 255, 0, 0.5);
+        }
+        .score-input span {
+            font-size: 18px;
+            color: #aaa;
         }
     </style>
 </head>
@@ -135,12 +146,9 @@
         <div id="startScreen">
             <h1>Tennis Hitter</h1>
             <p>Play to:</p>
-            <div class="score-select">
-                <button onclick="setWinScore(5)" id="score5">5</button>
-                <button onclick="setWinScore(7)" id="score7">7</button>
-                <button onclick="setWinScore(11)" id="score11" class="selected">11</button>
-                <button onclick="setWinScore(15)" id="score15">15</button>
-                <button onclick="setWinScore(21)" id="score21">21</button>
+            <div class="score-input">
+                <input type="number" id="winScoreInput" value="11" min="1" max="99">
+                <span>points</span>
             </div>
             <div class="controls-box" style="display: flex; gap: 40px; margin-top: 20px;">
                 <div>
@@ -177,15 +185,6 @@
         const PADDLE_HEIGHT = 80;
         const BALL_SIZE = 12;
         let WIN_SCORE = 11;
-
-        function setWinScore(score) {
-            WIN_SCORE = score;
-            // Update button styles
-            document.querySelectorAll('.score-select button').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            document.getElementById('score' + score).classList.add('selected');
-        }
 
         // Game state
         let player = {
@@ -554,6 +553,10 @@
         function startGame() {
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('gameOver').style.display = 'none';
+
+            // Get win score from input
+            let inputScore = parseInt(document.getElementById('winScoreInput').value);
+            WIN_SCORE = inputScore > 0 ? inputScore : 11;
 
             player.score = 0;
             opponent.score = 0;
