@@ -108,6 +108,21 @@
             background: linear-gradient(45deg, #ffff00, #ffcc00);
             box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
         }
+        .score-select {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 15px 0;
+        }
+        .score-select button {
+            padding: 10px 20px;
+            font-size: 18px;
+            min-width: 60px;
+        }
+        .score-select button.selected {
+            background: linear-gradient(45deg, #ffff00, #ffcc00);
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -119,8 +134,15 @@
 
         <div id="startScreen">
             <h1>Tennis Hitter</h1>
-            <p>First to 11 points wins!</p>
-            <div class="controls-box" style="display: flex; gap: 40px;">
+            <p>Play to:</p>
+            <div class="score-select">
+                <button onclick="setWinScore(5)" id="score5">5</button>
+                <button onclick="setWinScore(7)" id="score7">7</button>
+                <button onclick="setWinScore(11)" id="score11" class="selected">11</button>
+                <button onclick="setWinScore(15)" id="score15">15</button>
+                <button onclick="setWinScore(21)" id="score21">21</button>
+            </div>
+            <div class="controls-box" style="display: flex; gap: 40px; margin-top: 20px;">
                 <div>
                     <p style="color: #0af; font-weight: bold;">Player 1 (Blue)</p>
                     <p>Arrow Up/Down - Move</p>
@@ -154,7 +176,16 @@
         const PADDLE_WIDTH = 15;
         const PADDLE_HEIGHT = 80;
         const BALL_SIZE = 12;
-        const WIN_SCORE = 11;
+        let WIN_SCORE = 11;
+
+        function setWinScore(score) {
+            WIN_SCORE = score;
+            // Update button styles
+            document.querySelectorAll('.score-select button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.getElementById('score' + score).classList.add('selected');
+        }
 
         // Game state
         let player = {
@@ -540,7 +571,7 @@
         function endGame() {
             gameRunning = false;
 
-            let winner = player.score >= WIN_SCORE ? 'You Win!' : 'Opponent Wins!';
+            let winner = player.score >= WIN_SCORE ? 'Player 1 Wins!' : 'Player 2 Wins!';
             document.getElementById('winnerText').textContent = winner;
             document.getElementById('finalScoreText').textContent = `Final Score: ${player.score} - ${opponent.score}`;
             document.getElementById('gameOver').style.display = 'flex';
