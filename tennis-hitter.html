@@ -120,16 +120,17 @@
         <div id="startScreen">
             <h1>Tennis Hitter</h1>
             <p>First to 11 points wins!</p>
-            <div class="controls">
-                <p>Arrow Up/Down - Move</p>
-                <p>W - Serve</p>
-                <p>Space - Power Hit</p>
-            </div>
-            <div class="difficulty">
-                <p>Select Difficulty:</p>
-                <button id="easyBtn" onclick="setDifficulty('easy')">Easy</button>
-                <button id="mediumBtn" class="selected" onclick="setDifficulty('medium')">Medium</button>
-                <button id="hardBtn" onclick="setDifficulty('hard')">Hard</button>
+            <div class="controls-box" style="display: flex; gap: 40px;">
+                <div>
+                    <p style="color: #0af; font-weight: bold;">Player 1 (Blue)</p>
+                    <p>Arrow Up/Down - Move</p>
+                    <p>Space - Serve / Power Hit</p>
+                </div>
+                <div>
+                    <p style="color: #f80; font-weight: bold;">Player 2 (Orange)</p>
+                    <p>Z / X - Move Up/Down</p>
+                    <p>C - Serve / Power Hit</p>
+                </div>
             </div>
             <button onclick="startGame()">Play Tennis!</button>
         </div>
@@ -167,7 +168,7 @@
             x: canvas.width - 30 - PADDLE_WIDTH,
             y: canvas.height / 2 - PADDLE_HEIGHT / 2,
             score: 0,
-            speed: 5
+            speed: 8
         };
 
         let ball = {
@@ -182,7 +183,6 @@
 
         let particles = [];
         let gameRunning = false;
-        let difficulty = 'medium';
         let rallyCount = 0;
 
         // Input
@@ -190,9 +190,16 @@
 
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            if (e.code === 'Space') e.preventDefault();
-            if (e.code === 'KeyW') {
+            if (e.code === 'Space' || e.code === 'KeyX' || e.code === 'KeyZ') e.preventDefault();
+            // Player 1 serve with Space
+            if (e.code === 'Space') {
                 if (ball.serving && ball.serverIsPlayer) {
+                    serveBall();
+                }
+            }
+            // Player 2 serve with C
+            if (e.code === 'KeyC') {
+                if (ball.serving && !ball.serverIsPlayer) {
                     serveBall();
                 }
             }
@@ -201,12 +208,6 @@
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
         });
-
-        function setDifficulty(diff) {
-            difficulty = diff;
-            document.querySelectorAll('.difficulty button').forEach(btn => btn.classList.remove('selected'));
-            document.getElementById(diff + 'Btn').classList.add('selected');
-        }
 
         function serveBall() {
             if (!ball.serving) return;
@@ -243,14 +244,6 @@
             ball.serving = true;
             ball.serverIsPlayer = serverIsPlayer;
 
-            // AI serves after a delay
-            if (!serverIsPlayer) {
-                setTimeout(() => {
-                    if (ball.serving && !ball.serverIsPlayer && gameRunning) {
-                        serveBall();
-                    }
-                }, 1000);
-            }
         }
 
         function scorePoint(scorerIsPlayer) {
@@ -350,7 +343,9 @@
                     let hitPos = (ball.y - opponent.y) / PADDLE_HEIGHT;
                     let angle = Math.PI - (hitPos - 0.5) * Math.PI * 0.7;
 
-                    let speed = Math.min(ball.speed * 1.05, 15);
+                    // Power hit with C key for player 2
+                    let power = keys['KeyC'] ? 1.3 : 1;
+                    let speed = Math.min(ball.speed * 1.05, 15) * power;
                     ball.vx = Math.cos(angle) * speed;
                     ball.vy = Math.sin(angle) * speed;
                     if (ball.vx > -3) ball.vx = -3;
@@ -358,7 +353,7 @@
                     ball.speed = Math.min(ball.speed * 1.02, 15);
                     rallyCount++;
 
-                    addHitParticles(ball.x, ball.y, false);
+                    addHitParticles(ball.x, ball.y, keys['KeyC']);
                 }
 
                 // Score points
@@ -370,38 +365,12 @@
                 }
             }
 
-            // AI opponent movement
-            let targetY = ball.y - PADDLE_HEIGHT / 2;
-            let aiSpeed = opponent.speed;
-
-            // Adjust AI based on difficulty
-            if (difficulty === 'easy') {
-                aiSpeed = 4;
-                // AI reacts slowly
-                if (ball.vx > 0) {
-                    targetY = ball.y + ball.vy * 10 - PADDLE_HEIGHT / 2;
-                }
-            } else if (difficulty === 'medium') {
-                aiSpeed = 5.5;
-                if (ball.vx > 0) {
-                    targetY = ball.y + ball.vy * 5 - PADDLE_HEIGHT / 2;
-                }
-            } else if (difficulty === 'hard') {
-                aiSpeed = 7;
-                // AI predicts ball position
-                if (ball.vx > 0) {
-                    let timeToReach = (opponent.x - ball.x) / ball.vx;
-                    targetY = ball.y + ball.vy * timeToReach - PADDLE_HEIGHT / 2;
-                }
+            // Player 2 movement (Z = up, X = down)
+            if (keys['KeyZ']) {
+                opponent.y -= opponent.speed;
             }
-
-            // Add some randomness to AI
-            targetY += Math.sin(Date.now() * 0.005) * 20;
-
-            if (opponent.y + PADDLE_HEIGHT / 2 < targetY) {
-                opponent.y += aiSpeed;
-            } else if (opponent.y + PADDLE_HEIGHT / 2 > targetY) {
-                opponent.y -= aiSpeed;
+            if (keys['KeyX']) {
+                opponent.y += opponent.speed;
             }
 
             // Keep opponent in bounds
@@ -529,11 +498,17 @@
             ctx.stroke();
 
             // Serve indicator
-            if (ball.serving && ball.serverIsPlayer) {
+            if (ball.serving) {
                 ctx.fillStyle = '#fff';
                 ctx.font = '16px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('Press W to serve!', canvas.width / 4, 40);
+                if (ball.serverIsPlayer) {
+                    ctx.fillStyle = '#0af';
+                    ctx.fillText('P1: Press SPACE to serve!', canvas.width / 4, 40);
+                } else {
+                    ctx.fillStyle = '#f80';
+                    ctx.fillText('P2: Press C to serve!', canvas.width * 3 / 4, 40);
+                }
             }
 
             // Rally counter
