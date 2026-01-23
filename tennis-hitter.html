@@ -122,7 +122,8 @@
             <p>First to 11 points wins!</p>
             <div class="controls">
                 <p>Arrow Up/Down - Move</p>
-                <p>Space - Serve / Power Hit</p>
+                <p>W - Serve</p>
+                <p>Space - Power Hit</p>
             </div>
             <div class="difficulty">
                 <p>Select Difficulty:</p>
@@ -189,8 +190,8 @@
 
         document.addEventListener('keydown', (e) => {
             keys[e.code] = true;
-            if (e.code === 'Space') {
-                e.preventDefault();
+            if (e.code === 'Space') e.preventDefault();
+            if (e.code === 'KeyW') {
                 if (ball.serving && ball.serverIsPlayer) {
                     serveBall();
                 }
@@ -532,7 +533,7 @@
                 ctx.fillStyle = '#fff';
                 ctx.font = '16px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('Press SPACE to serve!', canvas.width / 4, 40);
+                ctx.fillText('Press W to serve!', canvas.width / 4, 40);
             }
 
             // Rally counter
