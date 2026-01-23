@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shooter Duo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 100, 0, 0.3);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        .player-ui {
+            padding: 10px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 5px;
+        }
+        #startScreen, #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff6600, #ff0000, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 15px;
+            color: #ff6600;
+        }
+        p {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+        .controls-box {
+            display: flex;
+            gap: 40px;
+            margin: 20px 0;
+        }
+        .control-section {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+        .control-section h3 {
+            color: #0af;
+            margin-bottom: 10px;
+        }
+        .control-section.p2 h3 {
+            color: #f80;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #ff6600, #ff3300);
+            color: #fff;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 100, 0, 0.5);
+        }
+        .mode-buttons {
+            margin: 20px 0;
+        }
+        .mode-buttons button {
+            padding: 12px 30px;
+            font-size: 18px;
+        }
+        .wave-text {
+            font-size: 28px;
+            color: #ff0;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="550"></canvas>
+        <div id="ui">
+            <div class="player-ui" id="p1ui" style="border-left: 4px solid #0af;">
+                <div>Player 1</div>
+                <div>HP: <span id="p1hp">100</span></div>
+            </div>
+            <div style="text-align: center;">
+                <div>Wave: <span id="waveNum">1</span></div>
+                <div>Score: <span id="scoreNum">0</span></div>
+            </div>
+            <div class="player-ui" id="p2ui" style="border-right: 4px solid #f80; display: none;">
+                <div>Player 2</div>
+                <div>HP: <span id="p2hp">100</span></div>
+            </div>
+        </div>
+
+        <div id="startScreen">
+            <h1>Shooter Duo</h1>
+            <p>Fight waves of enemies together!</p>
+            <div class="controls-box">
+                <div class="control-section">
+                    <h3>Player 1 (Blue)</h3>
+                    <p>Arrow Left/Right - Move</p>
+                    <p>Arrow Up - Jump</p>
+                    <p>Space - Shoot</p>
+                </div>
+                <div class="control-section p2">
+                    <h3>Player 2 (Orange)</h3>
+                    <p>Z / C - Move</p>
+                    <p>X - Jump</p>
+                    <p>V - Shoot</p>
+                </div>
+            </div>
+            <div class="mode-buttons">
+                <button onclick="startGame(1)">1 Player</button>
+                <button onclick="startGame(2)">2 Players</button>
+            </div>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>Game Over!</h2>
+            <div class="wave-text" id="finalWave"></div>
+            <p id="finalScore"></p>
+            <button onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Constants
+        const GROUND_Y = 480;
+        const GRAVITY = 0.6;
+        const PLAYER_WIDTH = 35;
+        const PLAYER_HEIGHT = 50;
+
+        // Game state
+        let players = [];
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let platforms = [];
+        let pickups = [];
+        let wave = 1;
+        let score = 0;
+        let gameRunning = false;
+        let numPlayers = 1;
+        let enemiesRemaining = 0;
+        let waveDelay = 0;
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'KeyX', 'KeyV'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function createPlayer(id, x, color) {
+            return {
+                id: id,
+                x: x,
+                y: GROUND_Y - PLAYER_HEIGHT,
+                vx: 0,
+                vy: 0,
+                width: PLAYER_WIDTH,
+                height: PLAYER_HEIGHT,
+                color: color,
+                hp: 100,
+                maxHp: 100,
+                grounded: true,
+                facingRight: id === 1,
+                shootCooldown: 0,
+                invincible: 0,
+                ammo: 30,
+                maxAmmo: 30
+            };
+        }
+
+        function createEnemy(type, x, y) {
+            let enemy = {
+                x: x,
+                y: y,
+                vx: 0,
+                vy: 0,
+                width: 30,
+                height: 40,
+                type: type,
+                hp: 20,
+                maxHp: 20,
+                grounded: false,
+                shootCooldown: 0,
+                facingRight: Math.random() < 0.5
+            };
+
+            if (type === 'runner') {
+                enemy.speed = 3 + wave * 0.3;
+                enemy.hp = 15 + wave * 2;
+                enemy.color = '#ff4444';
+            } else if (type === 'shooter') {
+                enemy.speed = 1.5;
+                enemy.hp = 25 + wave * 3;
+                enemy.color = '#aa44ff';
+                enemy.shootCooldown = 60;
+            } else if (type === 'tank') {
+                enemy.speed = 1;
+                enemy.hp = 60 + wave * 5;
+                enemy.width = 45;
+                enemy.height = 55;
+                enemy.color = '#44aa44';
+            } else if (type === 'flyer') {
+                enemy.speed = 2 + wave * 0.2;
+                enemy.hp = 10 + wave;
+                enemy.color = '#ffaa00';
+                enemy.flying = true;
+                enemy.y = 150 + Math.random() * 150;
+                enemy.floatPhase = Math.random() * Math.PI * 2;
+            }
+
+            enemy.maxHp = enemy.hp;
+            return enemy;
+        }
+
+        function spawnWave() {
+            let enemyCount = 3 + wave * 2;
+            let types = ['runner'];
+
+            if (wave >= 2) types.push('shooter');
+            if (wave >= 3) types.push('tank');
+            if (wave >= 4) types.push('flyer');
+
+            for (let i = 0; i < enemyCount; i++) {
+                let type = types[Math.floor(Math.random() * types.length)];
+                let x = Math.random() < 0.5 ? -50 : canvas.width + 50;
+                let y = GROUND_Y - 40;
+                enemies.push(createEnemy(type, x, y));
+            }
+
+            enemiesRemaining = enemyCount;
+        }
+
+        function initPlatforms() {
+            platforms = [
+                { x: 150, y: 380, width: 120, height: 15 },
+                { x: 350, y: 300, width: 200, height: 15 },
+                { x: 630, y: 380, width: 120, height: 15 },
+                { x: 100, y: 220, width: 100, height: 15 },
+                { x: 700, y: 220, width: 100, height: 15 },
+                { x: 400, y: 160, width: 100, height: 15 }
+            ];
+        }
+
+        function shoot(player) {
+            if (player.shootCooldown > 0 || player.ammo <= 0) return;
+
+            player.shootCooldown = 15;
+            player.ammo--;
+
+            let bullet = {
+                x: player.x + (player.facingRight ? player.width : 0),
+                y: player.y + player.height / 2 - 3,
+                vx: player.facingRight ? 12 : -12,
+                vy: 0,
+                width: 10,
+                height: 6,
+                isPlayer: true,
+                playerId: player.id,
+                damage: 10
+            };
+
+            bullets.push(bullet);
+
+            // Muzzle flash particles
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: bullet.x,
+                    y: bullet.y,
+                    vx: (player.facingRight ? 3 : -3) + (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 3,
+                    life: 8,
+                    color: '#ff0'
+                });
+            }
+        }
+
+        function enemyShoot(enemy) {
+            let targetPlayer = players[Math.floor(Math.random() * players.length)];
+            if (!targetPlayer || targetPlayer.hp <= 0) return;
+
+            let dx = targetPlayer.x - enemy.x;
+            let dy = targetPlayer.y - enemy.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            let bullet = {
+                x: enemy.x + enemy.width / 2,
+                y: enemy.y + enemy.height / 2,
+                vx: (dx / dist) * 6,
+                vy: (dy / dist) * 6,
+                width: 8,
+                height: 8,
+                isPlayer: false,
+                damage: 10 + wave
+            };
+
+            bullets.push(bullet);
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            // Check for wave completion
+            if (enemies.length === 0 && waveDelay <= 0) {
+                waveDelay = 120;
+            }
+
+            if (waveDelay > 0) {
+                waveDelay--;
+                if (waveDelay === 0) {
+                    wave++;
+                    document.getElementById('waveNum').textContent = wave;
+
+                    // Drop ammo pickup
+                    pickups.push({
+                        x: 400 + (Math.random() - 0.5) * 300,
+                        y: GROUND_Y - 20,
+                        type: 'ammo',
+                        width: 25,
+                        height: 25
+                    });
+
+                    // Health pickup every 3 waves
+                    if (wave % 3 === 0) {
+                        pickups.push({
+                            x: 200 + Math.random() * 500,
+                            y: GROUND_Y - 20,
+                            type: 'health',
+                            width: 25,
+                            height: 25
+                        });
+                    }
+
+                    spawnWave();
+                }
+            }
+
+            // Update players
+            for (const player of players) {
+                if (player.hp <= 0) continue;
+
+                // Movement
+                let moveLeft, moveRight, jump, shootKey;
+
+                if (player.id === 1) {
+                    moveLeft = keys['ArrowLeft'];
+                    moveRight = keys['ArrowRight'];
+                    jump = keys['ArrowUp'];
+                    shootKey = keys['Space'];
+                } else {
+                    moveLeft = keys['KeyZ'];
+                    moveRight = keys['KeyC'];
+                    jump = keys['KeyX'];
+                    shootKey = keys['KeyV'];
+                }
+
+                if (moveLeft) {
+                    player.vx = -5;
+                    player.facingRight = false;
+                } else if (moveRight) {
+                    player.vx = 5;
+                    player.facingRight = true;
+                } else {
+                    player.vx *= 0.8;
+                }
+
+                if (jump && player.grounded) {
+                    player.vy = -13;
+                    player.grounded = false;
+                }
+
+                if (shootKey) {
+                    shoot(player);
+                }
+
+                // Apply physics
+                player.vy += GRAVITY;
+                player.x += player.vx;
+                player.y += player.vy;
+
+                // Ground collision
+                player.grounded = false;
+                if (player.y + player.height >= GROUND_Y) {
+                    player.y = GROUND_Y - player.height;
+                    player.vy = 0;
+                    player.grounded = true;
+                }
+
+                // Platform collision
+                for (const plat of platforms) {
+                    if (player.vy > 0 &&
+                        player.x + player.width > plat.x && player.x < plat.x + plat.width &&
+                        player.y + player.height >= plat.y && player.y + player.height <= plat.y + 20) {
+                        player.y = plat.y - player.height;
+                        player.vy = 0;
+                        player.grounded = true;
+                    }
+                }
+
+                // Keep in bounds
+                if (player.x < 0) player.x = 0;
+                if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+
+                // Cooldowns
+                if (player.shootCooldown > 0) player.shootCooldown--;
+                if (player.invincible > 0) player.invincible--;
+
+                // Pickup collision
+                for (let i = pickups.length - 1; i >= 0; i--) {
+                    let p = pickups[i];
+                    if (player.x < p.x + p.width && player.x + player.width > p.x &&
+                        player.y < p.y + p.height && player.y + player.height > p.y) {
+                        if (p.type === 'ammo') {
+                            player.ammo = Math.min(player.ammo + 15, player.maxAmmo);
+                        } else if (p.type === 'health') {
+                            player.hp = Math.min(player.hp + 30, player.maxHp);
+                        }
+                        pickups.splice(i, 1);
+
+                        // Pickup particles
+                        for (let j = 0; j < 10; j++) {
+                            particles.push({
+                                x: p.x + p.width / 2,
+                                y: p.y + p.height / 2,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                life: 20,
+                                color: p.type === 'ammo' ? '#ff0' : '#0f0'
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Update enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let enemy = enemies[i];
+
+                // Find closest player
+                let closestPlayer = null;
+                let closestDist = Infinity;
+                for (const player of players) {
+                    if (player.hp <= 0) continue;
+                    let dist = Math.abs(player.x - enemy.x);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestPlayer = player;
+                    }
+                }
+
+                if (closestPlayer) {
+                    // Face player
+                    enemy.facingRight = closestPlayer.x > enemy.x;
+
+                    // Move towards player
+                    if (enemy.flying) {
+                        enemy.floatPhase += 0.05;
+                        enemy.y = 150 + Math.sin(enemy.floatPhase) * 50;
+                        enemy.x += enemy.facingRight ? enemy.speed : -enemy.speed;
+                    } else {
+                        if (enemy.type === 'shooter') {
+                            // Shooter keeps distance
+                            if (closestDist < 200) {
+                                enemy.x += enemy.facingRight ? -enemy.speed : enemy.speed;
+                            } else if (closestDist > 300) {
+                                enemy.x += enemy.facingRight ? enemy.speed : -enemy.speed;
+                            }
+                            enemy.shootCooldown--;
+                            if (enemy.shootCooldown <= 0) {
+                                enemyShoot(enemy);
+                                enemy.shootCooldown = 90 - wave * 5;
+                                if (enemy.shootCooldown < 40) enemy.shootCooldown = 40;
+                            }
+                        } else {
+                            enemy.x += enemy.facingRight ? enemy.speed : -enemy.speed;
+                        }
+                    }
+
+                    // Damage player on contact
+                    for (const player of players) {
+                        if (player.hp <= 0 || player.invincible > 0) continue;
+                        if (player.x < enemy.x + enemy.width && player.x + player.width > enemy.x &&
+                            player.y < enemy.y + enemy.height && player.y + player.height > enemy.y) {
+                            player.hp -= 15;
+                            player.invincible = 60;
+                            player.vx = enemy.facingRight ? -8 : 8;
+                            player.vy = -5;
+
+                            // Hit particles
+                            for (let j = 0; j < 10; j++) {
+                                particles.push({
+                                    x: player.x + player.width / 2,
+                                    y: player.y + player.height / 2,
+                                    vx: (Math.random() - 0.5) * 8,
+                                    vy: (Math.random() - 0.5) * 8,
+                                    life: 20,
+                                    color: '#f00'
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Apply gravity (non-flying)
+                if (!enemy.flying) {
+                    enemy.vy += GRAVITY;
+                    enemy.y += enemy.vy;
+
+                    if (enemy.y + enemy.height >= GROUND_Y) {
+                        enemy.y = GROUND_Y - enemy.height;
+                        enemy.vy = 0;
+                        enemy.grounded = true;
+                    }
+                }
+
+                // Keep in bounds (wrap around)
+                if (enemy.x < -100) enemy.x = canvas.width + 50;
+                if (enemy.x > canvas.width + 100) enemy.x = -50;
+            }
+
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let bullet = bullets[i];
+                bullet.x += bullet.vx;
+                bullet.y += bullet.vy;
+
+                // Remove if off screen
+                if (bullet.x < -20 || bullet.x > canvas.width + 20 ||
+                    bullet.y < -20 || bullet.y > canvas.height + 20) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Player bullet hits enemy
+                if (bullet.isPlayer) {
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        let enemy = enemies[j];
+                        if (bullet.x < enemy.x + enemy.width && bullet.x + bullet.width > enemy.x &&
+                            bullet.y < enemy.y + enemy.height && bullet.y + bullet.height > enemy.y) {
+                            enemy.hp -= bullet.damage;
+
+                            // Hit particles
+                            for (let k = 0; k < 5; k++) {
+                                particles.push({
+                                    x: bullet.x,
+                                    y: bullet.y,
+                                    vx: (Math.random() - 0.5) * 6,
+                                    vy: (Math.random() - 0.5) * 6,
+                                    life: 15,
+                                    color: enemy.color
+                                });
+                            }
+
+                            bullets.splice(i, 1);
+
+                            if (enemy.hp <= 0) {
+                                // Death particles
+                                for (let k = 0; k < 15; k++) {
+                                    particles.push({
+                                        x: enemy.x + enemy.width / 2,
+                                        y: enemy.y + enemy.height / 2,
+                                        vx: (Math.random() - 0.5) * 10,
+                                        vy: (Math.random() - 0.5) * 10,
+                                        life: 25,
+                                        color: enemy.color
+                                    });
+                                }
+                                enemies.splice(j, 1);
+                                score += 10 + wave * 5;
+                                document.getElementById('scoreNum').textContent = score;
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    // Enemy bullet hits player
+                    for (const player of players) {
+                        if (player.hp <= 0 || player.invincible > 0) continue;
+                        if (bullet.x < player.x + player.width && bullet.x + bullet.width > player.x &&
+                            bullet.y < player.y + player.height && bullet.y + bullet.height > player.y) {
+                            player.hp -= bullet.damage;
+                            player.invincible = 30;
+                            bullets.splice(i, 1);
+
+                            // Hit particles
+                            for (let k = 0; k < 8; k++) {
+                                particles.push({
+                                    x: bullet.x,
+                                    y: bullet.y,
+                                    vx: (Math.random() - 0.5) * 6,
+                                    vy: (Math.random() - 0.5) * 6,
+                                    life: 15,
+                                    color: '#f00'
+                                });
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Update UI
+            document.getElementById('p1hp').textContent = Math.max(0, players[0].hp);
+            if (numPlayers === 2) {
+                document.getElementById('p2hp').textContent = Math.max(0, players[1].hp);
+            }
+
+            // Check game over
+            let allDead = true;
+            for (const player of players) {
+                if (player.hp > 0) allDead = false;
+            }
+            if (allDead) {
+                endGame();
+            }
+        }
+
+        function draw() {
+            // Background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background city
+            ctx.fillStyle = '#0d0d1a';
+            for (let i = 0; i < 10; i++) {
+                let h = 80 + Math.random() * 150;
+                ctx.fillRect(i * 100 - 20, GROUND_Y - h, 70, h);
+            }
+
+            // Ground
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+            ctx.fillStyle = '#444';
+            ctx.fillRect(0, GROUND_Y, canvas.width, 5);
+
+            // Platforms
+            for (const plat of platforms) {
+                ctx.fillStyle = '#555';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                ctx.fillStyle = '#666';
+                ctx.fillRect(plat.x, plat.y, plat.width, 4);
+            }
+
+            // Pickups
+            for (const p of pickups) {
+                if (p.type === 'ammo') {
+                    ctx.fillStyle = '#ff0';
+                    ctx.fillRect(p.x, p.y, p.width, p.height);
+                    ctx.fillStyle = '#aa0';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.fillText('A', p.x + 7, p.y + 18);
+                } else if (p.type === 'health') {
+                    ctx.fillStyle = '#0f0';
+                    ctx.fillRect(p.x, p.y, p.width, p.height);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(p.x + 10, p.y + 5, 5, 15);
+                    ctx.fillRect(p.x + 5, p.y + 10, 15, 5);
+                }
+            }
+
+            // Particles
+            for (const p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 25;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Enemies
+            for (const enemy of enemies) {
+                ctx.save();
+                ctx.translate(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
+                if (!enemy.facingRight) ctx.scale(-1, 1);
+
+                // Body
+                ctx.fillStyle = enemy.color;
+                ctx.fillRect(-enemy.width / 2, -enemy.height / 2, enemy.width, enemy.height);
+
+                // Eyes
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(2, -enemy.height / 4, 6, 6);
+
+                // HP bar
+                ctx.restore();
+                let hpPercent = enemy.hp / enemy.maxHp;
+                ctx.fillStyle = '#500';
+                ctx.fillRect(enemy.x, enemy.y - 10, enemy.width, 5);
+                ctx.fillStyle = '#f00';
+                ctx.fillRect(enemy.x, enemy.y - 10, enemy.width * hpPercent, 5);
+            }
+
+            // Bullets
+            for (const bullet of bullets) {
+                ctx.fillStyle = bullet.isPlayer ? '#ff0' : '#f00';
+                ctx.shadowColor = bullet.isPlayer ? '#ff0' : '#f00';
+                ctx.shadowBlur = 10;
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                ctx.shadowBlur = 0;
+            }
+
+            // Players
+            for (const player of players) {
+                if (player.hp <= 0) continue;
+
+                ctx.save();
+                ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+                if (!player.facingRight) ctx.scale(-1, 1);
+
+                // Blink when invincible
+                if (player.invincible > 0 && Math.floor(player.invincible / 4) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+
+                // Body
+                ctx.fillStyle = player.color;
+                ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+
+                // Head
+                ctx.fillStyle = '#ffd';
+                ctx.fillRect(-player.width / 2 + 5, -player.height / 2 + 2, player.width - 10, 18);
+
+                // Eyes
+                ctx.fillStyle = '#000';
+                ctx.fillRect(2, -player.height / 2 + 8, 4, 4);
+
+                // Gun
+                ctx.fillStyle = '#666';
+                ctx.fillRect(player.width / 2 - 5, 0, 15, 6);
+
+                ctx.restore();
+
+                // Ammo display
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.fillText(`${player.ammo}`, player.x + player.width / 2 - 6, player.y - 5);
+            }
+
+            // Wave announcement
+            if (waveDelay > 60) {
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 36px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Wave ${wave} Complete!`, canvas.width / 2, canvas.height / 2);
+                ctx.font = '20px Arial';
+                ctx.fillText('Next wave incoming...', canvas.width / 2, canvas.height / 2 + 40);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        function startGame(numP) {
+            numPlayers = numP;
+            document.getElementById('startScreen').style.display = 'none';
+
+            players = [createPlayer(1, 200, '#0af')];
+            if (numPlayers === 2) {
+                players.push(createPlayer(2, 600, '#f80'));
+                document.getElementById('p2ui').style.display = 'block';
+            }
+
+            wave = 1;
+            score = 0;
+            bullets = [];
+            enemies = [];
+            particles = [];
+            pickups = [];
+            waveDelay = 0;
+
+            document.getElementById('waveNum').textContent = wave;
+            document.getElementById('scoreNum').textContent = score;
+
+            initPlatforms();
+            spawnWave();
+            gameRunning = true;
+        }
+
+        function endGame() {
+            gameRunning = false;
+            document.getElementById('finalWave').textContent = `Reached Wave ${wave}`;
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
