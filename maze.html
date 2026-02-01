@@ -102,6 +102,73 @@
         #storeBtn:hover {
             background-color: #45a049;
         }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0 20px;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+        .touch-dpad {
+            display: grid;
+            grid-template-columns: 60px 60px 60px;
+            grid-template-rows: 60px 60px 60px;
+            gap: 4px;
+            pointer-events: auto;
+        }
+        .touch-dpad-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(76, 175, 80, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .touch-dpad-btn:active, .touch-dpad-btn.active {
+            background: rgba(76, 175, 80, 0.9);
+            border-color: #4CAF50;
+        }
+        .touch-dpad-empty {
+            background: transparent;
+            border: none;
+        }
+        .touch-action-btn {
+            width: 90px;
+            height: 90px;
+            background: rgba(244, 67, 54, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            user-select: none;
+            touch-action: manipulation;
+            pointer-events: auto;
+        }
+        .touch-action-btn:active, .touch-action-btn.active {
+            background: rgba(244, 67, 54, 0.9);
+            border-color: #f44336;
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: flex;
+            }
+        }
     </style>
 </head>
 <body>
@@ -215,6 +282,22 @@
             </div>
         </div>
         <button onclick="toggleStore()" style="margin-top: 20px;">Close</button>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <div class="touch-dpad">
+            <div class="touch-dpad-btn touch-dpad-empty"></div>
+            <div class="touch-dpad-btn" id="maze-dpad-up">&#9650;</div>
+            <div class="touch-dpad-btn touch-dpad-empty"></div>
+            <div class="touch-dpad-btn" id="maze-dpad-left">&#9664;</div>
+            <div class="touch-dpad-btn touch-dpad-empty"></div>
+            <div class="touch-dpad-btn" id="maze-dpad-right">&#9654;</div>
+            <div class="touch-dpad-btn touch-dpad-empty"></div>
+            <div class="touch-dpad-btn" id="maze-dpad-down">&#9660;</div>
+            <div class="touch-dpad-btn touch-dpad-empty"></div>
+        </div>
+        <div class="touch-action-btn" id="maze-attack-btn">ATTACK</div>
     </div>
 
     <script>
@@ -3020,6 +3103,76 @@
         loadSavedItems();
         loadBestLevel();
         gameLoop();
+
+        // Touch D-Pad Controls
+        function setupMazeDpadButton(id, key) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                game.keys[key] = true;
+                btn.classList.add('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                game.keys[key] = false;
+                btn.classList.remove('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                game.keys[key] = false;
+                btn.classList.remove('active');
+            }, { passive: false });
+
+            // Also support mouse for testing
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                game.keys[key] = true;
+                btn.classList.add('active');
+            });
+
+            btn.addEventListener('mouseup', (e) => {
+                game.keys[key] = false;
+                btn.classList.remove('active');
+            });
+
+            btn.addEventListener('mouseleave', (e) => {
+                game.keys[key] = false;
+                btn.classList.remove('active');
+            });
+        }
+
+        setupMazeDpadButton('maze-dpad-up', 'ArrowUp');
+        setupMazeDpadButton('maze-dpad-down', 'ArrowDown');
+        setupMazeDpadButton('maze-dpad-left', 'ArrowLeft');
+        setupMazeDpadButton('maze-dpad-right', 'ArrowRight');
+
+        // Attack button
+        const attackBtn = document.getElementById('maze-attack-btn');
+        if (attackBtn) {
+            attackBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                attackBtn.classList.add('active');
+                playerAttack();
+            }, { passive: false });
+
+            attackBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                attackBtn.classList.remove('active');
+            }, { passive: false });
+
+            attackBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                attackBtn.classList.add('active');
+                playerAttack();
+            });
+
+            attackBtn.addEventListener('mouseup', (e) => {
+                attackBtn.classList.remove('active');
+            });
+        }
     </script>
 </body>
 </html>

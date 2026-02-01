@@ -361,9 +361,116 @@
             border-radius: 8px;
             cursor: pointer;
         }
+        /* Touch Controls */
+        #touch-controls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            z-index: 150;
+            pointer-events: none;
+        }
+        @media (pointer: coarse), (max-width: 1024px) {
+            #touch-controls { display: block; }
+            #instructions { display: none; }
+        }
+        .touch-dpad {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            width: 150px;
+            height: 150px;
+            pointer-events: auto;
+        }
+        .dpad-btn {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .dpad-btn:active, .dpad-btn.active {
+            background: rgba(0, 255, 136, 0.5);
+            border-color: #00ff88;
+        }
+        .dpad-up { top: 0; left: 50px; }
+        .dpad-down { bottom: 0; left: 50px; }
+        .dpad-left { top: 50px; left: 0; }
+        .dpad-right { top: 50px; right: 0; }
+        .touch-buttons {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            pointer-events: auto;
+        }
+        .action-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            margin: 5px;
+        }
+        .action-btn:active, .action-btn.active {
+            background: rgba(255, 136, 255, 0.5);
+            border-color: #ff88ff;
+        }
+        .btn-shoot {
+            background: rgba(255, 100, 100, 0.4);
+            border-color: rgba(255, 100, 100, 0.6);
+        }
+        .btn-shoot:active, .btn-shoot.active {
+            background: rgba(255, 100, 100, 0.7);
+        }
+        .btn-jump {
+            background: rgba(100, 200, 255, 0.4);
+            border-color: rgba(100, 200, 255, 0.6);
+        }
+        .btn-jump:active, .btn-jump.active {
+            background: rgba(100, 200, 255, 0.7);
+        }
+        .buttons-row {
+            display: flex;
+            flex-direction: row;
+        }
     </style>
 </head>
 <body>
+    <!-- Touch Controls -->
+    <div id="touch-controls">
+        <div class="touch-dpad">
+            <div class="dpad-btn dpad-up" data-dir="up">&#9650;</div>
+            <div class="dpad-btn dpad-down" data-dir="down">&#9660;</div>
+            <div class="dpad-btn dpad-left" data-dir="left">&#9664;</div>
+            <div class="dpad-btn dpad-right" data-dir="right">&#9654;</div>
+        </div>
+        <div class="touch-buttons">
+            <div class="buttons-row">
+                <div class="action-btn btn-shoot" data-action="shoot">FIRE</div>
+                <div class="action-btn btn-jump" data-action="jump">JUMP</div>
+            </div>
+        </div>
+    </div>
     <div id="info">
         <h2>Robot Collector</h2>
         <div>Collect orbs! Defeat enemies!</div>
@@ -2101,43 +2208,83 @@
             }
         });
 
-        // Touch controls
+        // Touch controls - D-pad and action buttons
+        const dpadBtns = document.querySelectorAll('.dpad-btn');
+        const actionBtns = document.querySelectorAll('.action-btn');
+
+        // D-pad touch handling
+        dpadBtns.forEach(btn => {
+            const dir = btn.dataset.dir;
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                btn.classList.add('active');
+                if (dir === 'up') keys.forward = true;
+                if (dir === 'down') keys.backward = true;
+                if (dir === 'left') keys.left = true;
+                if (dir === 'right') keys.right = true;
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                btn.classList.remove('active');
+                if (dir === 'up') keys.forward = false;
+                if (dir === 'down') keys.backward = false;
+                if (dir === 'left') keys.left = false;
+                if (dir === 'right') keys.right = false;
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                btn.classList.remove('active');
+                if (dir === 'up') keys.forward = false;
+                if (dir === 'down') keys.backward = false;
+                if (dir === 'left') keys.left = false;
+                if (dir === 'right') keys.right = false;
+            });
+        });
+
+        // Action buttons touch handling
+        actionBtns.forEach(btn => {
+            const action = btn.dataset.action;
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                btn.classList.add('active');
+                if (action === 'shoot') shoot();
+                if (action === 'jump' && !isJumping) {
+                    isJumping = true;
+                    velocityY = jumpForce;
+                }
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                btn.classList.remove('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                btn.classList.remove('active');
+            });
+        });
+
+        // Legacy touch controls for swipe movement (fallback)
         let touchJoystick = { active: false, startX: 0, startY: 0, id: null };
-        let lastTapTime = 0;
 
         document.addEventListener('touchstart', (e) => {
             if (shopOpen || robotShopOpen) return;
+            if (e.target.closest('#touch-controls')) return;
             if (e.target.tagName === 'BUTTON') return;
 
-            e.preventDefault();
             const touch = e.touches[0];
-            const rect = container.getBoundingClientRect();
-            const touchX = touch.clientX - rect.left;
-
-            // Left half = joystick for movement, Right half = shoot
-            if (touchX < rect.width / 2) {
-                touchJoystick.active = true;
-                touchJoystick.startX = touch.clientX;
-                touchJoystick.startY = touch.clientY;
-                touchJoystick.id = touch.identifier;
-            } else {
-                // Right side = shoot, double tap = jump
-                const now = Date.now();
-                if (now - lastTapTime < 300) {
-                    if (!isJumping) {
-                        isJumping = true;
-                        velocityY = jumpForce;
-                    }
-                } else {
-                    shoot();
-                }
-                lastTapTime = now;
-            }
-        }, { passive: false });
+            touchJoystick.active = true;
+            touchJoystick.startX = touch.clientX;
+            touchJoystick.startY = touch.clientY;
+            touchJoystick.id = touch.identifier;
+        }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
             if (!touchJoystick.active || shopOpen || robotShopOpen) return;
-            e.preventDefault();
+            if (e.target.closest('#touch-controls')) return;
 
             for (let i = 0; i < e.touches.length; i++) {
                 const touch = e.touches[i];
@@ -2152,10 +2299,10 @@
                     keys.backward = dy > deadzone;
                 }
             }
-        }, { passive: false });
+        }, { passive: true });
 
         document.addEventListener('touchend', (e) => {
-            e.preventDefault();
+            if (e.target.closest('#touch-controls')) return;
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === touchJoystick.id) {
                     touchJoystick.active = false;
@@ -2166,7 +2313,7 @@
                     keys.backward = false;
                 }
             }
-        }, { passive: false });
+        }, { passive: true });
 
         // Movement speed
         const moveSpeed = 0.15;

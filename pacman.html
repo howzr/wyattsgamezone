@@ -49,6 +49,54 @@
             font-size: 14px;
             text-align: center;
         }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+        .dpad {
+            display: grid;
+            grid-template-columns: 70px 70px 70px;
+            grid-template-rows: 70px 70px 70px;
+            gap: 5px;
+        }
+        .dpad-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(33, 33, 222, 0.6);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+            user-select: none;
+            touch-action: manipulation;
+            cursor: pointer;
+        }
+        .dpad-btn:active {
+            background: rgba(33, 33, 222, 0.9);
+            border-color: #ffff00;
+        }
+        .dpad-center {
+            background: rgba(255, 255, 0, 0.3);
+            border-color: rgba(255, 255, 0, 0.5);
+            font-size: 14px;
+        }
+        .dpad-empty {
+            background: transparent;
+            border: none;
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -58,6 +106,21 @@
         <canvas id="gameCanvas"></canvas>
         <div id="message"></div>
         <div id="controls">Arrow Keys / WASD / Swipe to move | Tap or Space to start</div>
+    </div>
+
+    <!-- Touch D-Pad Controls -->
+    <div id="touchControls">
+        <div class="dpad">
+            <div class="dpad-btn dpad-empty"></div>
+            <div class="dpad-btn" id="dpad-up">&#9650;</div>
+            <div class="dpad-btn dpad-empty"></div>
+            <div class="dpad-btn" id="dpad-left">&#9664;</div>
+            <div class="dpad-btn dpad-center" id="dpad-start">START</div>
+            <div class="dpad-btn" id="dpad-right">&#9654;</div>
+            <div class="dpad-btn dpad-empty"></div>
+            <div class="dpad-btn" id="dpad-down">&#9660;</div>
+            <div class="dpad-btn dpad-empty"></div>
+        </div>
     </div>
 
     <script>
@@ -613,6 +676,59 @@
         initGame();
         messageEl.textContent = 'Press Space to Start';
         requestAnimationFrame(gameLoop);
+
+        // Touch D-Pad Controls
+        function setupDpadButton(id, direction) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+
+            const setDirection = () => {
+                if (gameState === 'playing') {
+                    pacman.nextDirection = direction;
+                }
+            };
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                setDirection();
+            }, { passive: false });
+
+            btn.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                setDirection();
+            });
+        }
+
+        setupDpadButton('dpad-up', 'up');
+        setupDpadButton('dpad-down', 'down');
+        setupDpadButton('dpad-left', 'left');
+        setupDpadButton('dpad-right', 'right');
+
+        // Start button
+        const startBtn = document.getElementById('dpad-start');
+        if (startBtn) {
+            startBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (gameState !== 'playing') {
+                    initGame();
+                    gameState = 'playing';
+                    messageEl.textContent = '';
+                }
+            }, { passive: false });
+
+            startBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                if (gameState !== 'playing') {
+                    initGame();
+                    gameState = 'playing';
+                    messageEl.textContent = '';
+                }
+            });
+        }
     </script>
 </body>
 </html>

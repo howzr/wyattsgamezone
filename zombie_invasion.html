@@ -83,6 +83,84 @@
             background: linear-gradient(90deg, #ff0000, #ff6b6b);
             transition: width 0.3s;
         }
+        /* Touch Controls Overlay */
+        #touchOverlay {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #touchOverlay.visible {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 20px 30px;
+        }
+        .touch-joystick {
+            width: 150px;
+            height: 150px;
+            background: rgba(74, 0, 0, 0.4);
+            border: 3px solid rgba(255, 107, 107, 0.5);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .joystick-knob {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 107, 107, 0.7);
+            border: 2px solid rgba(255, 107, 107, 0.9);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: none;
+        }
+        .touch-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            pointer-events: auto;
+        }
+        .touch-btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(74, 0, 0, 0.6);
+            border: 3px solid rgba(255, 107, 107, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ff6b6b;
+            font-size: 14px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .touch-btn:active, .touch-btn.active {
+            background: rgba(255, 107, 107, 0.5);
+            border-color: #ff6b6b;
+        }
+        .touch-btn.fire {
+            width: 100px;
+            height: 100px;
+            font-size: 16px;
+        }
+        @media (pointer: coarse) {
+            #touchOverlay {
+                display: flex;
+            }
+            #touchOverlay.visible {
+                display: flex;
+            }
+        }
     </style>
 </head>
 <body>
@@ -113,6 +191,17 @@
             <p>Final Score: <span id="finalScore">0</span></p>
             <p>Zombies Killed: <span id="finalKills">0</span></p>
             <button onclick="startGame()">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <!-- Touch Controls Overlay -->
+    <div id="touchOverlay" class="visible">
+        <div class="touch-joystick" id="moveJoystick">
+            <div class="joystick-knob" id="joystickKnob"></div>
+        </div>
+        <div class="touch-buttons">
+            <div class="touch-btn" id="reloadBtn">RELOAD</div>
+            <div class="touch-btn fire" id="fireBtn">FIRE</div>
         </div>
     </div>
 
@@ -693,6 +782,113 @@
             document.getElementById('finalWave').textContent = wave;
             document.getElementById('finalScore').textContent = score;
             document.getElementById('finalKills').textContent = kills;
+        }
+
+        // Enhanced Touch Controls with Visual Joystick
+        const moveJoystick = document.getElementById('moveJoystick');
+        const joystickKnob = document.getElementById('joystickKnob');
+        const fireBtn = document.getElementById('fireBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
+
+        let joystickActive = false;
+        let joystickCenter = { x: 0, y: 0 };
+        const joystickMaxDist = 45;
+
+        if (moveJoystick) {
+            moveJoystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                joystickActive = true;
+                const rect = moveJoystick.getBoundingClientRect();
+                joystickCenter.x = rect.left + rect.width / 2;
+                joystickCenter.y = rect.top + rect.height / 2;
+                handleJoystickMove(e.touches[0]);
+            }, { passive: false });
+
+            moveJoystick.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (joystickActive) {
+                    handleJoystickMove(e.touches[0]);
+                }
+            }, { passive: false });
+
+            moveJoystick.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                joystickActive = false;
+                joystickKnob.style.transform = 'translate(-50%, -50%)';
+                keys['a'] = false;
+                keys['d'] = false;
+                keys['w'] = false;
+                keys['s'] = false;
+            }, { passive: false });
+        }
+
+        function handleJoystickMove(touch) {
+            const dx = touch.clientX - joystickCenter.x;
+            const dy = touch.clientY - joystickCenter.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const clampedDist = Math.min(dist, joystickMaxDist);
+            const angle = Math.atan2(dy, dx);
+
+            const knobX = Math.cos(angle) * clampedDist;
+            const knobY = Math.sin(angle) * clampedDist;
+            joystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+
+            const deadzone = 15;
+            keys['a'] = dx < -deadzone;
+            keys['d'] = dx > deadzone;
+            keys['w'] = dy < -deadzone;
+            keys['s'] = dy > deadzone;
+
+            // Also update aim direction based on movement
+            if (dist > deadzone) {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = player.x + Math.cos(angle) * 200;
+                mouseY = player.y + Math.sin(angle) * 200;
+            }
+        }
+
+        // Fire button
+        let fireInterval = null;
+        if (fireBtn) {
+            fireBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                fireBtn.classList.add('active');
+                if (gameRunning && player.ammo > 0 && !player.reloading) {
+                    shoot();
+                }
+                // Auto-fire while held
+                fireInterval = setInterval(() => {
+                    if (gameRunning && player.ammo > 0 && !player.reloading) {
+                        shoot();
+                    }
+                }, 200);
+            }, { passive: false });
+
+            fireBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                fireBtn.classList.remove('active');
+                if (fireInterval) {
+                    clearInterval(fireInterval);
+                    fireInterval = null;
+                }
+            }, { passive: false });
+        }
+
+        // Reload button
+        if (reloadBtn) {
+            reloadBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                reloadBtn.classList.add('active');
+                if (!player.reloading && player.ammo < player.maxAmmo) {
+                    player.reloading = true;
+                    player.reloadTime = 60;
+                }
+            }, { passive: false });
+
+            reloadBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                reloadBtn.classList.remove('active');
+            }, { passive: false });
         }
     </script>
 </body>

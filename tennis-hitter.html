@@ -134,6 +134,113 @@
             font-size: 18px;
             color: #aaa;
         }
+        .mode-select {
+            margin: 20px 0;
+        }
+        .mode-select button {
+            padding: 12px 30px;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .mode-select button.selected {
+            background: linear-gradient(45deg, #ffff00, #ffcc00);
+            box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .touch-btn {
+            position: absolute;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .touch-btn:active, .touch-btn.active {
+            background: rgba(200, 255, 0, 0.6);
+            border-color: rgba(200, 255, 0, 0.8);
+        }
+        /* Player 1 controls (left side) */
+        #p1Up {
+            left: 20px;
+            bottom: 130px;
+        }
+        #p1Down {
+            left: 20px;
+            bottom: 40px;
+        }
+        #p1Serve {
+            left: 100px;
+            bottom: 85px;
+            width: 75px;
+            height: 75px;
+            font-size: 14px;
+            background: rgba(0, 170, 255, 0.4);
+            border-color: rgba(0, 170, 255, 0.7);
+        }
+        #p1Serve:active, #p1Serve.active {
+            background: rgba(0, 170, 255, 0.7);
+        }
+        /* Player 2 controls (right side) */
+        #p2Up {
+            right: 20px;
+            bottom: 130px;
+        }
+        #p2Down {
+            right: 20px;
+            bottom: 40px;
+        }
+        #p2Serve {
+            right: 100px;
+            bottom: 85px;
+            width: 75px;
+            height: 75px;
+            font-size: 14px;
+            background: rgba(255, 136, 0, 0.4);
+            border-color: rgba(255, 136, 0, 0.7);
+        }
+        #p2Serve:active, #p2Serve.active {
+            background: rgba(255, 136, 0, 0.7);
+        }
+        .touch-label {
+            position: absolute;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+        }
+        #labelP1 {
+            left: 45px;
+            bottom: 200px;
+            color: #0af;
+        }
+        #labelP2 {
+            right: 45px;
+            bottom: 200px;
+            color: #f80;
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -145,12 +252,17 @@
 
         <div id="startScreen">
             <h1>Tennis Hitter</h1>
+            <p>Game Mode:</p>
+            <div class="mode-select">
+                <button id="mode1v1" class="selected" onclick="selectMode('1v1')">1v1 (PvP)</button>
+                <button id="modeCoop" onclick="selectMode('coop')">Co-op vs AI</button>
+            </div>
             <p>Play to:</p>
             <div class="score-input">
                 <input type="number" id="winScoreInput" value="11" min="1" max="99">
                 <span>points</span>
             </div>
-            <div class="controls-box" style="display: flex; gap: 40px; margin-top: 20px;">
+            <div id="controls1v1" class="controls-box" style="display: flex; gap: 40px; margin-top: 20px;">
                 <div>
                     <p style="color: #0af; font-weight: bold;">Player 1 (Blue)</p>
                     <p>Arrow Up/Down - Move</p>
@@ -161,6 +273,22 @@
                     <p>Z / X - Move Up/Down</p>
                     <p>C - Serve / Power Hit</p>
                 </div>
+            </div>
+            <div id="controlsCoop" class="controls-box" style="display: none; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <p style="color: #0f0; font-weight: bold;">Your Team (Green)</p>
+                <div style="display: flex; gap: 40px;">
+                    <div>
+                        <p style="color: #0af;">Player 1 (Top)</p>
+                        <p>Arrow Up/Down - Move</p>
+                        <p>Space - Serve / Power Hit</p>
+                    </div>
+                    <div>
+                        <p style="color: #f80;">Player 2 (Bottom)</p>
+                        <p>Z / X - Move Up/Down</p>
+                        <p>C - Power Hit</p>
+                    </div>
+                </div>
+                <p style="color: #f44; margin-top: 10px;">vs 2 AI Opponents (Red)</p>
             </div>
             <button onclick="startGame()">Play Tennis!</button>
         </div>
@@ -174,6 +302,18 @@
         </div>
     </div>
 
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <span id="labelP1" class="touch-label">P1</span>
+        <div id="p1Up" class="touch-btn">&#9650;</div>
+        <div id="p1Down" class="touch-btn">&#9660;</div>
+        <div id="p1Serve" class="touch-btn">SERVE/<br>HIT</div>
+        <span id="labelP2" class="touch-label">P2</span>
+        <div id="p2Up" class="touch-btn">&#9650;</div>
+        <div id="p2Down" class="touch-btn">&#9660;</div>
+        <div id="p2Serve" class="touch-btn">SERVE/<br>HIT</div>
+    </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -183,8 +323,12 @@
         const LINE_COLOR = '#ffffff';
         const PADDLE_WIDTH = 15;
         const PADDLE_HEIGHT = 80;
+        const PADDLE_HEIGHT_COOP = 60; // Smaller paddles in co-op
         const BALL_SIZE = 12;
         let WIN_SCORE = 11;
+
+        // Game mode
+        let gameMode = '1v1'; // '1v1' or 'coop'
 
         // Game state
         let player = {
@@ -201,6 +345,36 @@
             speed: 8
         };
 
+        // Co-op mode players (left team - humans)
+        let player1Coop = {
+            x: 30,
+            y: canvas.height / 4 - PADDLE_HEIGHT_COOP / 2,
+            speed: 8
+        };
+
+        let player2Coop = {
+            x: 30,
+            y: canvas.height * 3 / 4 - PADDLE_HEIGHT_COOP / 2,
+            speed: 8
+        };
+
+        // Co-op mode AI opponents (right team)
+        let ai1 = {
+            x: canvas.width - 30 - PADDLE_WIDTH,
+            y: canvas.height / 4 - PADDLE_HEIGHT_COOP / 2,
+            speed: 6,
+            targetY: canvas.height / 4
+        };
+
+        let ai2 = {
+            x: canvas.width - 30 - PADDLE_WIDTH,
+            y: canvas.height * 3 / 4 - PADDLE_HEIGHT_COOP / 2,
+            speed: 6,
+            targetY: canvas.height * 3 / 4
+        };
+
+        let teamScore = { left: 0, right: 0 };
+
         let ball = {
             x: canvas.width / 2,
             y: canvas.height / 2,
@@ -214,6 +388,14 @@
         let particles = [];
         let gameRunning = false;
         let rallyCount = 0;
+
+        function selectMode(mode) {
+            gameMode = mode;
+            document.getElementById('mode1v1').classList.toggle('selected', mode === '1v1');
+            document.getElementById('modeCoop').classList.toggle('selected', mode === 'coop');
+            document.getElementById('controls1v1').style.display = mode === '1v1' ? 'flex' : 'none';
+            document.getElementById('controlsCoop').style.display = mode === 'coop' ? 'flex' : 'none';
+        }
 
         // Input
         const keys = {};
@@ -238,6 +420,50 @@
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
         });
+
+        // Touch controls
+        function setupTouchButton(btnId, keyCode, isServeKey) {
+            const btn = document.getElementById(btnId);
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys[keyCode] = true;
+                btn.classList.add('active');
+                // Handle serve on touch
+                if (isServeKey) {
+                    if (keyCode === 'Space' && ball.serving && ball.serverIsPlayer) {
+                        serveBall();
+                    } else if (keyCode === 'KeyC' && ball.serving && !ball.serverIsPlayer) {
+                        serveBall();
+                    }
+                }
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[keyCode] = false;
+                btn.classList.remove('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                keys[keyCode] = false;
+                btn.classList.remove('active');
+            });
+        }
+
+        // Player 1 touch controls
+        setupTouchButton('p1Up', 'ArrowUp', false);
+        setupTouchButton('p1Down', 'ArrowDown', false);
+        setupTouchButton('p1Serve', 'Space', true);
+
+        // Player 2 touch controls
+        setupTouchButton('p2Up', 'KeyZ', false);
+        setupTouchButton('p2Down', 'KeyX', false);
+        setupTouchButton('p2Serve', 'KeyC', true);
+
+        // Prevent default touch behavior on canvas
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
         function serveBall() {
             if (!ball.serving) return;
@@ -298,6 +524,24 @@
         function update() {
             if (!gameRunning) return;
 
+            if (gameMode === '1v1') {
+                update1v1();
+            } else {
+                updateCoop();
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function update1v1() {
             // Player movement
             if (keys['ArrowUp']) {
                 player.y -= player.speed;
@@ -406,16 +650,210 @@
             // Keep opponent in bounds
             if (opponent.y < 0) opponent.y = 0;
             if (opponent.y > canvas.height - PADDLE_HEIGHT) opponent.y = canvas.height - PADDLE_HEIGHT;
+        }
 
-            // Update particles
-            for (let i = particles.length - 1; i >= 0; i--) {
-                particles[i].x += particles[i].vx;
-                particles[i].y += particles[i].vy;
-                particles[i].life--;
-                if (particles[i].life <= 0) {
-                    particles.splice(i, 1);
+        function updateCoop() {
+            const paddleH = PADDLE_HEIGHT_COOP;
+
+            // Player 1 movement (Arrow keys) - top paddle
+            if (keys['ArrowUp']) {
+                player1Coop.y -= player1Coop.speed;
+            }
+            if (keys['ArrowDown']) {
+                player1Coop.y += player1Coop.speed;
+            }
+
+            // Player 2 movement (Z/X keys) - bottom paddle
+            if (keys['KeyZ']) {
+                player2Coop.y -= player2Coop.speed;
+            }
+            if (keys['KeyX']) {
+                player2Coop.y += player2Coop.speed;
+            }
+
+            // Keep players in bounds
+            if (player1Coop.y < 0) player1Coop.y = 0;
+            if (player1Coop.y > canvas.height - paddleH) player1Coop.y = canvas.height - paddleH;
+            if (player2Coop.y < 0) player2Coop.y = 0;
+            if (player2Coop.y > canvas.height - paddleH) player2Coop.y = canvas.height - paddleH;
+
+            // AI movement
+            updateAI();
+
+            // Ball follows paddle during serve
+            if (ball.serving) {
+                if (ball.serverIsPlayer) {
+                    ball.x = 80;
+                    ball.y = player1Coop.y + paddleH / 2;
+                } else {
+                    ball.x = canvas.width - 80;
+                    ball.y = ai1.y + paddleH / 2;
+                    // AI auto-serves after a short delay
+                    if (!ball.aiServeTimer) {
+                        ball.aiServeTimer = setTimeout(() => {
+                            if (ball.serving && !ball.serverIsPlayer && gameMode === 'coop') {
+                                serveBall();
+                            }
+                            ball.aiServeTimer = null;
+                        }, 1000);
+                    }
+                }
+            } else {
+                // Move ball
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+
+                // Ball bounce off top/bottom
+                if (ball.y <= BALL_SIZE / 2) {
+                    ball.y = BALL_SIZE / 2;
+                    ball.vy *= -1;
+                    addBounceParticles(ball.x, ball.y);
+                }
+                if (ball.y >= canvas.height - BALL_SIZE / 2) {
+                    ball.y = canvas.height - BALL_SIZE / 2;
+                    ball.vy *= -1;
+                    addBounceParticles(ball.x, ball.y);
+                }
+
+                // Left team paddle collisions (players)
+                let leftPaddles = [player1Coop, player2Coop];
+                for (let p of leftPaddles) {
+                    if (ball.vx < 0 &&
+                        ball.x - BALL_SIZE / 2 <= p.x + PADDLE_WIDTH &&
+                        ball.x + BALL_SIZE / 2 >= p.x &&
+                        ball.y >= p.y && ball.y <= p.y + paddleH) {
+
+                        ball.x = p.x + PADDLE_WIDTH + BALL_SIZE / 2;
+
+                        let hitPos = (ball.y - p.y) / paddleH;
+                        let angle = (hitPos - 0.5) * Math.PI * 0.7;
+
+                        // Power hit
+                        let power = (keys['Space'] || keys['KeyC']) ? 1.3 : 1;
+                        let speed = Math.min(ball.speed * 1.05, 15) * power;
+
+                        ball.vx = Math.cos(angle) * speed;
+                        ball.vy = Math.sin(angle) * speed;
+                        if (ball.vx < 3) ball.vx = 3;
+
+                        ball.speed = Math.min(ball.speed * 1.02, 15);
+                        rallyCount++;
+
+                        addHitParticles(ball.x, ball.y, keys['Space'] || keys['KeyC']);
+                        break;
+                    }
+                }
+
+                // Right team paddle collisions (AI)
+                let rightPaddles = [ai1, ai2];
+                for (let p of rightPaddles) {
+                    if (ball.vx > 0 &&
+                        ball.x + BALL_SIZE / 2 >= p.x &&
+                        ball.x - BALL_SIZE / 2 <= p.x + PADDLE_WIDTH &&
+                        ball.y >= p.y && ball.y <= p.y + paddleH) {
+
+                        ball.x = p.x - BALL_SIZE / 2;
+
+                        let hitPos = (ball.y - p.y) / paddleH;
+                        let angle = Math.PI - (hitPos - 0.5) * Math.PI * 0.7;
+
+                        let speed = Math.min(ball.speed * 1.05, 15);
+                        ball.vx = Math.cos(angle) * speed;
+                        ball.vy = Math.sin(angle) * speed;
+                        if (ball.vx > -3) ball.vx = -3;
+
+                        ball.speed = Math.min(ball.speed * 1.02, 15);
+                        rallyCount++;
+
+                        addHitParticles(ball.x, ball.y, false);
+                        break;
+                    }
+                }
+
+                // Score points
+                if (ball.x < -BALL_SIZE) {
+                    scorePointCoop(false); // AI scores
+                }
+                if (ball.x > canvas.width + BALL_SIZE) {
+                    scorePointCoop(true); // Players score
                 }
             }
+        }
+
+        function updateAI() {
+            const paddleH = PADDLE_HEIGHT_COOP;
+
+            // Determine which AI should go for the ball based on ball position
+            let ballInUpperHalf = ball.y < canvas.height / 2;
+
+            // AI 1 (top) targets upper half, AI 2 (bottom) targets lower half
+            let ai1Active = ballInUpperHalf || ball.y < canvas.height * 0.6;
+            let ai2Active = !ballInUpperHalf || ball.y > canvas.height * 0.4;
+
+            // Add some reaction delay and imperfection
+            let reactionZone = canvas.width * 0.6; // AI reacts when ball is past this point
+
+            if (ball.vx > 0 && ball.x > reactionZone) {
+                // Ball coming toward AI
+                if (ai1Active) {
+                    ai1.targetY = ball.y + (ball.vy * 5) - paddleH / 2;
+                    // Add slight randomness
+                    ai1.targetY += (Math.random() - 0.5) * 20;
+                }
+                if (ai2Active) {
+                    ai2.targetY = ball.y + (ball.vy * 5) - paddleH / 2;
+                    ai2.targetY += (Math.random() - 0.5) * 20;
+                }
+            } else {
+                // Return to home positions
+                ai1.targetY = canvas.height / 4 - paddleH / 2;
+                ai2.targetY = canvas.height * 3 / 4 - paddleH / 2;
+            }
+
+            // Move AI toward targets
+            let ai1Diff = ai1.targetY - ai1.y;
+            if (Math.abs(ai1Diff) > 2) {
+                ai1.y += Math.sign(ai1Diff) * Math.min(ai1.speed, Math.abs(ai1Diff));
+            }
+
+            let ai2Diff = ai2.targetY - ai2.y;
+            if (Math.abs(ai2Diff) > 2) {
+                ai2.y += Math.sign(ai2Diff) * Math.min(ai2.speed, Math.abs(ai2Diff));
+            }
+
+            // Keep AI in bounds
+            if (ai1.y < 0) ai1.y = 0;
+            if (ai1.y > canvas.height - paddleH) ai1.y = canvas.height - paddleH;
+            if (ai2.y < 0) ai2.y = 0;
+            if (ai2.y > canvas.height - paddleH) ai2.y = canvas.height - paddleH;
+        }
+
+        function scorePointCoop(playersScored) {
+            if (playersScored) {
+                teamScore.left++;
+            } else {
+                teamScore.right++;
+            }
+
+            document.getElementById('scoreDisplay').textContent = `${teamScore.left} - ${teamScore.right}`;
+
+            // Check for winner
+            if (teamScore.left >= WIN_SCORE || teamScore.right >= WIN_SCORE) {
+                endGame();
+                return;
+            }
+
+            // Loser serves next
+            resetBallCoop(!playersScored);
+        }
+
+        function resetBallCoop(playersServe) {
+            ball.x = playersServe ? 80 : canvas.width - 80;
+            ball.y = playersServe ? player1Coop.y + PADDLE_HEIGHT_COOP / 2 : ai1.y + PADDLE_HEIGHT_COOP / 2;
+            ball.vx = 0;
+            ball.vy = 0;
+            ball.serving = true;
+            ball.serverIsPlayer = playersServe;
         }
 
         function addHitParticles(x, y, isPowerHit) {
@@ -489,27 +927,68 @@
             }
             ctx.globalAlpha = 1;
 
-            // Player paddle
-            ctx.fillStyle = '#00aaff';
-            ctx.fillRect(player.x, player.y, PADDLE_WIDTH, PADDLE_HEIGHT);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(player.x, player.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+            if (gameMode === '1v1') {
+                // Player paddle
+                ctx.fillStyle = '#00aaff';
+                ctx.fillRect(player.x, player.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(player.x, player.y, PADDLE_WIDTH, PADDLE_HEIGHT);
 
-            // Paddle grip
-            ctx.fillStyle = '#0088cc';
-            ctx.fillRect(player.x + 3, player.y + 10, PADDLE_WIDTH - 6, PADDLE_HEIGHT - 20);
+                // Paddle grip
+                ctx.fillStyle = '#0088cc';
+                ctx.fillRect(player.x + 3, player.y + 10, PADDLE_WIDTH - 6, PADDLE_HEIGHT - 20);
 
-            // Opponent paddle
-            ctx.fillStyle = '#ff4444';
-            ctx.fillRect(opponent.x, opponent.y, PADDLE_WIDTH, PADDLE_HEIGHT);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(opponent.x, opponent.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+                // Opponent paddle
+                ctx.fillStyle = '#ff8800';
+                ctx.fillRect(opponent.x, opponent.y, PADDLE_WIDTH, PADDLE_HEIGHT);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(opponent.x, opponent.y, PADDLE_WIDTH, PADDLE_HEIGHT);
 
-            // Paddle grip
-            ctx.fillStyle = '#cc2222';
-            ctx.fillRect(opponent.x + 3, opponent.y + 10, PADDLE_WIDTH - 6, PADDLE_HEIGHT - 20);
+                // Paddle grip
+                ctx.fillStyle = '#cc6600';
+                ctx.fillRect(opponent.x + 3, opponent.y + 10, PADDLE_WIDTH - 6, PADDLE_HEIGHT - 20);
+            } else {
+                // Co-op mode - 4 paddles
+                const paddleH = PADDLE_HEIGHT_COOP;
+
+                // Player 1 paddle (top left - blue tint green)
+                ctx.fillStyle = '#00cc66';
+                ctx.fillRect(player1Coop.x, player1Coop.y, PADDLE_WIDTH, paddleH);
+                ctx.strokeStyle = '#0af';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(player1Coop.x, player1Coop.y, PADDLE_WIDTH, paddleH);
+                ctx.fillStyle = '#009944';
+                ctx.fillRect(player1Coop.x + 3, player1Coop.y + 8, PADDLE_WIDTH - 6, paddleH - 16);
+
+                // Player 2 paddle (bottom left - orange tint green)
+                ctx.fillStyle = '#00cc66';
+                ctx.fillRect(player2Coop.x, player2Coop.y, PADDLE_WIDTH, paddleH);
+                ctx.strokeStyle = '#f80';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(player2Coop.x, player2Coop.y, PADDLE_WIDTH, paddleH);
+                ctx.fillStyle = '#009944';
+                ctx.fillRect(player2Coop.x + 3, player2Coop.y + 8, PADDLE_WIDTH - 6, paddleH - 16);
+
+                // AI 1 paddle (top right - red)
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(ai1.x, ai1.y, PADDLE_WIDTH, paddleH);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(ai1.x, ai1.y, PADDLE_WIDTH, paddleH);
+                ctx.fillStyle = '#cc2222';
+                ctx.fillRect(ai1.x + 3, ai1.y + 8, PADDLE_WIDTH - 6, paddleH - 16);
+
+                // AI 2 paddle (bottom right - red)
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(ai2.x, ai2.y, PADDLE_WIDTH, paddleH);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(ai2.x, ai2.y, PADDLE_WIDTH, paddleH);
+                ctx.fillStyle = '#cc2222';
+                ctx.fillRect(ai2.x + 3, ai2.y + 8, PADDLE_WIDTH - 6, paddleH - 16);
+            }
 
             // Ball
             ctx.fillStyle = '#c8ff00';
@@ -532,12 +1011,22 @@
                 ctx.fillStyle = '#fff';
                 ctx.font = '16px Arial';
                 ctx.textAlign = 'center';
-                if (ball.serverIsPlayer) {
-                    ctx.fillStyle = '#0af';
-                    ctx.fillText('P1: Press SPACE to serve!', canvas.width / 4, 40);
+                if (gameMode === '1v1') {
+                    if (ball.serverIsPlayer) {
+                        ctx.fillStyle = '#0af';
+                        ctx.fillText('P1: Press SPACE to serve!', canvas.width / 4, 40);
+                    } else {
+                        ctx.fillStyle = '#f80';
+                        ctx.fillText('P2: Press C to serve!', canvas.width * 3 / 4, 40);
+                    }
                 } else {
-                    ctx.fillStyle = '#f80';
-                    ctx.fillText('P2: Press C to serve!', canvas.width * 3 / 4, 40);
+                    if (ball.serverIsPlayer) {
+                        ctx.fillStyle = '#0f0';
+                        ctx.fillText('Your Team: Press SPACE to serve!', canvas.width / 4, 40);
+                    } else {
+                        ctx.fillStyle = '#f44';
+                        ctx.fillText('AI serving...', canvas.width * 3 / 4, 40);
+                    }
                 }
             }
 
@@ -558,25 +1047,48 @@
             let inputScore = parseInt(document.getElementById('winScoreInput').value);
             WIN_SCORE = inputScore > 0 ? inputScore : 11;
 
-            player.score = 0;
-            opponent.score = 0;
-            player.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
-            opponent.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
             ball.speed = 7;
             particles = [];
+            rallyCount = 0;
+            if (ball.aiServeTimer) {
+                clearTimeout(ball.aiServeTimer);
+                ball.aiServeTimer = null;
+            }
 
-            document.getElementById('scoreDisplay').textContent = '0 - 0';
-
-            gameRunning = true;
-            resetBall(true);
+            if (gameMode === '1v1') {
+                player.score = 0;
+                opponent.score = 0;
+                player.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
+                opponent.y = canvas.height / 2 - PADDLE_HEIGHT / 2;
+                document.getElementById('scoreDisplay').textContent = '0 - 0';
+                gameRunning = true;
+                resetBall(true);
+            } else {
+                teamScore.left = 0;
+                teamScore.right = 0;
+                player1Coop.y = canvas.height / 4 - PADDLE_HEIGHT_COOP / 2;
+                player2Coop.y = canvas.height * 3 / 4 - PADDLE_HEIGHT_COOP / 2;
+                ai1.y = canvas.height / 4 - PADDLE_HEIGHT_COOP / 2;
+                ai2.y = canvas.height * 3 / 4 - PADDLE_HEIGHT_COOP / 2;
+                document.getElementById('scoreDisplay').textContent = '0 - 0';
+                gameRunning = true;
+                resetBallCoop(true);
+            }
         }
 
         function endGame() {
             gameRunning = false;
 
-            let winner = player.score >= WIN_SCORE ? 'Player 1 Wins!' : 'Player 2 Wins!';
+            let winner, finalScore;
+            if (gameMode === '1v1') {
+                winner = player.score >= WIN_SCORE ? 'Player 1 Wins!' : 'Player 2 Wins!';
+                finalScore = `Final Score: ${player.score} - ${opponent.score}`;
+            } else {
+                winner = teamScore.left >= WIN_SCORE ? 'You Win! 🎉' : 'AI Wins!';
+                finalScore = `Final Score: ${teamScore.left} - ${teamScore.right}`;
+            }
             document.getElementById('winnerText').textContent = winner;
-            document.getElementById('finalScoreText').textContent = `Final Score: ${player.score} - ${opponent.score}`;
+            document.getElementById('finalScoreText').textContent = finalScore;
             document.getElementById('gameOver').style.display = 'flex';
         }
 

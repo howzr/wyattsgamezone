@@ -129,6 +129,58 @@
             border-color: #f00;
             box-shadow: 0 0 10px #f00;
         }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 180px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .touch-btn {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            color: white;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .touch-btn:active, .touch-btn.active {
+            background: rgba(255, 100, 0, 0.6);
+            border-color: rgba(255, 150, 0, 0.8);
+        }
+        #btnLeft {
+            left: 20px;
+            bottom: 50px;
+        }
+        #btnRight {
+            left: 110px;
+            bottom: 50px;
+        }
+        #btnJump {
+            right: 20px;
+            bottom: 50px;
+            width: 90px;
+            height: 90px;
+            font-size: 20px;
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -175,6 +227,13 @@
             <div class="stars">&#128293;&#128293;&#128293;</div>
             <button onclick="backToMenu()">Play Again</button>
         </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <div id="btnLeft" class="touch-btn">&#9664;</div>
+        <div id="btnRight" class="touch-btn">&#9654;</div>
+        <div id="btnJump" class="touch-btn">JUMP</div>
     </div>
 
     <script>
@@ -230,6 +289,36 @@
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
         });
+
+        // Touch controls
+        function setupTouchButton(btnId, keyCode) {
+            const btn = document.getElementById(btnId);
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys[keyCode] = true;
+                btn.classList.add('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[keyCode] = false;
+                btn.classList.remove('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                keys[keyCode] = false;
+                btn.classList.remove('active');
+            });
+        }
+
+        setupTouchButton('btnLeft', 'ArrowLeft');
+        setupTouchButton('btnRight', 'ArrowRight');
+        setupTouchButton('btnJump', 'Space');
+
+        // Prevent default touch behavior on canvas
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
         function initPlayer() {
             player = {

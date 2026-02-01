@@ -151,7 +151,7 @@
         <div id="earned-money"></div>
     </div>
     <button id="restart-btn">Restart</button>
-    <p id="instructions">Arrow keys to move!</p>
+    <p id="instructions">Arrow keys to move! | Touch: Drag to move</p>
 
     <div id="shop-modal" class="modal">
         <div class="modal-content">
@@ -2678,6 +2678,40 @@
         const keys = { up: false, down: false, left: false, right: false };
         document.addEventListener('keydown', e => { if (gameOver || document.querySelector('.modal.open')) return; if (e.key === 'ArrowUp') keys.up = true; if (e.key === 'ArrowDown') keys.down = true; if (e.key === 'ArrowLeft') keys.left = true; if (e.key === 'ArrowRight') keys.right = true; e.preventDefault(); });
         document.addEventListener('keyup', e => { if (e.key === 'ArrowUp') keys.up = false; if (e.key === 'ArrowDown') keys.down = false; if (e.key === 'ArrowLeft') keys.left = false; if (e.key === 'ArrowRight') keys.right = false; });
+
+        // Touch controls - virtual joystick for main game
+        let touchJoystick = { active: false, startX: 0, startY: 0 };
+        gameContainer.addEventListener('touchstart', (e) => {
+            if (gameOver || document.querySelector('.modal.open')) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchJoystick.active = true;
+            touchJoystick.startX = touch.clientX;
+            touchJoystick.startY = touch.clientY;
+        }, { passive: false });
+
+        gameContainer.addEventListener('touchmove', (e) => {
+            if (!touchJoystick.active || gameOver || document.querySelector('.modal.open')) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchJoystick.startX;
+            const dy = touch.clientY - touchJoystick.startY;
+            const deadzone = 15;
+
+            keys.left = dx < -deadzone;
+            keys.right = dx > deadzone;
+            keys.up = dy < -deadzone;
+            keys.down = dy > deadzone;
+        }, { passive: false });
+
+        gameContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchJoystick.active = false;
+            keys.left = false;
+            keys.right = false;
+            keys.up = false;
+            keys.down = false;
+        }, { passive: false });
 
         function movePlayer() {
             if (gameOver) return;

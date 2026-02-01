@@ -453,6 +453,53 @@
             font-family: 'Courier New', monospace;
             font-size: 18px;
         }
+        /* Touch Controls for Farming */
+        #farm-touch-controls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 180px;
+            z-index: 350;
+            pointer-events: none;
+        }
+        @media (pointer: coarse), (max-width: 1024px) {
+            #farm-touch-controls { display: block; }
+            #farmInstructions { display: none; }
+        }
+        .farm-touch-dpad {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            width: 150px;
+            height: 150px;
+            pointer-events: auto;
+        }
+        .farm-dpad-btn {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(136, 255, 0, 0.3);
+            border: 2px solid rgba(136, 255, 0, 0.5);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #88ff00;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .farm-dpad-btn:active, .farm-dpad-btn.active {
+            background: rgba(136, 255, 0, 0.6);
+            border-color: #88ff00;
+        }
+        .farm-dpad-up { top: 0; left: 50px; }
+        .farm-dpad-down { bottom: 0; left: 50px; }
+        .farm-dpad-left { top: 50px; left: 0; }
+        .farm-dpad-right { top: 50px; right: 0; }
     </style>
 </head>
 <body>
@@ -461,6 +508,15 @@
 
     <!-- Farming Mode -->
     <div id="farmingMode">
+        <!-- Farm Touch Controls -->
+        <div id="farm-touch-controls">
+            <div class="farm-touch-dpad">
+                <div class="farm-dpad-btn farm-dpad-up" data-dir="up">&#9650;</div>
+                <div class="farm-dpad-btn farm-dpad-down" data-dir="down">&#9660;</div>
+                <div class="farm-dpad-btn farm-dpad-left" data-dir="left">&#9664;</div>
+                <div class="farm-dpad-btn farm-dpad-right" data-dir="right">&#9654;</div>
+            </div>
+        </div>
         <canvas id="farmCanvas" width="600" height="500"></canvas>
         <div id="farmSidebar">
             <h2>ROBOT FARM</h2>
@@ -2316,22 +2372,59 @@
             if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') farmKeys.right = false;
         });
 
-        // Touch controls for farming
+        // Touch controls for farming - D-pad buttons
+        const farmDpadBtns = document.querySelectorAll('.farm-dpad-btn');
+
+        farmDpadBtns.forEach(btn => {
+            const dir = btn.dataset.dir;
+
+            btn.addEventListener('touchstart', (e) => {
+                if (!farmActive) return;
+                e.preventDefault();
+                btn.classList.add('active');
+                if (dir === 'up') farmKeys.up = true;
+                if (dir === 'down') farmKeys.down = true;
+                if (dir === 'left') farmKeys.left = true;
+                if (dir === 'right') farmKeys.right = true;
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                if (!farmActive) return;
+                e.preventDefault();
+                btn.classList.remove('active');
+                if (dir === 'up') farmKeys.up = false;
+                if (dir === 'down') farmKeys.down = false;
+                if (dir === 'left') farmKeys.left = false;
+                if (dir === 'right') farmKeys.right = false;
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                btn.classList.remove('active');
+                if (dir === 'up') farmKeys.up = false;
+                if (dir === 'down') farmKeys.down = false;
+                if (dir === 'left') farmKeys.left = false;
+                if (dir === 'right') farmKeys.right = false;
+            });
+        });
+
+        // Legacy swipe controls for farming (fallback)
         let farmTouchJoystick = { active: false, startX: 0, startY: 0 };
 
         document.addEventListener('touchstart', (e) => {
             if (!farmActive) return;
+            if (e.target.closest('#farm-touch-controls')) return;
             if (e.target.tagName === 'BUTTON') return;
-            e.preventDefault();
+
             const touch = e.touches[0];
             farmTouchJoystick.active = true;
             farmTouchJoystick.startX = touch.clientX;
             farmTouchJoystick.startY = touch.clientY;
-        }, { passive: false });
+        }, { passive: true });
 
         document.addEventListener('touchmove', (e) => {
             if (!farmActive || !farmTouchJoystick.active) return;
-            e.preventDefault();
+            if (e.target.closest('#farm-touch-controls')) return;
+
             const touch = e.touches[0];
             const dx = touch.clientX - farmTouchJoystick.startX;
             const dy = touch.clientY - farmTouchJoystick.startY;
@@ -2341,17 +2434,18 @@
             farmKeys.right = dx > deadzone;
             farmKeys.up = dy < -deadzone;
             farmKeys.down = dy > deadzone;
-        }, { passive: false });
+        }, { passive: true });
 
         document.addEventListener('touchend', (e) => {
             if (!farmActive) return;
-            e.preventDefault();
+            if (e.target.closest('#farm-touch-controls')) return;
+
             farmTouchJoystick.active = false;
             farmKeys.left = false;
             farmKeys.right = false;
             farmKeys.up = false;
             farmKeys.down = false;
-        }, { passive: false });
+        }, { passive: true });
 
         // Update farming UI
         function updateFarmUI() {

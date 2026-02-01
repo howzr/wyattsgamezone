@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cool Jumper">
     <title>Cool Jumper</title>
     <style>
         * {
@@ -18,6 +21,10 @@
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
         }
         #gameContainer {
             position: relative;
@@ -26,6 +33,7 @@
             display: block;
             border-radius: 10px;
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            touch-action: none;
         }
         #ui {
             position: absolute;
@@ -140,8 +148,8 @@
             <p>Jump through 10 amazing lands!</p>
             <p>Obstacles get harder as you progress</p>
             <div class="controls">
-                <p>Arrow Keys - Move</p>
-                <p>Space - Jump (press twice for double jump!)</p>
+                <p>Arrow Keys - Move | Space - Jump (double jump!)</p>
+                <p>Touch: Left/Right sides to move, Center to jump</p>
             </div>
             <button onclick="startGame()">Start Adventure</button>
             <div id="landProgress"></div>
@@ -224,6 +232,86 @@
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
         });
+
+        // Touch controls
+        let activeTouches = {};
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+
+                activeTouches[touch.identifier] = { x: touchX, y: touchY, zone: getZone(touchX, screenThird) };
+
+                if (touchX < screenThird) {
+                    // Left third - move left
+                    keys['ArrowLeft'] = true;
+                } else if (touchX > screenThird * 2) {
+                    // Right third - move right
+                    keys['ArrowRight'] = true;
+                } else {
+                    // Center third - jump
+                    keys['Space'] = true;
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const newZone = getZone(touchX, screenThird);
+
+                const oldTouch = activeTouches[touch.identifier];
+                if (oldTouch && oldTouch.zone !== newZone) {
+                    // Clear old zone
+                    if (oldTouch.zone === 'left') keys['ArrowLeft'] = false;
+                    if (oldTouch.zone === 'right') keys['ArrowRight'] = false;
+                    if (oldTouch.zone === 'center') keys['Space'] = false;
+
+                    // Activate new zone
+                    if (newZone === 'left') keys['ArrowLeft'] = true;
+                    if (newZone === 'right') keys['ArrowRight'] = true;
+                    if (newZone === 'center') keys['Space'] = true;
+                }
+
+                activeTouches[touch.identifier] = { x: touchX, y: touch.clientY - rect.top, zone: newZone };
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const oldTouch = activeTouches[touch.identifier];
+
+                if (oldTouch) {
+                    if (oldTouch.zone === 'left') keys['ArrowLeft'] = false;
+                    if (oldTouch.zone === 'right') keys['ArrowRight'] = false;
+                    if (oldTouch.zone === 'center') keys['Space'] = false;
+                }
+
+                delete activeTouches[touch.identifier];
+            }
+        }, { passive: false });
+
+        function getZone(x, thirdWidth) {
+            if (x < thirdWidth) return 'left';
+            if (x > thirdWidth * 2) return 'right';
+            return 'center';
+        }
 
         function initPlayer() {
             player = {

@@ -122,6 +122,112 @@
             color: #ff0;
             margin: 15px 0;
         }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .touch-btn {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            color: white;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .touch-btn:active, .touch-btn.active {
+            background: rgba(255, 100, 0, 0.6);
+            border-color: rgba(255, 150, 0, 0.8);
+        }
+        /* Player 1 controls (left side) */
+        #p1Left {
+            left: 15px;
+            bottom: 50px;
+        }
+        #p1Right {
+            left: 90px;
+            bottom: 50px;
+        }
+        #p1Jump {
+            left: 52px;
+            bottom: 120px;
+        }
+        #p1Shoot {
+            left: 170px;
+            bottom: 70px;
+            width: 70px;
+            height: 70px;
+            background: rgba(0, 170, 255, 0.4);
+            border-color: rgba(0, 170, 255, 0.7);
+            font-size: 14px;
+        }
+        #p1Shoot:active, #p1Shoot.active {
+            background: rgba(0, 170, 255, 0.7);
+        }
+        /* Player 2 controls (right side) */
+        #p2Left {
+            right: 90px;
+            bottom: 50px;
+        }
+        #p2Right {
+            right: 15px;
+            bottom: 50px;
+        }
+        #p2Jump {
+            right: 52px;
+            bottom: 120px;
+        }
+        #p2Shoot {
+            right: 170px;
+            bottom: 70px;
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 136, 0, 0.4);
+            border-color: rgba(255, 136, 0, 0.7);
+            font-size: 14px;
+        }
+        #p2Shoot:active, #p2Shoot.active {
+            background: rgba(255, 136, 0, 0.7);
+        }
+        .touch-label {
+            position: absolute;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+        }
+        #labelP1 {
+            left: 100px;
+            bottom: 185px;
+            color: #0af;
+        }
+        #labelP2 {
+            right: 100px;
+            bottom: 185px;
+            color: #f80;
+        }
+        .p2-controls {
+            display: none;
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -173,6 +279,20 @@
         </div>
     </div>
 
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <span id="labelP1" class="touch-label">P1</span>
+        <div id="p1Left" class="touch-btn">&#9664;</div>
+        <div id="p1Right" class="touch-btn">&#9654;</div>
+        <div id="p1Jump" class="touch-btn">&#9650;</div>
+        <div id="p1Shoot" class="touch-btn">SHOOT</div>
+        <span id="labelP2" class="touch-label p2-controls">P2</span>
+        <div id="p2Left" class="touch-btn p2-controls">&#9664;</div>
+        <div id="p2Right" class="touch-btn p2-controls">&#9654;</div>
+        <div id="p2Jump" class="touch-btn p2-controls">&#9650;</div>
+        <div id="p2Shoot" class="touch-btn p2-controls">SHOOT</div>
+    </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -210,6 +330,45 @@
         document.addEventListener('keyup', (e) => {
             keys[e.code] = false;
         });
+
+        // Touch controls
+        function setupTouchButton(btnId, keyCode) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys[keyCode] = true;
+                btn.classList.add('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[keyCode] = false;
+                btn.classList.remove('active');
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                keys[keyCode] = false;
+                btn.classList.remove('active');
+            });
+        }
+
+        // Player 1 touch controls
+        setupTouchButton('p1Left', 'ArrowLeft');
+        setupTouchButton('p1Right', 'ArrowRight');
+        setupTouchButton('p1Jump', 'ArrowUp');
+        setupTouchButton('p1Shoot', 'Space');
+
+        // Player 2 touch controls
+        setupTouchButton('p2Left', 'KeyZ');
+        setupTouchButton('p2Right', 'KeyC');
+        setupTouchButton('p2Jump', 'KeyX');
+        setupTouchButton('p2Shoot', 'KeyV');
+
+        // Prevent default touch behavior on canvas
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
         function createPlayer(id, x, color) {
             return {
@@ -830,6 +989,11 @@
             if (numPlayers === 2) {
                 players.push(createPlayer(2, 600, '#f80'));
                 document.getElementById('p2ui').style.display = 'block';
+                // Show P2 touch controls
+                document.querySelectorAll('.p2-controls').forEach(el => el.style.display = 'flex');
+            } else {
+                // Hide P2 touch controls in 1 player mode
+                document.querySelectorAll('.p2-controls').forEach(el => el.style.display = 'none');
             }
 
             wave = 1;

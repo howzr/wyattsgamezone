@@ -108,6 +108,54 @@
             background: linear-gradient(90deg, #ff0000, #ff4444);
             transition: width 0.2s;
         }
+        /* Touch Controls */
+        #touchIndicator {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 188, 212, 0.3);
+            border: 2px solid rgba(0, 188, 212, 0.6);
+            border-radius: 15px;
+            padding: 15px 30px;
+            color: white;
+            font-size: 16px;
+            z-index: 100;
+            text-align: center;
+            pointer-events: none;
+        }
+        #touchTarget {
+            position: fixed;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 255, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+        }
+        #touchTarget::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background: rgba(0, 255, 255, 0.8);
+            border-radius: 50%;
+        }
+        @media (pointer: coarse) {
+            #touchIndicator {
+                display: block;
+            }
+            body {
+                cursor: default;
+            }
+        }
     </style>
 </head>
 <body>
@@ -126,6 +174,8 @@
         <div id="bossHpBar"><div id="bossHpFill" style="width: 100%"></div></div>
     </div>
     <canvas id="game"></canvas>
+    <div id="touchIndicator">Touch and drag to move your fish</div>
+    <div id="touchTarget"></div>
     <div id="gameOver">
         <h1 id="endTitle">Game Over</h1>
         <p id="endText">Score: 0</p>
@@ -812,8 +862,47 @@
         function restart() { init(); }
 
         canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-        canvas.addEventListener('touchmove', e => { e.preventDefault(); mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: false });
-        canvas.addEventListener('touchstart', e => { e.preventDefault(); mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: false });
+
+        // Enhanced touch controls with visual feedback
+        const touchTarget = document.getElementById('touchTarget');
+        const touchIndicator = document.getElementById('touchIndicator');
+        let touchActive = false;
+
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            touchActive = true;
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+            if (touchTarget) {
+                touchTarget.style.display = 'block';
+                touchTarget.style.left = mouse.x + 'px';
+                touchTarget.style.top = mouse.y + 'px';
+            }
+            if (touchIndicator) {
+                touchIndicator.style.opacity = '0';
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+            if (touchTarget) {
+                touchTarget.style.left = mouse.x + 'px';
+                touchTarget.style.top = mouse.y + 'px';
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            touchActive = false;
+            if (touchTarget) {
+                touchTarget.style.display = 'none';
+            }
+            if (touchIndicator) {
+                touchIndicator.style.opacity = '1';
+            }
+        }, { passive: false });
 
         init();
         loop();

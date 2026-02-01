@@ -114,9 +114,66 @@
         .game-over button:hover {
             transform: scale(1.1);
         }
+        /* Touch Controls */
+        #touch-controls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 180px;
+            z-index: 150;
+            pointer-events: none;
+        }
+        @media (pointer: coarse), (max-width: 1024px) {
+            #touch-controls { display: block; }
+            .instructions { display: none !important; }
+        }
+        .touch-dpad {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            width: 150px;
+            height: 150px;
+            pointer-events: auto;
+        }
+        .dpad-btn {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 105, 180, 0.3);
+            border: 2px solid rgba(255, 105, 180, 0.5);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        .dpad-btn:active, .dpad-btn.active {
+            background: rgba(255, 105, 180, 0.6);
+            border-color: #ff69b4;
+        }
+        .dpad-up { top: 0; left: 50px; }
+        .dpad-down { bottom: 0; left: 50px; }
+        .dpad-left { top: 50px; left: 0; }
+        .dpad-right { top: 50px; right: 0; }
     </style>
 </head>
 <body>
+    <!-- Touch Controls -->
+    <div id="touch-controls">
+        <div class="touch-dpad">
+            <div class="dpad-btn dpad-up" data-dir="up">&#9650;</div>
+            <div class="dpad-btn dpad-down" data-dir="down">&#9660;</div>
+            <div class="dpad-btn dpad-left" data-dir="left">&#9664;</div>
+            <div class="dpad-btn dpad-right" data-dir="right">&#9654;</div>
+        </div>
+    </div>
+
     <div class="game-container">
         <h1>Princess Star Collector</h1>
         <div class="stats">
@@ -559,7 +616,44 @@
             keys[e.code] = false;
         });
 
-        // Touch controls - virtual joystick
+        // Touch controls - D-pad buttons
+        const dpadBtns = document.querySelectorAll('.dpad-btn');
+
+        dpadBtns.forEach(btn => {
+            const dir = btn.dataset.dir;
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!gameRunning) {
+                    restartGame();
+                    return;
+                }
+                btn.classList.add('active');
+                if (dir === 'up') keys['ArrowUp'] = true;
+                if (dir === 'down') keys['ArrowDown'] = true;
+                if (dir === 'left') keys['ArrowLeft'] = true;
+                if (dir === 'right') keys['ArrowRight'] = true;
+            }, { passive: false });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                btn.classList.remove('active');
+                if (dir === 'up') keys['ArrowUp'] = false;
+                if (dir === 'down') keys['ArrowDown'] = false;
+                if (dir === 'left') keys['ArrowLeft'] = false;
+                if (dir === 'right') keys['ArrowRight'] = false;
+            }, { passive: false });
+
+            btn.addEventListener('touchcancel', (e) => {
+                btn.classList.remove('active');
+                if (dir === 'up') keys['ArrowUp'] = false;
+                if (dir === 'down') keys['ArrowDown'] = false;
+                if (dir === 'left') keys['ArrowLeft'] = false;
+                if (dir === 'right') keys['ArrowRight'] = false;
+            });
+        });
+
+        // Legacy swipe controls on canvas (fallback)
         let touchJoystick = { active: false, startX: 0, startY: 0 };
 
         canvas.addEventListener('touchstart', (e) => {
@@ -567,16 +661,14 @@
                 restartGame();
                 return;
             }
-            e.preventDefault();
             const touch = e.touches[0];
             touchJoystick.active = true;
             touchJoystick.startX = touch.clientX;
             touchJoystick.startY = touch.clientY;
-        }, { passive: false });
+        }, { passive: true });
 
         canvas.addEventListener('touchmove', (e) => {
             if (!touchJoystick.active) return;
-            e.preventDefault();
             const touch = e.touches[0];
             const dx = touch.clientX - touchJoystick.startX;
             const dy = touch.clientY - touchJoystick.startY;
@@ -586,16 +678,15 @@
             keys['ArrowRight'] = dx > deadzone;
             keys['ArrowUp'] = dy < -deadzone;
             keys['ArrowDown'] = dy > deadzone;
-        }, { passive: false });
+        }, { passive: true });
 
         canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
             touchJoystick.active = false;
             keys['ArrowLeft'] = false;
             keys['ArrowRight'] = false;
             keys['ArrowUp'] = false;
             keys['ArrowDown'] = false;
-        }, { passive: false });
+        }, { passive: true });
 
         // Start game
         for (let i = 0; i < 5; i++) spawnStar();
