@@ -468,38 +468,30 @@
             #farm-touch-controls { display: block; }
             #farmInstructions { display: none; }
         }
-        .farm-touch-dpad {
+        #farmJoystickArea {
             position: absolute;
             left: 20px;
             bottom: 20px;
-            width: 150px;
-            height: 150px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(136, 255, 0, 0.15);
+            border: 3px solid rgba(136, 255, 0, 0.4);
             pointer-events: auto;
+            touch-action: none;
         }
-        .farm-dpad-btn {
+        #farmJoystickKnob {
             position: absolute;
             width: 50px;
             height: 50px;
-            background: rgba(136, 255, 0, 0.3);
-            border: 2px solid rgba(136, 255, 0, 0.5);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: #88ff00;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
+            border-radius: 50%;
+            background: rgba(136, 255, 0, 0.5);
+            border: 2px solid rgba(136, 255, 0, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
-        .farm-dpad-btn:active, .farm-dpad-btn.active {
-            background: rgba(136, 255, 0, 0.6);
-            border-color: #88ff00;
-        }
-        .farm-dpad-up { top: 0; left: 50px; }
-        .farm-dpad-down { bottom: 0; left: 50px; }
-        .farm-dpad-left { top: 50px; left: 0; }
-        .farm-dpad-right { top: 50px; right: 0; }
     </style>
 </head>
 <body>
@@ -510,11 +502,8 @@
     <div id="farmingMode">
         <!-- Farm Touch Controls -->
         <div id="farm-touch-controls">
-            <div class="farm-touch-dpad">
-                <div class="farm-dpad-btn farm-dpad-up" data-dir="up">&#9650;</div>
-                <div class="farm-dpad-btn farm-dpad-down" data-dir="down">&#9660;</div>
-                <div class="farm-dpad-btn farm-dpad-left" data-dir="left">&#9664;</div>
-                <div class="farm-dpad-btn farm-dpad-right" data-dir="right">&#9654;</div>
+            <div id="farmJoystickArea">
+                <div id="farmJoystickKnob"></div>
             </div>
         </div>
         <canvas id="farmCanvas" width="600" height="500"></canvas>
@@ -2372,80 +2361,101 @@
             if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') farmKeys.right = false;
         });
 
-        // Touch controls for farming - D-pad buttons
-        const farmDpadBtns = document.querySelectorAll('.farm-dpad-btn');
+        // Touch controls for farming - Virtual Joystick
+        const farmJoystickArea = document.getElementById('farmJoystickArea');
+        const farmJoystickKnob = document.getElementById('farmJoystickKnob');
 
-        farmDpadBtns.forEach(btn => {
-            const dir = btn.dataset.dir;
+        // Joystick state
+        let farmJoystickActive = false;
+        let farmJoystickTouchId = null;
+        const farmJoystickRadius = 60; // Half of joystickArea width
+        const farmKnobRadius = 25; // Half of knob width
+        const farmMaxKnobDistance = farmJoystickRadius - farmKnobRadius;
 
-            btn.addEventListener('touchstart', (e) => {
-                if (!farmActive) return;
-                e.preventDefault();
-                btn.classList.add('active');
-                if (dir === 'up') farmKeys.up = true;
-                if (dir === 'down') farmKeys.down = true;
-                if (dir === 'left') farmKeys.left = true;
-                if (dir === 'right') farmKeys.right = true;
-            }, { passive: false });
+        function updateFarmJoystick(touch) {
+            const rect = farmJoystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
 
-            btn.addEventListener('touchend', (e) => {
-                if (!farmActive) return;
-                e.preventDefault();
-                btn.classList.remove('active');
-                if (dir === 'up') farmKeys.up = false;
-                if (dir === 'down') farmKeys.down = false;
-                if (dir === 'left') farmKeys.left = false;
-                if (dir === 'right') farmKeys.right = false;
-            }, { passive: false });
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
-            btn.addEventListener('touchcancel', (e) => {
-                btn.classList.remove('active');
-                if (dir === 'up') farmKeys.up = false;
-                if (dir === 'down') farmKeys.down = false;
-                if (dir === 'left') farmKeys.left = false;
-                if (dir === 'right') farmKeys.right = false;
-            });
-        });
+            // Clamp to max distance
+            if (distance > farmMaxKnobDistance) {
+                dx = (dx / distance) * farmMaxKnobDistance;
+                dy = (dy / distance) * farmMaxKnobDistance;
+            }
 
-        // Legacy swipe controls for farming (fallback)
-        let farmTouchJoystick = { active: false, startX: 0, startY: 0 };
+            // Move the knob visually
+            farmJoystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
 
-        document.addEventListener('touchstart', (e) => {
-            if (!farmActive) return;
-            if (e.target.closest('#farm-touch-controls')) return;
-            if (e.target.tagName === 'BUTTON') return;
+            // Calculate normalized values (-1 to 1)
+            const normalizedX = dx / farmMaxKnobDistance;
+            const normalizedY = dy / farmMaxKnobDistance;
 
-            const touch = e.touches[0];
-            farmTouchJoystick.active = true;
-            farmTouchJoystick.startX = touch.clientX;
-            farmTouchJoystick.startY = touch.clientY;
-        }, { passive: true });
+            // Apply deadzone and set keys
+            const deadzone = 0.3;
+            farmKeys.left = normalizedX < -deadzone;
+            farmKeys.right = normalizedX > deadzone;
+            farmKeys.up = normalizedY < -deadzone;
+            farmKeys.down = normalizedY > deadzone;
+        }
 
-        document.addEventListener('touchmove', (e) => {
-            if (!farmActive || !farmTouchJoystick.active) return;
-            if (e.target.closest('#farm-touch-controls')) return;
-
-            const touch = e.touches[0];
-            const dx = touch.clientX - farmTouchJoystick.startX;
-            const dy = touch.clientY - farmTouchJoystick.startY;
-            const deadzone = 20;
-
-            farmKeys.left = dx < -deadzone;
-            farmKeys.right = dx > deadzone;
-            farmKeys.up = dy < -deadzone;
-            farmKeys.down = dy > deadzone;
-        }, { passive: true });
-
-        document.addEventListener('touchend', (e) => {
-            if (!farmActive) return;
-            if (e.target.closest('#farm-touch-controls')) return;
-
-            farmTouchJoystick.active = false;
+        function resetFarmJoystick() {
+            farmJoystickTouchId = null;
+            farmJoystickActive = false;
+            farmJoystickKnob.style.transform = 'translate(-50%, -50%)';
             farmKeys.left = false;
             farmKeys.right = false;
             farmKeys.up = false;
             farmKeys.down = false;
-        }, { passive: true });
+        }
+
+        farmJoystickArea.addEventListener('touchstart', (e) => {
+            if (!farmActive) return;
+            e.preventDefault();
+            if (farmJoystickTouchId !== null) return;
+
+            const touch = e.changedTouches[0];
+            farmJoystickTouchId = touch.identifier;
+            farmJoystickActive = true;
+            updateFarmJoystick(touch);
+        }, { passive: false });
+
+        farmJoystickArea.addEventListener('touchmove', (e) => {
+            if (!farmActive) return;
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === farmJoystickTouchId) {
+                    updateFarmJoystick(touch);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        farmJoystickArea.addEventListener('touchend', (e) => {
+            if (!farmActive) return;
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === farmJoystickTouchId) {
+                    resetFarmJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        farmJoystickArea.addEventListener('touchcancel', (e) => {
+            resetFarmJoystick();
+        }, { passive: false });
+
+        // Prevent default touch behavior on document for joystick area
+        document.addEventListener('touchstart', (e) => {
+            if (e.target.closest('#farmJoystickArea')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         // Update farming UI
         function updateFarmUI() {

@@ -88,14 +88,69 @@
             color: #6c5ce7;
             min-height: 40px;
         }
+
+        /* Virtual Joystick */
+        #joystick-container {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            display: none;
+            z-index: 100;
+        }
+        #joystick-base {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(0, 206, 201, 0.3);
+            border: 3px solid rgba(0, 206, 201, 0.6);
+            border-radius: 50%;
+        }
+        #joystick-knob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 206, 201, 0.7);
+            border: 2px solid rgba(0, 206, 201, 0.9);
+            border-radius: 50%;
+            left: 35px;
+            top: 35px;
+        }
+        #jump-button {
+            position: absolute;
+            bottom: 50px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 184, 148, 0.4);
+            border: 3px solid rgba(0, 184, 148, 0.7);
+            border-radius: 50%;
+            display: none;
+            z-index: 100;
+            font-size: 20px;
+            color: #00b894;
+            font-weight: bold;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 80px;
+        }
     </style>
 </head>
 <body>
     <h1>The Gummy Chairs</h1>
     <p class="instructions">Jump across the gummy chairs to escape the hungry eater!</p>
-    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <div style="position: relative; display: inline-block;">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div id="joystick-container">
+            <div id="joystick-base"></div>
+            <div id="joystick-knob"></div>
+        </div>
+        <div id="jump-button">JUMP</div>
+    </div>
     <div class="controls">
-        <span>Arrow Keys</span> to move | <span>Up Arrow</span> to jump | Touch: Left/Right sides to move, Center to jump
+        <span>Arrow Keys</span> to move | <span>Up Arrow</span> to jump | Touch: Use joystick to move, tap jump button
     </div>
         <div id="message"></div>
     <button id="restartBtn" onclick="restartGame()">Play Again!</button>
@@ -283,80 +338,121 @@
         });
         document.addEventListener('keyup', (e) => keys[e.code] = false);
 
-        // Touch controls
-        let activeTouches = {};
+        // Touch controls - Virtual Joystick
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickKnob = document.getElementById('joystick-knob');
+        const jumpButton = document.getElementById('jump-button');
 
+        let joystickActive = false;
+        let joystickTouchId = null;
+        let joystickCenter = { x: 60, y: 60 };
+        const joystickRadius = 35;
+
+        // Show joystick on touch devices
+        function showTouchControls() {
+            joystickContainer.style.display = 'block';
+            jumpButton.style.display = 'flex';
+        }
+
+        // Detect touch device
+        if ('ontouchstart' in window) {
+            showTouchControls();
+        }
+
+        joystickContainer.addEventListener('touchstart', (e) => {
+            if (gameOver) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            const touch = e.changedTouches[0];
+            joystickActive = true;
+            joystickTouchId = touch.identifier;
+
+            updateGummyJoystick(touch);
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (!joystickActive || gameOver) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    updateGummyJoystick(e.changedTouches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetGummyJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchcancel', (e) => {
+            resetGummyJoystick();
+        }, { passive: false });
+
+        function updateGummyJoystick(touch) {
+            const rect = joystickContainer.getBoundingClientRect();
+            let dx = touch.clientX - rect.left - joystickCenter.x;
+            let dy = touch.clientY - rect.top - joystickCenter.y;
+
+            // Clamp to radius
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > joystickRadius) {
+                dx = (dx / dist) * joystickRadius;
+                dy = (dy / dist) * joystickRadius;
+            }
+
+            // Update knob position
+            joystickKnob.style.left = (joystickCenter.x + dx - 25) + 'px';
+            joystickKnob.style.top = (joystickCenter.y + dy - 25) + 'px';
+
+            // Update movement keys based on joystick position
+            const deadzone = 15;
+            keys['ArrowLeft'] = dx < -deadzone;
+            keys['ArrowRight'] = dx > deadzone;
+            // Up on joystick can trigger jump too
+            if (dy < -deadzone && player.onGround) {
+                keys['ArrowUp'] = true;
+            }
+        }
+
+        function resetGummyJoystick() {
+            joystickActive = false;
+            joystickTouchId = null;
+            joystickKnob.style.left = '35px';
+            joystickKnob.style.top = '35px';
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+            keys['ArrowUp'] = false;
+        }
+
+        // Jump button
+        jumpButton.addEventListener('touchstart', (e) => {
+            if (gameOver) return;
+            e.preventDefault();
+            e.stopPropagation();
+            keys['ArrowUp'] = true;
+        }, { passive: false });
+
+        jumpButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            keys['ArrowUp'] = false;
+        }, { passive: false });
+
+        // Canvas touch prevention
         canvas.addEventListener('touchstart', (e) => {
-            if (gameOver) return;
             e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const screenThird = rect.width / 3;
-
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const touchX = touch.clientX - rect.left;
-                const touchY = touch.clientY - rect.top;
-
-                activeTouches[touch.identifier] = { x: touchX, y: touchY, screenThird: screenThird };
-
-                if (touchX < screenThird) {
-                    keys['ArrowLeft'] = true;
-                } else if (touchX > screenThird * 2) {
-                    keys['ArrowRight'] = true;
-                } else {
-                    // Middle third - jump
-                    keys['ArrowUp'] = true;
-                }
-            }
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', (e) => {
-            if (gameOver) return;
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const screenThird = rect.width / 3;
-
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const touchX = touch.clientX - rect.left;
-
-                const oldTouch = activeTouches[touch.identifier];
-                if (oldTouch) {
-                    const oldZone = oldTouch.x < screenThird ? 'left' : (oldTouch.x > screenThird * 2 ? 'right' : 'middle');
-                    const newZone = touchX < screenThird ? 'left' : (touchX > screenThird * 2 ? 'right' : 'middle');
-
-                    if (oldZone !== newZone) {
-                        if (oldZone === 'left') keys['ArrowLeft'] = false;
-                        if (oldZone === 'right') keys['ArrowRight'] = false;
-                        if (oldZone === 'middle') keys['ArrowUp'] = false;
-
-                        if (newZone === 'left') keys['ArrowLeft'] = true;
-                        if (newZone === 'right') keys['ArrowRight'] = true;
-                        if (newZone === 'middle') keys['ArrowUp'] = true;
-                    }
-                }
-
-                activeTouches[touch.identifier] = { x: touchX, y: touch.clientY - rect.top, screenThird: screenThird };
-            }
-        }, { passive: false });
-
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const screenThird = rect.width / 3;
-
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const oldTouch = activeTouches[touch.identifier];
-
-                if (oldTouch) {
-                    if (oldTouch.x < screenThird) keys['ArrowLeft'] = false;
-                    else if (oldTouch.x > screenThird * 2) keys['ArrowRight'] = false;
-                    else keys['ArrowUp'] = false;
-                }
-
-                delete activeTouches[touch.identifier];
-            }
         }, { passive: false });
 
         function drawGummyChair(platform) {

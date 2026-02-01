@@ -102,7 +102,7 @@
         #storeBtn:hover {
             background-color: #45a049;
         }
-        /* Touch Controls */
+        /* Touch Controls - Joystick */
         #touchControls {
             display: none;
             position: fixed;
@@ -115,34 +115,27 @@
             align-items: flex-end;
             pointer-events: none;
         }
-        .touch-dpad {
-            display: grid;
-            grid-template-columns: 60px 60px 60px;
-            grid-template-rows: 60px 60px 60px;
-            gap: 4px;
+        .touch-joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(76, 175, 80, 0.4);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            position: relative;
             pointer-events: auto;
+            touch-action: none;
         }
-        .touch-dpad-btn {
-            width: 60px;
-            height: 60px;
-            background: rgba(76, 175, 80, 0.5);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-            user-select: none;
-            touch-action: manipulation;
-        }
-        .touch-dpad-btn:active, .touch-dpad-btn.active {
-            background: rgba(76, 175, 80, 0.9);
-            border-color: #4CAF50;
-        }
-        .touch-dpad-empty {
-            background: transparent;
-            border: none;
+        .joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(76, 175, 80, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
         .touch-action-btn {
             width: 90px;
@@ -286,16 +279,8 @@
 
     <!-- Touch Controls -->
     <div id="touchControls">
-        <div class="touch-dpad">
-            <div class="touch-dpad-btn touch-dpad-empty"></div>
-            <div class="touch-dpad-btn" id="maze-dpad-up">&#9650;</div>
-            <div class="touch-dpad-btn touch-dpad-empty"></div>
-            <div class="touch-dpad-btn" id="maze-dpad-left">&#9664;</div>
-            <div class="touch-dpad-btn touch-dpad-empty"></div>
-            <div class="touch-dpad-btn" id="maze-dpad-right">&#9654;</div>
-            <div class="touch-dpad-btn touch-dpad-empty"></div>
-            <div class="touch-dpad-btn" id="maze-dpad-down">&#9660;</div>
-            <div class="touch-dpad-btn touch-dpad-empty"></div>
+        <div class="touch-joystick" id="mazeJoystick">
+            <div class="joystick-knob" id="mazeJoystickKnob"></div>
         </div>
         <div class="touch-action-btn" id="maze-attack-btn">ATTACK</div>
     </div>
@@ -3104,50 +3089,83 @@
         loadBestLevel();
         gameLoop();
 
-        // Touch D-Pad Controls
-        function setupMazeDpadButton(id, key) {
-            const btn = document.getElementById(id);
-            if (!btn) return;
+        // Touch Joystick Controls
+        const mazeJoystick = document.getElementById('mazeJoystick');
+        const mazeJoystickKnob = document.getElementById('mazeJoystickKnob');
 
-            btn.addEventListener('touchstart', (e) => {
+        let mazeJoystickActive = false;
+        let mazeJoystickCenter = { x: 0, y: 0 };
+        const mazeJoystickMaxDist = 35;
+
+        if (mazeJoystick) {
+            mazeJoystick.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                game.keys[key] = true;
-                btn.classList.add('active');
+                mazeJoystickActive = true;
+                const rect = mazeJoystick.getBoundingClientRect();
+                mazeJoystickCenter.x = rect.left + rect.width / 2;
+                mazeJoystickCenter.y = rect.top + rect.height / 2;
+                handleMazeJoystickMove(e.touches[0]);
             }, { passive: false });
 
-            btn.addEventListener('touchend', (e) => {
+            mazeJoystick.addEventListener('touchmove', (e) => {
                 e.preventDefault();
-                game.keys[key] = false;
-                btn.classList.remove('active');
+                if (mazeJoystickActive) {
+                    handleMazeJoystickMove(e.touches[0]);
+                }
             }, { passive: false });
 
-            btn.addEventListener('touchcancel', (e) => {
-                game.keys[key] = false;
-                btn.classList.remove('active');
+            mazeJoystick.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                mazeJoystickActive = false;
+                mazeJoystickKnob.style.transform = 'translate(-50%, -50%)';
+                game.keys['ArrowUp'] = false;
+                game.keys['ArrowDown'] = false;
+                game.keys['ArrowLeft'] = false;
+                game.keys['ArrowRight'] = false;
             }, { passive: false });
 
-            // Also support mouse for testing
-            btn.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                game.keys[key] = true;
-                btn.classList.add('active');
-            });
-
-            btn.addEventListener('mouseup', (e) => {
-                game.keys[key] = false;
-                btn.classList.remove('active');
-            });
-
-            btn.addEventListener('mouseleave', (e) => {
-                game.keys[key] = false;
-                btn.classList.remove('active');
-            });
+            mazeJoystick.addEventListener('touchcancel', (e) => {
+                mazeJoystickActive = false;
+                mazeJoystickKnob.style.transform = 'translate(-50%, -50%)';
+                game.keys['ArrowUp'] = false;
+                game.keys['ArrowDown'] = false;
+                game.keys['ArrowLeft'] = false;
+                game.keys['ArrowRight'] = false;
+            }, { passive: false });
         }
 
-        setupMazeDpadButton('maze-dpad-up', 'ArrowUp');
-        setupMazeDpadButton('maze-dpad-down', 'ArrowDown');
-        setupMazeDpadButton('maze-dpad-left', 'ArrowLeft');
-        setupMazeDpadButton('maze-dpad-right', 'ArrowRight');
+        function handleMazeJoystickMove(touch) {
+            const dx = touch.clientX - mazeJoystickCenter.x;
+            const dy = touch.clientY - mazeJoystickCenter.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const clampedDist = Math.min(dist, mazeJoystickMaxDist);
+            const angle = Math.atan2(dy, dx);
+
+            // Move the knob visually
+            const knobX = Math.cos(angle) * clampedDist;
+            const knobY = Math.sin(angle) * clampedDist;
+            mazeJoystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+
+            // Reset all directions first
+            game.keys['ArrowUp'] = false;
+            game.keys['ArrowDown'] = false;
+            game.keys['ArrowLeft'] = false;
+            game.keys['ArrowRight'] = false;
+
+            // Determine direction based on angle (deadzone of 15px)
+            if (dist > 15) {
+                const angleDeg = angle * 180 / Math.PI;
+                if (angleDeg >= -45 && angleDeg < 45) {
+                    game.keys['ArrowRight'] = true;
+                } else if (angleDeg >= 45 && angleDeg < 135) {
+                    game.keys['ArrowDown'] = true;
+                } else if (angleDeg >= -135 && angleDeg < -45) {
+                    game.keys['ArrowUp'] = true;
+                } else {
+                    game.keys['ArrowLeft'] = true;
+                }
+            }
+        }
 
         // Attack button
         const attackBtn = document.getElementById('maze-attack-btn');

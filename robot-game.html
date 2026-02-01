@@ -376,38 +376,30 @@
             #touch-controls { display: block; }
             #instructions { display: none; }
         }
-        .touch-dpad {
+        #joystickArea {
             position: absolute;
             left: 20px;
             bottom: 20px;
-            width: 150px;
-            height: 150px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(0, 255, 136, 0.15);
+            border: 3px solid rgba(0, 255, 136, 0.4);
             pointer-events: auto;
+            touch-action: none;
         }
-        .dpad-btn {
+        #joystickKnob {
             position: absolute;
             width: 50px;
             height: 50px;
-            background: rgba(255, 255, 255, 0.3);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-        }
-        .dpad-btn:active, .dpad-btn.active {
+            border-radius: 50%;
             background: rgba(0, 255, 136, 0.5);
-            border-color: #00ff88;
+            border: 2px solid rgba(0, 255, 136, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
-        .dpad-up { top: 0; left: 50px; }
-        .dpad-down { bottom: 0; left: 50px; }
-        .dpad-left { top: 50px; left: 0; }
-        .dpad-right { top: 50px; right: 0; }
         .touch-buttons {
             position: absolute;
             right: 20px;
@@ -458,11 +450,8 @@
 <body>
     <!-- Touch Controls -->
     <div id="touch-controls">
-        <div class="touch-dpad">
-            <div class="dpad-btn dpad-up" data-dir="up">&#9650;</div>
-            <div class="dpad-btn dpad-down" data-dir="down">&#9660;</div>
-            <div class="dpad-btn dpad-left" data-dir="left">&#9664;</div>
-            <div class="dpad-btn dpad-right" data-dir="right">&#9654;</div>
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
         </div>
         <div class="touch-buttons">
             <div class="buttons-row">
@@ -2208,40 +2197,92 @@
             }
         });
 
-        // Touch controls - D-pad and action buttons
-        const dpadBtns = document.querySelectorAll('.dpad-btn');
+        // Touch controls - Virtual Joystick and action buttons
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
         const actionBtns = document.querySelectorAll('.action-btn');
 
-        // D-pad touch handling
-        dpadBtns.forEach(btn => {
-            const dir = btn.dataset.dir;
+        // Joystick state
+        let joystickActive = false;
+        let joystickTouchId = null;
+        const joystickRadius = 60; // Half of joystickArea width
+        const knobRadius = 25; // Half of knob width
+        const maxKnobDistance = joystickRadius - knobRadius;
 
-            btn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                btn.classList.add('active');
-                if (dir === 'up') keys.forward = true;
-                if (dir === 'down') keys.backward = true;
-                if (dir === 'left') keys.left = true;
-                if (dir === 'right') keys.right = true;
-            }, { passive: false });
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
 
-            btn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                btn.classList.remove('active');
-                if (dir === 'up') keys.forward = false;
-                if (dir === 'down') keys.backward = false;
-                if (dir === 'left') keys.left = false;
-                if (dir === 'right') keys.right = false;
-            }, { passive: false });
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
-            btn.addEventListener('touchcancel', (e) => {
-                btn.classList.remove('active');
-                if (dir === 'up') keys.forward = false;
-                if (dir === 'down') keys.backward = false;
-                if (dir === 'left') keys.left = false;
-                if (dir === 'right') keys.right = false;
-            });
-        });
+            // Clamp to max distance
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+
+            // Move the knob visually
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+            // Calculate normalized values (-1 to 1)
+            const normalizedX = dx / maxKnobDistance;
+            const normalizedY = dy / maxKnobDistance;
+
+            // Apply deadzone and set keys
+            const deadzone = 0.3;
+            keys.left = normalizedX < -deadzone;
+            keys.right = normalizedX > deadzone;
+            keys.forward = normalizedY < -deadzone;
+            keys.backward = normalizedY > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickActive = false;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            keys.left = false;
+            keys.right = false;
+            keys.forward = false;
+            keys.backward = false;
+        }
+
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
+
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickActive = true;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    updateJoystick(touch);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', (e) => {
+            resetJoystick();
+        }, { passive: false });
 
         // Action buttons touch handling
         actionBtns.forEach(btn => {
@@ -2267,53 +2308,12 @@
             });
         });
 
-        // Legacy touch controls for swipe movement (fallback)
-        let touchJoystick = { active: false, startX: 0, startY: 0, id: null };
-
+        // Prevent default touch behavior on document for joystick area
         document.addEventListener('touchstart', (e) => {
-            if (shopOpen || robotShopOpen) return;
-            if (e.target.closest('#touch-controls')) return;
-            if (e.target.tagName === 'BUTTON') return;
-
-            const touch = e.touches[0];
-            touchJoystick.active = true;
-            touchJoystick.startX = touch.clientX;
-            touchJoystick.startY = touch.clientY;
-            touchJoystick.id = touch.identifier;
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            if (!touchJoystick.active || shopOpen || robotShopOpen) return;
-            if (e.target.closest('#touch-controls')) return;
-
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
-                if (touch.identifier === touchJoystick.id) {
-                    const dx = touch.clientX - touchJoystick.startX;
-                    const dy = touch.clientY - touchJoystick.startY;
-                    const deadzone = 20;
-
-                    keys.left = dx < -deadzone;
-                    keys.right = dx > deadzone;
-                    keys.forward = dy < -deadzone;
-                    keys.backward = dy > deadzone;
-                }
+            if (e.target.closest('#joystickArea')) {
+                e.preventDefault();
             }
-        }, { passive: true });
-
-        document.addEventListener('touchend', (e) => {
-            if (e.target.closest('#touch-controls')) return;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === touchJoystick.id) {
-                    touchJoystick.active = false;
-                    touchJoystick.id = null;
-                    keys.left = false;
-                    keys.right = false;
-                    keys.forward = false;
-                    keys.backward = false;
-                }
-            }
-        }, { passive: true });
+        }, { passive: false });
 
         // Movement speed
         const moveSpeed = 0.15;

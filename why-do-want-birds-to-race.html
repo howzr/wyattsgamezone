@@ -536,6 +536,54 @@
             font-size: 0.9rem;
             margin-top: 10px;
         }
+
+        /* Virtual Joystick */
+        #joystick-container {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            display: none;
+            z-index: 1000;
+        }
+        #joystick-base {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 215, 0, 0.3);
+            border: 3px solid rgba(255, 215, 0, 0.6);
+            border-radius: 50%;
+        }
+        #joystick-knob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 215, 0, 0.7);
+            border: 2px solid rgba(255, 215, 0, 0.9);
+            border-radius: 50%;
+            left: 35px;
+            top: 35px;
+        }
+        #interact-button {
+            position: fixed;
+            bottom: 50px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 215, 0, 0.4);
+            border: 3px solid rgba(255, 215, 0, 0.7);
+            border-radius: 50%;
+            display: none;
+            z-index: 1000;
+            font-size: 16px;
+            color: #ffd700;
+            font-weight: bold;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 80px;
+        }
     </style>
 </head>
 <body>
@@ -543,6 +591,12 @@
     <p class="subtitle">They flew into a cave... now you must find them!</p>
 
     <div id="message"></div>
+
+    <div id="joystick-container">
+        <div id="joystick-base"></div>
+        <div id="joystick-knob"></div>
+    </div>
+    <div id="interact-button">ACT</div>
 
     <div id="game-container">
         <div id="status-bar">
@@ -633,57 +687,114 @@
             keys[e.code] = false;
         });
 
-        // Touch controls - virtual joystick
-        let touchJoystick = { active: false, startX: 0, startY: 0 };
-        let lastTouchTap = 0;
+        // Touch controls - Virtual Joystick
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickKnob = document.getElementById('joystick-knob');
+        const interactButton = document.getElementById('interact-button');
 
-        document.addEventListener('touchstart', (e) => {
-            const touch = e.touches[0];
-            touchJoystick.active = true;
-            touchJoystick.startX = touch.clientX;
-            touchJoystick.startY = touch.clientY;
+        let joystickActive = false;
+        let joystickTouchId = null;
+        let joystickCenter = { x: 60, y: 60 };
+        const joystickRadius = 35;
 
-            // Double tap to interact (like pressing E)
-            const now = Date.now();
-            if (now - lastTouchTap < 300) {
-                keys[' '] = true;
-                keys['e'] = true;
-                setTimeout(() => { keys[' '] = false; keys['e'] = false; }, 100);
+        // Show joystick on touch devices
+        function showTouchControls() {
+            joystickContainer.style.display = 'block';
+            interactButton.style.display = 'flex';
+        }
+
+        // Detect touch device
+        if ('ontouchstart' in window) {
+            showTouchControls();
+        }
+
+        joystickContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const touch = e.changedTouches[0];
+            joystickActive = true;
+            joystickTouchId = touch.identifier;
+
+            updateJoystickBirds(touch);
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    updateJoystickBirds(e.changedTouches[i]);
+                    break;
+                }
             }
-            lastTouchTap = now;
-
-            e.preventDefault();
         }, { passive: false });
 
-        document.addEventListener('touchmove', (e) => {
-            if (!touchJoystick.active) return;
+        joystickContainer.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const touch = e.touches[0];
-            const dx = touch.clientX - touchJoystick.startX;
-            const dy = touch.clientY - touchJoystick.startY;
-            const deadzone = 20;
+            e.stopPropagation();
 
-            keys['ArrowLeft'] = dx < -deadzone;
-            keys['arrowleft'] = dx < -deadzone;
-            keys['a'] = dx < -deadzone;
-            keys['ArrowRight'] = dx > deadzone;
-            keys['arrowright'] = dx > deadzone;
-            keys['d'] = dx > deadzone;
-            keys['ArrowUp'] = dy < -deadzone;
-            keys['arrowup'] = dy < -deadzone;
-            keys['w'] = dy < -deadzone;
-            keys['ArrowDown'] = dy > deadzone;
-            keys['arrowdown'] = dy > deadzone;
-            keys['s'] = dy > deadzone;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystickBirds();
+                    break;
+                }
+            }
         }, { passive: false });
 
-        document.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            touchJoystick.active = false;
+        joystickContainer.addEventListener('touchcancel', (e) => {
+            resetJoystickBirds();
+        }, { passive: false });
+
+        function updateJoystickBirds(touch) {
+            const rect = joystickContainer.getBoundingClientRect();
+            let dx = touch.clientX - rect.left - joystickCenter.x;
+            let dy = touch.clientY - rect.top - joystickCenter.y;
+
+            // Clamp to radius
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > joystickRadius) {
+                dx = (dx / dist) * joystickRadius;
+                dy = (dy / dist) * joystickRadius;
+            }
+
+            // Update knob position
+            joystickKnob.style.left = (joystickCenter.x + dx - 25) + 'px';
+            joystickKnob.style.top = (joystickCenter.y + dy - 25) + 'px';
+
+            // Update movement keys based on joystick position
+            const deadzone = 15;
+            const left = dx < -deadzone;
+            const right = dx > deadzone;
+            const up = dy < -deadzone;
+            const down = dy > deadzone;
+
+            keys['ArrowLeft'] = left; keys['arrowleft'] = left; keys['a'] = left;
+            keys['ArrowRight'] = right; keys['arrowright'] = right; keys['d'] = right;
+            keys['ArrowUp'] = up; keys['arrowup'] = up; keys['w'] = up;
+            keys['ArrowDown'] = down; keys['arrowdown'] = down; keys['s'] = down;
+        }
+
+        function resetJoystickBirds() {
+            joystickActive = false;
+            joystickTouchId = null;
+            joystickKnob.style.left = '35px';
+            joystickKnob.style.top = '35px';
             keys['ArrowLeft'] = false; keys['arrowleft'] = false; keys['a'] = false;
             keys['ArrowRight'] = false; keys['arrowright'] = false; keys['d'] = false;
             keys['ArrowUp'] = false; keys['arrowup'] = false; keys['w'] = false;
             keys['ArrowDown'] = false; keys['arrowdown'] = false; keys['s'] = false;
+        }
+
+        // Interact button
+        interactButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            keys[' '] = true;
+            keys['e'] = true;
+            setTimeout(() => { keys[' '] = false; keys['e'] = false; }, 100);
         }, { passive: false });
 
         // Player movement

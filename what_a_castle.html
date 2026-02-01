@@ -467,6 +467,54 @@
             margin: 20px 0;
         }
 
+        /* Virtual Joystick */
+        #joystick-container {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            display: none;
+            z-index: 150;
+        }
+        #joystick-base {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(139, 115, 85, 0.3);
+            border: 3px solid rgba(139, 115, 85, 0.6);
+            border-radius: 50%;
+        }
+        #joystick-knob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(139, 115, 85, 0.7);
+            border: 2px solid rgba(139, 115, 85, 0.9);
+            border-radius: 50%;
+            left: 35px;
+            top: 35px;
+        }
+        #attack-button {
+            position: absolute;
+            bottom: 50px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: rgba(214, 48, 49, 0.4);
+            border: 3px solid rgba(214, 48, 49, 0.7);
+            border-radius: 50%;
+            display: none;
+            z-index: 150;
+            font-size: 20px;
+            color: #fff;
+            font-weight: bold;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 80px;
+        }
+
         .start-btn {
             margin-top: 30px;
             padding: 15px 40px;
@@ -745,8 +793,13 @@
         <div class="controls-info">
             <span><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> Move</span>
             <span><kbd>Space</kbd> Attack</span>
-            <span>Touch: Drag to move, Double-tap to attack</span>
+            <span>Touch: Use joystick to move, tap attack button</span>
         </div>
+        <div id="joystick-container">
+            <div id="joystick-base"></div>
+            <div id="joystick-knob"></div>
+        </div>
+        <div id="attack-button">ATK</div>
     </div>
 
     <script>
@@ -2100,60 +2153,120 @@
             game.keys[e.code] = false;
         });
 
-        // Touch controls
-        let touchJoystick = { active: false, startX: 0, startY: 0 };
-        let lastTapTime = 0;
+        // Touch controls - Virtual Joystick
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickKnob = document.getElementById('joystick-knob');
+        const attackButton = document.getElementById('attack-button');
 
+        let joystickActive = false;
+        let joystickTouchId = null;
+        let joystickCenter = { x: 60, y: 60 };
+        const joystickRadius = 35;
+
+        // Show joystick on touch devices
+        function showTouchControls() {
+            joystickContainer.style.display = 'block';
+            attackButton.style.display = 'flex';
+        }
+
+        // Detect touch device
+        if ('ontouchstart' in window) {
+            showTouchControls();
+        }
+
+        joystickContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const touch = e.changedTouches[0];
+            joystickActive = true;
+            joystickTouchId = touch.identifier;
+
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    updateJoystick(e.changedTouches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchcancel', (e) => {
+            resetJoystick();
+        }, { passive: false });
+
+        function updateJoystick(touch) {
+            const rect = joystickContainer.getBoundingClientRect();
+            let dx = touch.clientX - rect.left - joystickCenter.x;
+            let dy = touch.clientY - rect.top - joystickCenter.y;
+
+            // Clamp to radius
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > joystickRadius) {
+                dx = (dx / dist) * joystickRadius;
+                dy = (dy / dist) * joystickRadius;
+            }
+
+            // Update knob position
+            joystickKnob.style.left = (joystickCenter.x + dx - 25) + 'px';
+            joystickKnob.style.top = (joystickCenter.y + dy - 25) + 'px';
+
+            // Update movement keys based on joystick position
+            const deadzone = 15;
+            game.keys['ArrowLeft'] = dx < -deadzone;
+            game.keys['ArrowRight'] = dx > deadzone;
+            game.keys['ArrowUp'] = dy < -deadzone;
+            game.keys['ArrowDown'] = dy > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickActive = false;
+            joystickTouchId = null;
+            joystickKnob.style.left = '35px';
+            joystickKnob.style.top = '35px';
+            game.keys['ArrowLeft'] = false;
+            game.keys['ArrowRight'] = false;
+            game.keys['ArrowUp'] = false;
+            game.keys['ArrowDown'] = false;
+        }
+
+        // Attack button
+        attackButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (game.player && game.running && !game.showingBanner) {
+                game.player.attack();
+            }
+        }, { passive: false });
+
+        // Canvas touch for map interaction
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const touch = e.touches[0];
-            const touchX = touch.clientX - rect.left;
-            const touchY = touch.clientY - rect.top;
-
             // If showing map, continue
             if (game.showingMap) {
                 hideCastleMap();
                 proceedToNextRoom();
                 return;
             }
-
-            // Double tap to attack
-            const now = Date.now();
-            if (now - lastTapTime < 300) {
-                if (game.player && game.running && !game.showingBanner) {
-                    game.player.attack();
-                }
-            }
-            lastTapTime = now;
-
-            // Start joystick
-            touchJoystick.active = true;
-            touchJoystick.startX = touch.clientX;
-            touchJoystick.startY = touch.clientY;
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', (e) => {
-            if (!touchJoystick.active) return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            const dx = touch.clientX - touchJoystick.startX;
-            const dy = touch.clientY - touchJoystick.startY;
-            const deadzone = 20;
-
-            game.keys['ArrowLeft'] = dx < -deadzone;
-            game.keys['ArrowRight'] = dx > deadzone;
-            game.keys['ArrowUp'] = dy < -deadzone;
-            game.keys['ArrowDown'] = dy > deadzone;
-        }, { passive: false });
-
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            touchJoystick.active = false;
-            game.keys['ArrowLeft'] = false;
-            game.keys['ArrowRight'] = false;
-            game.keys['ArrowUp'] = false;
-            game.keys['ArrowDown'] = false;
         }, { passive: false });
 
         document.getElementById('startBtn').addEventListener('click', startGame);

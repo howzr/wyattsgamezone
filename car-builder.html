@@ -189,6 +189,54 @@
             background: #ffd700;
             cursor: pointer;
         }
+
+        /* Virtual Joystick for Test Drive */
+        #joystick-container {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            display: none;
+            z-index: 100;
+        }
+        #joystick-base {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 215, 0, 0.3);
+            border: 3px solid rgba(255, 215, 0, 0.6);
+            border-radius: 50%;
+        }
+        #joystick-knob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 215, 0, 0.7);
+            border: 2px solid rgba(255, 215, 0, 0.9);
+            border-radius: 50%;
+            left: 35px;
+            top: 35px;
+        }
+        #drive-button {
+            position: absolute;
+            bottom: 50px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 149, 0, 0.4);
+            border: 3px solid rgba(255, 149, 0, 0.7);
+            border-radius: 50%;
+            display: none;
+            z-index: 100;
+            font-size: 14px;
+            color: #fff;
+            font-weight: bold;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 80px;
+        }
     </style>
 </head>
 <body>
@@ -198,6 +246,11 @@
         <div style="position: relative;">
             <canvas id="build-area" width="700" height="500"></canvas>
             <div id="speed-display">0 MPH</div>
+            <div id="joystick-container">
+                <div id="joystick-base"></div>
+                <div id="joystick-knob"></div>
+            </div>
+            <div id="drive-button">DRIVE</div>
         </div>
 
         <div id="parts-panel">
@@ -1437,11 +1490,113 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Touch controls for test drive
+        // Touch controls - Virtual Joystick
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickKnob = document.getElementById('joystick-knob');
+        const driveButton = document.getElementById('drive-button');
+
+        let joystickActive = false;
+        let joystickTouchId = null;
+        let joystickCenter = { x: 60, y: 60 };
+        const joystickRadius = 35;
+        let carDriveKeys = { left: false, right: false, accelerate: false, brake: false };
+
+        // Show joystick on touch devices
+        function showTouchControls() {
+            joystickContainer.style.display = 'block';
+            driveButton.style.display = 'flex';
+        }
+
+        // Detect touch device
+        if ('ontouchstart' in window) {
+            showTouchControls();
+        }
+
+        joystickContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const touch = e.changedTouches[0];
+            joystickActive = true;
+            joystickTouchId = touch.identifier;
+
+            updateCarJoystick(touch);
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchmove', (e) => {
+            if (!joystickActive) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    updateCarJoystick(e.changedTouches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetCarJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickContainer.addEventListener('touchcancel', (e) => {
+            resetCarJoystick();
+        }, { passive: false });
+
+        function updateCarJoystick(touch) {
+            const rect = joystickContainer.getBoundingClientRect();
+            let dx = touch.clientX - rect.left - joystickCenter.x;
+            let dy = touch.clientY - rect.top - joystickCenter.y;
+
+            // Clamp to radius
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > joystickRadius) {
+                dx = (dx / dist) * joystickRadius;
+                dy = (dy / dist) * joystickRadius;
+            }
+
+            // Update knob position
+            joystickKnob.style.left = (joystickCenter.x + dx - 25) + 'px';
+            joystickKnob.style.top = (joystickCenter.y + dy - 25) + 'px';
+
+            // Update drive keys based on joystick position
+            const deadzone = 15;
+            carDriveKeys.left = dx < -deadzone;
+            carDriveKeys.right = dx > deadzone;
+            carDriveKeys.accelerate = dy < -deadzone;
+            carDriveKeys.brake = dy > deadzone;
+        }
+
+        function resetCarJoystick() {
+            joystickActive = false;
+            joystickTouchId = null;
+            joystickKnob.style.left = '35px';
+            joystickKnob.style.top = '35px';
+            carDriveKeys.left = false;
+            carDriveKeys.right = false;
+            carDriveKeys.accelerate = false;
+            carDriveKeys.brake = false;
+        }
+
+        // Drive button - toggle test drive
+        driveButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            testDrive();
+        }, { passive: false });
+
+        // Prevent canvas default touch but allow for interaction
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            // Tap canvas to toggle test drive
-            testDrive();
         }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {

@@ -132,6 +132,68 @@
             border-color: #ff0;
             box-shadow: 0 0 10px #ff0;
         }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #joystickArea {
+            position: absolute;
+            left: 30px;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(0, 255, 255, 0.5);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 255, 255, 0.6);
+            border: 2px solid rgba(0, 255, 255, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #jumpBtn {
+            position: absolute;
+            right: 30px;
+            bottom: 40px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(0, 255, 255, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #jumpBtn:active, #jumpBtn.active {
+            background: rgba(0, 255, 255, 0.5);
+            border-color: rgba(0, 255, 255, 0.8);
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -177,6 +239,14 @@
             <div class="stars">&#11088;&#11088;&#11088;</div>
             <button onclick="backToMenu()">Play Again</button>
         </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
+        </div>
+        <div id="jumpBtn">JUMP</div>
     </div>
 
     <script>
@@ -233,85 +303,122 @@
             keys[e.code] = false;
         });
 
-        // Touch controls
-        let activeTouches = {};
+        // Touch controls - Virtual Joystick
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
+        const jumpBtn = document.getElementById('jumpBtn');
 
-        canvas.addEventListener('touchstart', (e) => {
+        let joystickActive = false;
+        let joystickTouchId = null;
+        const joystickRadius = 60; // Half of joystickArea width
+        const knobRadius = 25; // Half of knob width
+        const maxKnobDistance = joystickRadius - knobRadius;
+
+        joystickArea.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const screenThird = rect.width / 3;
+            if (joystickTouchId !== null) return;
 
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickActive = true;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
-                const touchX = touch.clientX - rect.left;
-                const touchY = touch.clientY - rect.top;
-
-                activeTouches[touch.identifier] = { x: touchX, y: touchY, zone: getZone(touchX, screenThird) };
-
-                if (touchX < screenThird) {
-                    // Left third - move left
-                    keys['ArrowLeft'] = true;
-                } else if (touchX > screenThird * 2) {
-                    // Right third - move right
-                    keys['ArrowRight'] = true;
-                } else {
-                    // Center third - jump
-                    keys['Space'] = true;
+                if (touch.identifier === joystickTouchId) {
+                    updateJoystick(touch);
+                    break;
                 }
             }
         }, { passive: false });
 
-        canvas.addEventListener('touchmove', (e) => {
+        joystickArea.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const screenThird = rect.width / 3;
-
             for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const touchX = touch.clientX - rect.left;
-                const newZone = getZone(touchX, screenThird);
-
-                const oldTouch = activeTouches[touch.identifier];
-                if (oldTouch && oldTouch.zone !== newZone) {
-                    // Clear old zone
-                    if (oldTouch.zone === 'left') keys['ArrowLeft'] = false;
-                    if (oldTouch.zone === 'right') keys['ArrowRight'] = false;
-                    if (oldTouch.zone === 'center') keys['Space'] = false;
-
-                    // Activate new zone
-                    if (newZone === 'left') keys['ArrowLeft'] = true;
-                    if (newZone === 'right') keys['ArrowRight'] = true;
-                    if (newZone === 'center') keys['Space'] = true;
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
                 }
-
-                activeTouches[touch.identifier] = { x: touchX, y: touch.clientY - rect.top, zone: newZone };
             }
         }, { passive: false });
 
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            const rect = canvas.getBoundingClientRect();
-            const screenThird = rect.width / 3;
-
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const oldTouch = activeTouches[touch.identifier];
-
-                if (oldTouch) {
-                    if (oldTouch.zone === 'left') keys['ArrowLeft'] = false;
-                    if (oldTouch.zone === 'right') keys['ArrowRight'] = false;
-                    if (oldTouch.zone === 'center') keys['Space'] = false;
-                }
-
-                delete activeTouches[touch.identifier];
-            }
+        joystickArea.addEventListener('touchcancel', (e) => {
+            resetJoystick();
         }, { passive: false });
 
-        function getZone(x, thirdWidth) {
-            if (x < thirdWidth) return 'left';
-            if (x > thirdWidth * 2) return 'right';
-            return 'center';
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+
+            // Calculate distance from center
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Clamp to max distance
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+
+            // Move knob visually
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+            // Calculate normalized values (-1 to 1)
+            const normalizedX = dx / maxKnobDistance;
+            const normalizedY = dy / maxKnobDistance;
+
+            // Apply deadzone and set keys
+            const deadzone = 0.3;
+            keys['ArrowLeft'] = normalizedX < -deadzone;
+            keys['ArrowRight'] = normalizedX > deadzone;
         }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickActive = false;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+        }
+
+        // Jump button
+        let jumpTouchId = null;
+
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (jumpTouchId !== null) return;
+            jumpTouchId = e.changedTouches[0].identifier;
+            jumpBtn.classList.add('active');
+            keys['Space'] = true;
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === jumpTouchId) {
+                    jumpTouchId = null;
+                    jumpBtn.classList.remove('active');
+                    keys['Space'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchcancel', (e) => {
+            jumpTouchId = null;
+            jumpBtn.classList.remove('active');
+            keys['Space'] = false;
+        }, { passive: false });
+
+        // Prevent default touch behavior on canvas
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
         function initPlayer() {
             player = {

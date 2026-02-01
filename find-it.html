@@ -118,6 +118,46 @@
         .dice { width: 80px; height: 80px; background: linear-gradient(145deg, #fff, #ddd); border: 3px solid #e67e22; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: bold; color: #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .dice.rolling { animation: diceRoll 0.1s linear infinite; }
         @keyframes diceRoll { 0% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(15deg) scale(1.1); } 50% { transform: rotate(0deg) scale(1); } 75% { transform: rotate(-15deg) scale(1.1); } }
+        /* Touch Joystick Controls */
+        #touchJoystickControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 180px;
+            pointer-events: none;
+            z-index: 500;
+        }
+        #joystickArea {
+            position: absolute;
+            left: 30px;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 3px solid rgba(255, 215, 0, 0.4);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 215, 0, 0.5);
+            border: 2px solid rgba(255, 215, 0, 0.7);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        @media (pointer: coarse) {
+            #touchJoystickControls {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -151,7 +191,14 @@
         <div id="earned-money"></div>
     </div>
     <button id="restart-btn">Restart</button>
-    <p id="instructions">Arrow keys to move! | Touch: Drag to move</p>
+    <p id="instructions">Arrow keys to move! | Touch: Use joystick to move</p>
+
+    <!-- Touch Joystick Controls -->
+    <div id="touchJoystickControls">
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
+        </div>
+    </div>
 
     <div id="shop-modal" class="modal">
         <div class="modal-content">
@@ -2680,38 +2727,97 @@
         document.addEventListener('keyup', e => { if (e.key === 'ArrowUp') keys.up = false; if (e.key === 'ArrowDown') keys.down = false; if (e.key === 'ArrowLeft') keys.left = false; if (e.key === 'ArrowRight') keys.right = false; });
 
         // Touch controls - virtual joystick for main game
-        let touchJoystick = { active: false, startX: 0, startY: 0 };
-        gameContainer.addEventListener('touchstart', (e) => {
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
+
+        let joystickActive = false;
+        let joystickTouchId = null;
+        const joystickRadius = 60; // Half of joystickArea width
+        const knobRadius = 25; // Half of knob width
+        const maxKnobDistance = joystickRadius - knobRadius;
+
+        joystickArea.addEventListener('touchstart', (e) => {
             if (gameOver || document.querySelector('.modal.open')) return;
             e.preventDefault();
-            const touch = e.touches[0];
-            touchJoystick.active = true;
-            touchJoystick.startX = touch.clientX;
-            touchJoystick.startY = touch.clientY;
+            if (joystickTouchId !== null) return;
+
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickActive = true;
+            updateJoystick(touch);
         }, { passive: false });
 
-        gameContainer.addEventListener('touchmove', (e) => {
-            if (!touchJoystick.active || gameOver || document.querySelector('.modal.open')) return;
+        joystickArea.addEventListener('touchmove', (e) => {
+            if (gameOver || document.querySelector('.modal.open')) return;
             e.preventDefault();
-            const touch = e.touches[0];
-            const dx = touch.clientX - touchJoystick.startX;
-            const dy = touch.clientY - touchJoystick.startY;
-            const deadzone = 15;
-
-            keys.left = dx < -deadzone;
-            keys.right = dx > deadzone;
-            keys.up = dy < -deadzone;
-            keys.down = dy > deadzone;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    updateJoystick(touch);
+                    break;
+                }
+            }
         }, { passive: false });
 
-        gameContainer.addEventListener('touchend', (e) => {
+        joystickArea.addEventListener('touchend', (e) => {
             e.preventDefault();
-            touchJoystick.active = false;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', (e) => {
+            resetJoystick();
+        }, { passive: false });
+
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+
+            // Calculate distance from center
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Clamp to max distance
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+
+            // Move knob visually
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+            // Calculate normalized values (-1 to 1)
+            const normalizedX = dx / maxKnobDistance;
+            const normalizedY = dy / maxKnobDistance;
+
+            // Apply deadzone and set keys
+            const deadzone = 0.3;
+            keys.left = normalizedX < -deadzone;
+            keys.right = normalizedX > deadzone;
+            keys.up = normalizedY < -deadzone;
+            keys.down = normalizedY > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickActive = false;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
             keys.left = false;
             keys.right = false;
             keys.up = false;
             keys.down = false;
-        }, { passive: false });
+        }
+
+        // Prevent default touch behavior on game container
+        gameContainer.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        gameContainer.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
         function movePlayer() {
             if (gameOver) return;

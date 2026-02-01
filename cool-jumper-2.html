@@ -136,45 +136,55 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 180px;
+            height: 200px;
             pointer-events: none;
             z-index: 1000;
         }
-        .touch-btn {
+        #joystickArea {
             position: absolute;
-            width: 70px;
-            height: 70px;
+            left: 30px;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 100, 0, 0.5);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 100, 0, 0.6);
+            border: 2px solid rgba(255, 150, 0, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        #jumpBtn {
+            position: absolute;
+            right: 30px;
+            bottom: 40px;
+            width: 100px;
+            height: 100px;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.3);
-            border: 3px solid rgba(255, 255, 255, 0.5);
+            border: 3px solid rgba(255, 100, 0, 0.5);
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 28px;
+            font-size: 18px;
+            font-weight: bold;
             color: white;
             pointer-events: auto;
-            user-select: none;
-            -webkit-user-select: none;
             touch-action: none;
         }
-        .touch-btn:active, .touch-btn.active {
+        #jumpBtn:active, #jumpBtn.active {
             background: rgba(255, 100, 0, 0.6);
             border-color: rgba(255, 150, 0, 0.8);
-        }
-        #btnLeft {
-            left: 20px;
-            bottom: 50px;
-        }
-        #btnRight {
-            left: 110px;
-            bottom: 50px;
-        }
-        #btnJump {
-            right: 20px;
-            bottom: 50px;
-            width: 90px;
-            height: 90px;
-            font-size: 20px;
         }
         @media (pointer: coarse) {
             #touchControls {
@@ -231,9 +241,10 @@
 
     <!-- Touch Controls -->
     <div id="touchControls">
-        <div id="btnLeft" class="touch-btn">&#9664;</div>
-        <div id="btnRight" class="touch-btn">&#9654;</div>
-        <div id="btnJump" class="touch-btn">JUMP</div>
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
+        </div>
+        <div id="jumpBtn">JUMP</div>
     </div>
 
     <script>
@@ -290,31 +301,118 @@
             keys[e.code] = false;
         });
 
-        // Touch controls
-        function setupTouchButton(btnId, keyCode) {
-            const btn = document.getElementById(btnId);
+        // Touch controls - Virtual Joystick
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
+        const jumpBtn = document.getElementById('jumpBtn');
 
-            btn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                keys[keyCode] = true;
-                btn.classList.add('active');
-            }, { passive: false });
+        let joystickActive = false;
+        let joystickTouchId = null;
+        const joystickRadius = 60; // Half of joystickArea width
+        const knobRadius = 25; // Half of knob width
+        const maxKnobDistance = joystickRadius - knobRadius;
 
-            btn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                keys[keyCode] = false;
-                btn.classList.remove('active');
-            }, { passive: false });
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
 
-            btn.addEventListener('touchcancel', (e) => {
-                keys[keyCode] = false;
-                btn.classList.remove('active');
-            });
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickActive = true;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    updateJoystick(touch);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', (e) => {
+            resetJoystick();
+        }, { passive: false });
+
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+
+            // Calculate distance from center
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Clamp to max distance
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+
+            // Move knob visually
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+            // Calculate normalized values (-1 to 1)
+            const normalizedX = dx / maxKnobDistance;
+            const normalizedY = dy / maxKnobDistance;
+
+            // Apply deadzone and set keys
+            const deadzone = 0.3;
+            keys['ArrowLeft'] = normalizedX < -deadzone;
+            keys['ArrowRight'] = normalizedX > deadzone;
         }
 
-        setupTouchButton('btnLeft', 'ArrowLeft');
-        setupTouchButton('btnRight', 'ArrowRight');
-        setupTouchButton('btnJump', 'Space');
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickActive = false;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+        }
+
+        // Jump button
+        let jumpTouchId = null;
+
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (jumpTouchId !== null) return;
+            jumpTouchId = e.changedTouches[0].identifier;
+            jumpBtn.classList.add('active');
+            keys['Space'] = true;
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === jumpTouchId) {
+                    jumpTouchId = null;
+                    jumpBtn.classList.remove('active');
+                    keys['Space'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchcancel', (e) => {
+            jumpTouchId = null;
+            jumpBtn.classList.remove('active');
+            keys['Space'] = false;
+        }, { passive: false });
 
         // Prevent default touch behavior on canvas
         canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });

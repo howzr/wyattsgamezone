@@ -129,48 +129,37 @@
             #touch-controls { display: block; }
             .instructions { display: none !important; }
         }
-        .touch-dpad {
+        #joystickArea {
             position: absolute;
             left: 20px;
             bottom: 20px;
-            width: 150px;
-            height: 150px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 105, 180, 0.15);
+            border: 3px solid rgba(255, 105, 180, 0.4);
             pointer-events: auto;
+            touch-action: none;
         }
-        .dpad-btn {
+        #joystickKnob {
             position: absolute;
             width: 50px;
             height: 50px;
-            background: rgba(255, 105, 180, 0.3);
-            border: 2px solid rgba(255, 105, 180, 0.5);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
+            border-radius: 50%;
+            background: rgba(255, 105, 180, 0.5);
+            border: 2px solid rgba(255, 105, 180, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
-        .dpad-btn:active, .dpad-btn.active {
-            background: rgba(255, 105, 180, 0.6);
-            border-color: #ff69b4;
-        }
-        .dpad-up { top: 0; left: 50px; }
-        .dpad-down { bottom: 0; left: 50px; }
-        .dpad-left { top: 50px; left: 0; }
-        .dpad-right { top: 50px; right: 0; }
     </style>
 </head>
 <body>
     <!-- Touch Controls -->
     <div id="touch-controls">
-        <div class="touch-dpad">
-            <div class="dpad-btn dpad-up" data-dir="up">&#9650;</div>
-            <div class="dpad-btn dpad-down" data-dir="down">&#9660;</div>
-            <div class="dpad-btn dpad-left" data-dir="left">&#9664;</div>
-            <div class="dpad-btn dpad-right" data-dir="right">&#9654;</div>
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
         </div>
     </div>
 
@@ -616,76 +605,101 @@
             keys[e.code] = false;
         });
 
-        // Touch controls - D-pad buttons
-        const dpadBtns = document.querySelectorAll('.dpad-btn');
+        // Touch controls - Virtual Joystick
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
 
-        dpadBtns.forEach(btn => {
-            const dir = btn.dataset.dir;
+        // Joystick state
+        let joystickActive = false;
+        let joystickTouchId = null;
+        const joystickRadius = 60; // Half of joystickArea width
+        const knobRadius = 25; // Half of knob width
+        const maxKnobDistance = joystickRadius - knobRadius;
 
-            btn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (!gameRunning) {
-                    restartGame();
-                    return;
-                }
-                btn.classList.add('active');
-                if (dir === 'up') keys['ArrowUp'] = true;
-                if (dir === 'down') keys['ArrowDown'] = true;
-                if (dir === 'left') keys['ArrowLeft'] = true;
-                if (dir === 'right') keys['ArrowRight'] = true;
-            }, { passive: false });
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
 
-            btn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                btn.classList.remove('active');
-                if (dir === 'up') keys['ArrowUp'] = false;
-                if (dir === 'down') keys['ArrowDown'] = false;
-                if (dir === 'left') keys['ArrowLeft'] = false;
-                if (dir === 'right') keys['ArrowRight'] = false;
-            }, { passive: false });
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
-            btn.addEventListener('touchcancel', (e) => {
-                btn.classList.remove('active');
-                if (dir === 'up') keys['ArrowUp'] = false;
-                if (dir === 'down') keys['ArrowDown'] = false;
-                if (dir === 'left') keys['ArrowLeft'] = false;
-                if (dir === 'right') keys['ArrowRight'] = false;
-            });
-        });
-
-        // Legacy swipe controls on canvas (fallback)
-        let touchJoystick = { active: false, startX: 0, startY: 0 };
-
-        canvas.addEventListener('touchstart', (e) => {
-            if (!gameRunning) {
-                restartGame();
-                return;
+            // Clamp to max distance
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
             }
-            const touch = e.touches[0];
-            touchJoystick.active = true;
-            touchJoystick.startX = touch.clientX;
-            touchJoystick.startY = touch.clientY;
-        }, { passive: true });
 
-        canvas.addEventListener('touchmove', (e) => {
-            if (!touchJoystick.active) return;
-            const touch = e.touches[0];
-            const dx = touch.clientX - touchJoystick.startX;
-            const dy = touch.clientY - touchJoystick.startY;
-            const deadzone = 15;
+            // Move the knob visually
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
 
-            keys['ArrowLeft'] = dx < -deadzone;
-            keys['ArrowRight'] = dx > deadzone;
-            keys['ArrowUp'] = dy < -deadzone;
-            keys['ArrowDown'] = dy > deadzone;
-        }, { passive: true });
+            // Calculate normalized values (-1 to 1)
+            const normalizedX = dx / maxKnobDistance;
+            const normalizedY = dy / maxKnobDistance;
 
-        canvas.addEventListener('touchend', (e) => {
-            touchJoystick.active = false;
+            // Apply deadzone and set keys
+            const deadzone = 0.3;
+            keys['ArrowLeft'] = normalizedX < -deadzone;
+            keys['ArrowRight'] = normalizedX > deadzone;
+            keys['ArrowUp'] = normalizedY < -deadzone;
+            keys['ArrowDown'] = normalizedY > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickActive = false;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
             keys['ArrowLeft'] = false;
             keys['ArrowRight'] = false;
             keys['ArrowUp'] = false;
             keys['ArrowDown'] = false;
+        }
+
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameRunning) {
+                restartGame();
+                return;
+            }
+            if (joystickTouchId !== null) return;
+
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickActive = true;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    updateJoystick(touch);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', (e) => {
+            resetJoystick();
+        }, { passive: false });
+
+        // Tap on canvas to restart when game over
+        canvas.addEventListener('touchstart', (e) => {
+            if (!gameRunning) {
+                restartGame();
+            }
         }, { passive: true });
 
         // Start game
