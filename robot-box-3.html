@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Box 3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        .game-container {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border: 3px solid #0ff;
+            box-shadow: 0 0 30px #0ff, inset 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            color: #fff;
+            font-size: 1.1rem;
+            text-shadow: 0 0 10px #0ff;
+            z-index: 10;
+        }
+        .hud div { margin: 5px 0; }
+        .attempt { color: #ff0; }
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #0f0, #0ff, #f0f);
+            transition: width 0.1s;
+        }
+        .mode-indicator {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #fff;
+            font-size: 1rem;
+            text-shadow: 0 0 10px #f0f;
+        }
+        .start-screen, .game-over, .win-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 0;
+            text-align: center;
+            border: 3px solid #0ff;
+            box-shadow: 0 0 30px #0ff;
+            z-index: 20;
+        }
+        .start-screen h1 {
+            color: #0ff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #0ff;
+            letter-spacing: 5px;
+        }
+        .start-screen .subtitle {
+            color: #f0f;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .start-screen p, .game-over p, .win-screen p {
+            color: #fff;
+            margin: 10px 0;
+        }
+        .game-over {
+            display: none;
+            border-color: #f00;
+            box-shadow: 0 0 30px #f00;
+        }
+        .game-over h2 {
+            color: #f00;
+            font-size: 2rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px #f00;
+        }
+        .win-screen {
+            display: none;
+            border-color: #0f0;
+            box-shadow: 0 0 30px #0f0;
+        }
+        .win-screen h2 {
+            color: #0f0;
+            font-size: 2rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px #0f0;
+        }
+        button {
+            background: transparent;
+            color: #0ff;
+            border: 2px solid #0ff;
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        button:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 20px #0ff;
+        }
+        .level-select {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .level-btn {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .level-btn.easy { border-color: #0f0; color: #0f0; }
+        .level-btn.easy:hover { background: #0f0; }
+        .level-btn.medium { border-color: #ff0; color: #ff0; }
+        .level-btn.medium:hover { background: #ff0; }
+        .level-btn.hard { border-color: #f80; color: #f80; }
+        .level-btn.hard:hover { background: #f80; }
+        .level-btn.insane { border-color: #f0f; color: #f0f; }
+        .level-btn.insane:hover { background: #f0f; }
+        .level-btn.demon { border-color: #f00; color: #f00; }
+        .level-btn.demon:hover { background: #f00; }
+        .instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.85rem;
+        }
+        .practice-toggle {
+            position: absolute;
+            top: 45px;
+            right: 15px;
+            color: #0f0;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .practice-toggle.off { color: #666; }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="progress-bar" id="progressBar"></div>
+        <div class="hud">
+            <div class="attempt">Attempt: <span id="attempt">1</span></div>
+            <div>Progress: <span id="progress">0</span>%</div>
+        </div>
+        <div class="mode-indicator" id="modeIndicator">CUBE</div>
+        <div class="practice-toggle" id="practiceToggle" onclick="togglePractice()">Practice: OFF</div>
+
+        <canvas id="gameCanvas" width="900" height="500"></canvas>
+
+        <p class="instructions">SPACE / CLICK / TAP to Jump | Hold for Ship/Wave mode</p>
+
+        <div class="start-screen" id="startScreen">
+            <h1>ROBOT BOX 3</h1>
+            <div class="subtitle">GEOMETRY EDITION</div>
+            <p>Jump, fly, and flip through dangerous obstacles!</p>
+            <p style="color: #ff0;">Select a level:</p>
+            <div class="level-select">
+                <button class="level-btn easy" onclick="startGame(1)">1</button>
+                <button class="level-btn easy" onclick="startGame(2)">2</button>
+                <button class="level-btn medium" onclick="startGame(3)">3</button>
+                <button class="level-btn medium" onclick="startGame(4)">4</button>
+                <button class="level-btn hard" onclick="startGame(5)">5</button>
+                <button class="level-btn hard" onclick="startGame(6)">6</button>
+                <button class="level-btn insane" onclick="startGame(7)">7</button>
+                <button class="level-btn insane" onclick="startGame(8)">8</button>
+                <button class="level-btn demon" onclick="startGame(9)">9</button>
+                <button class="level-btn demon" onclick="startGame(10)">10</button>
+            </div>
+            <button onclick="startGame(0)" style="margin-top: 20px;">ENDLESS MODE</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h2>CRASHED!</h2>
+            <p>Progress: <span id="finalProgress">0</span>%</p>
+            <p>Attempt: <span id="finalAttempt">1</span></p>
+            <button onclick="restartLevel()">RETRY</button>
+            <button onclick="showMenu()">MENU</button>
+        </div>
+
+        <div class="win-screen" id="winScreen">
+            <h2>LEVEL COMPLETE!</h2>
+            <p>Attempts: <span id="winAttempts">1</span></p>
+            <button onclick="nextLevel()">NEXT LEVEL</button>
+            <button onclick="showMenu()">MENU</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game constants
+        const GROUND_Y = canvas.height - 80;
+        const CEILING_Y = 80;
+        const PLAYER_SIZE = 40;
+        const GRAVITY = 0.8;
+        const JUMP_FORCE = -14;
+        const GAME_SPEED = 8;
+
+        // Game modes
+        const MODES = {
+            CUBE: 'CUBE',
+            SHIP: 'SHIP',
+            WAVE: 'WAVE',
+            BALL: 'BALL',
+            UFO: 'UFO'
+        };
+
+        // Game state
+        let gameRunning = false;
+        let currentLevel = 0;
+        let attempt = 1;
+        let progress = 0;
+        let levelLength = 0;
+        let cameraX = 0;
+        let practiceMode = false;
+        let checkpointX = 0;
+
+        // Player state
+        let player = {
+            x: 150,
+            y: GROUND_Y - PLAYER_SIZE,
+            velocityY: 0,
+            rotation: 0,
+            mode: MODES.CUBE,
+            grounded: true,
+            gravity: GRAVITY,
+            mini: false
+        };
+
+        // Level data
+        let obstacles = [];
+        let platforms = [];
+        let portals = [];
+        let orbs = [];
+        let pads = [];
+        let decorations = [];
+        let bgColor = { r: 0, g: 20, b: 40 };
+        let groundColor = '#0ff';
+
+        // Input
+        let holding = false;
+
+        // Particle system
+        let particles = [];
+        let trailParticles = [];
+
+        // Generate level
+        function generateLevel(levelNum) {
+            obstacles = [];
+            platforms = [];
+            portals = [];
+            orbs = [];
+            pads = [];
+            decorations = [];
+
+            let x = 500;
+            const difficulty = levelNum === 0 ? 5 : levelNum;
+
+            // Set level theme
+            const themes = [
+                { bg: { r: 0, g: 20, b: 40 }, ground: '#0ff', accent: '#0ff' },
+                { bg: { r: 20, g: 0, b: 40 }, ground: '#f0f', accent: '#f0f' },
+                { bg: { r: 40, g: 20, b: 0 }, ground: '#f80', accent: '#f80' },
+                { bg: { r: 40, g: 0, b: 0 }, ground: '#f00', accent: '#f00' },
+                { bg: { r: 0, g: 40, b: 20 }, ground: '#0f0', accent: '#0f0' }
+            ];
+            const theme = themes[(levelNum - 1) % themes.length];
+            bgColor = theme.bg;
+            groundColor = theme.ground;
+
+            // Level length based on difficulty
+            const targetLength = levelNum === 0 ? 999999 : 3000 + levelNum * 1500;
+
+            while (x < targetLength) {
+                const rand = Math.random();
+                const sectionType = Math.floor(Math.random() * 15);
+
+                // Basic spike
+                if (sectionType < 3) {
+                    const count = Math.floor(Math.random() * difficulty / 2) + 1;
+                    for (let i = 0; i < count; i++) {
+                        obstacles.push({
+                            x: x + i * 50,
+                            y: GROUND_Y,
+                            type: 'spike',
+                            width: 40,
+                            height: 40
+                        });
+                    }
+                    x += count * 50 + 150;
+                }
+                // Platform with spikes
+                else if (sectionType < 5) {
+                    const platWidth = 150 + Math.random() * 100;
+                    const platY = GROUND_Y - 80 - Math.random() * 60;
+                    platforms.push({
+                        x: x,
+                        y: platY,
+                        width: platWidth,
+                        height: 20
+                    });
+                    if (Math.random() < 0.5) {
+                        obstacles.push({
+                            x: x + platWidth / 2 - 20,
+                            y: platY,
+                            type: 'spike',
+                            width: 40,
+                            height: 40
+                        });
+                    }
+                    // Spike below platform
+                    if (difficulty > 3 && Math.random() < 0.4) {
+                        obstacles.push({
+                            x: x + platWidth / 2 - 20,
+                            y: GROUND_Y,
+                            type: 'spike',
+                            width: 40,
+                            height: 40
+                        });
+                    }
+                    x += platWidth + 200;
+                }
+                // Jump orb section
+                else if (sectionType < 6 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: GROUND_Y,
+                        type: 'spike',
+                        width: 40,
+                        height: 40
+                    });
+                    orbs.push({
+                        x: x + 100,
+                        y: GROUND_Y - 120,
+                        type: 'yellow'
+                    });
+                    obstacles.push({
+                        x: x + 200,
+                        y: GROUND_Y,
+                        type: 'spike',
+                        width: 40,
+                        height: 40
+                    });
+                    x += 350;
+                }
+                // Jump pad section
+                else if (sectionType < 7) {
+                    pads.push({
+                        x: x,
+                        y: GROUND_Y - 15,
+                        type: 'yellow'
+                    });
+                    obstacles.push({
+                        x: x + 250,
+                        y: GROUND_Y - 100,
+                        type: 'spike',
+                        width: 40,
+                        height: 40,
+                        upsideDown: true
+                    });
+                    x += 400;
+                }
+                // Mode portal
+                else if (sectionType < 8 && x > 1500 && difficulty > 3) {
+                    const modes = [MODES.SHIP, MODES.WAVE, MODES.UFO];
+                    const mode = modes[Math.floor(Math.random() * modes.length)];
+                    portals.push({
+                        x: x,
+                        y: GROUND_Y - 150,
+                        mode: mode,
+                        height: 150
+                    });
+                    // Add cube portal after some distance
+                    portals.push({
+                        x: x + 600 + Math.random() * 400,
+                        y: GROUND_Y - 150,
+                        mode: MODES.CUBE,
+                        height: 150
+                    });
+                    x += 1200;
+                }
+                // Block obstacles
+                else if (sectionType < 9) {
+                    const height = 40 + Math.floor(Math.random() * 3) * 40;
+                    obstacles.push({
+                        x: x,
+                        y: GROUND_Y - height,
+                        type: 'block',
+                        width: 40,
+                        height: height
+                    });
+                    if (difficulty > 5 && Math.random() < 0.5) {
+                        obstacles.push({
+                            x: x,
+                            y: GROUND_Y - height,
+                            type: 'spike',
+                            width: 40,
+                            height: 40
+                        });
+                    }
+                    x += 200;
+                }
+                // Sawblade
+                else if (sectionType < 10) {
+                    obstacles.push({
+                        x: x,
+                        y: GROUND_Y - 60 - Math.random() * 80,
+                        type: 'sawblade',
+                        width: 60,
+                        height: 60
+                    });
+                    x += 250;
+                }
+                // Laser beam
+                else if (sectionType < 11 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: GROUND_Y - 80 - Math.random() * 60,
+                        type: 'laser',
+                        width: 150 + Math.random() * 100,
+                        height: 30
+                    });
+                    x += 300;
+                }
+                // Crusher
+                else if (sectionType < 12 && difficulty > 4) {
+                    obstacles.push({
+                        x: x,
+                        y: 50,
+                        type: 'crusher',
+                        width: 60,
+                        height: 40,
+                        offset: Math.random() * 2000
+                    });
+                    x += 200;
+                }
+                // Gear
+                else if (sectionType < 13 && difficulty > 3) {
+                    obstacles.push({
+                        x: x,
+                        y: GROUND_Y - 100 - Math.random() * 50,
+                        type: 'gear',
+                        width: 80,
+                        height: 80
+                    });
+                    x += 250;
+                }
+                // Swinging hammer
+                else if (sectionType < 14 && difficulty > 5) {
+                    obstacles.push({
+                        x: x,
+                        y: 30,
+                        type: 'hammer',
+                        width: 40,
+                        height: 100,
+                        offset: Math.random() * 2000
+                    });
+                    x += 200;
+                }
+                // Flame jet
+                else {
+                    obstacles.push({
+                        x: x,
+                        y: GROUND_Y,
+                        type: 'flame',
+                        width: 60,
+                        height: 120,
+                        offset: Math.random() * 1600
+                    });
+                    x += 200;
+                }
+
+                // Add decorations
+                if (Math.random() < 0.3) {
+                    decorations.push({
+                        x: x - 100,
+                        y: Math.random() * (GROUND_Y - 150),
+                        size: 20 + Math.random() * 30,
+                        type: Math.floor(Math.random() * 3)
+                    });
+                }
+
+                // Add some gap variations
+                x += Math.random() * 100;
+            }
+
+            levelLength = x;
+            return targetLength;
+        }
+
+        function startGame(level) {
+            currentLevel = level;
+            attempt = 1;
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+            restartLevel();
+        }
+
+        function restartLevel() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+
+            generateLevel(currentLevel);
+
+            player = {
+                x: practiceMode && checkpointX > 0 ? checkpointX : 150,
+                y: GROUND_Y - PLAYER_SIZE,
+                velocityY: 0,
+                rotation: 0,
+                mode: MODES.CUBE,
+                grounded: true,
+                gravity: GRAVITY,
+                mini: false
+            };
+
+            cameraX = practiceMode && checkpointX > 0 ? checkpointX - 150 : 0;
+            progress = 0;
+            particles = [];
+            trailParticles = [];
+
+            document.getElementById('attempt').textContent = attempt;
+            document.getElementById('progress').textContent = '0';
+            document.getElementById('progressBar').style.width = '0%';
+
+            gameRunning = true;
+            gameLoop();
+        }
+
+        function showMenu() {
+            gameRunning = false;
+            checkpointX = 0;
+            document.getElementById('startScreen').style.display = 'block';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+        }
+
+        function nextLevel() {
+            if (currentLevel < 10 && currentLevel > 0) {
+                currentLevel++;
+                attempt = 1;
+                checkpointX = 0;
+                restartLevel();
+            } else {
+                showMenu();
+            }
+        }
+
+        function togglePractice() {
+            practiceMode = !practiceMode;
+            const toggle = document.getElementById('practiceToggle');
+            toggle.textContent = practiceMode ? 'Practice: ON' : 'Practice: OFF';
+            toggle.className = practiceMode ? 'practice-toggle' : 'practice-toggle off';
+            if (!practiceMode) checkpointX = 0;
+        }
+
+        function setCheckpoint() {
+            if (practiceMode && gameRunning) {
+                checkpointX = player.x;
+                // Visual feedback
+                for (let i = 0; i < 20; i++) {
+                    particles.push({
+                        x: player.x + PLAYER_SIZE / 2,
+                        y: player.y + PLAYER_SIZE / 2,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        life: 30,
+                        color: '#0f0',
+                        size: 5
+                    });
+                }
+            }
+        }
+
+        function jump() {
+            if (!gameRunning) return;
+
+            if (player.mode === MODES.CUBE) {
+                if (player.grounded) {
+                    player.velocityY = JUMP_FORCE;
+                    player.grounded = false;
+                    createJumpParticles();
+                }
+            } else if (player.mode === MODES.BALL) {
+                player.gravity = -player.gravity;
+                createJumpParticles();
+            } else if (player.mode === MODES.UFO) {
+                player.velocityY = JUMP_FORCE * 0.7;
+                createJumpParticles();
+            }
+        }
+
+        function createJumpParticles() {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: player.x + PLAYER_SIZE / 2,
+                    y: player.y + PLAYER_SIZE,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: Math.random() * 3,
+                    life: 20,
+                    color: groundColor,
+                    size: 4
+                });
+            }
+        }
+
+        function createDeathParticles() {
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x: player.x + PLAYER_SIZE / 2,
+                    y: player.y + PLAYER_SIZE / 2,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15,
+                    life: 40,
+                    color: groundColor,
+                    size: 6
+                });
+            }
+        }
+
+        function die() {
+            createDeathParticles();
+            gameRunning = false;
+            attempt++;
+
+            const currentProgress = Math.floor((player.x / levelLength) * 100);
+            document.getElementById('finalProgress').textContent = currentProgress;
+            document.getElementById('finalAttempt').textContent = attempt - 1;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        function win() {
+            gameRunning = false;
+            document.getElementById('winAttempts').textContent = attempt;
+            document.getElementById('winScreen').style.display = 'block';
+        }
+
+        function update() {
+            // Move camera/world
+            cameraX += GAME_SPEED;
+            player.x += GAME_SPEED;
+
+            // Update progress
+            if (currentLevel > 0) {
+                progress = Math.min(100, Math.floor((player.x / levelLength) * 100));
+                document.getElementById('progress').textContent = progress;
+                document.getElementById('progressBar').style.width = progress + '%';
+
+                // Check win condition
+                if (player.x >= levelLength - 100) {
+                    win();
+                    return;
+                }
+            } else {
+                // Endless mode - show distance
+                progress = Math.floor(player.x / 100);
+                document.getElementById('progress').textContent = progress;
+            }
+
+            // Apply gravity based on mode
+            if (player.mode === MODES.SHIP) {
+                if (holding) {
+                    player.velocityY -= 1.2;
+                } else {
+                    player.velocityY += 0.8;
+                }
+                player.velocityY = Math.max(-10, Math.min(10, player.velocityY));
+            } else if (player.mode === MODES.WAVE) {
+                player.velocityY = holding ? -8 : 8;
+            } else if (player.mode === MODES.UFO) {
+                player.velocityY += 0.6;
+            } else {
+                player.velocityY += player.gravity;
+            }
+
+            player.y += player.velocityY;
+
+            // Rotation based on mode
+            if (player.mode === MODES.CUBE) {
+                if (!player.grounded) {
+                    player.rotation += 5;
+                } else {
+                    player.rotation = Math.round(player.rotation / 90) * 90;
+                }
+            } else if (player.mode === MODES.SHIP || player.mode === MODES.UFO) {
+                player.rotation = player.velocityY * 2;
+            } else if (player.mode === MODES.WAVE) {
+                player.rotation = holding ? -45 : 45;
+            } else if (player.mode === MODES.BALL) {
+                player.rotation += player.gravity > 0 ? 8 : -8;
+            }
+
+            // Ground collision
+            player.grounded = false;
+            if (player.y >= GROUND_Y - PLAYER_SIZE) {
+                player.y = GROUND_Y - PLAYER_SIZE;
+                player.velocityY = 0;
+                player.grounded = true;
+                if (player.mode === MODES.BALL) {
+                    player.gravity = Math.abs(player.gravity);
+                }
+            }
+
+            // Ceiling collision
+            if (player.y < CEILING_Y) {
+                player.y = CEILING_Y;
+                player.velocityY = 0;
+                if (player.mode === MODES.BALL) {
+                    player.gravity = -Math.abs(player.gravity);
+                }
+            }
+
+            // Platform collision
+            for (const plat of platforms) {
+                if (player.x + PLAYER_SIZE > plat.x && player.x < plat.x + plat.width) {
+                    // Landing on top
+                    if (player.velocityY > 0 && player.y + PLAYER_SIZE > plat.y && player.y < plat.y) {
+                        player.y = plat.y - PLAYER_SIZE;
+                        player.velocityY = 0;
+                        player.grounded = true;
+                    }
+                }
+            }
+
+            // Check portals
+            for (const portal of portals) {
+                if (player.x + PLAYER_SIZE > portal.x && player.x < portal.x + 40 &&
+                    player.y + PLAYER_SIZE > portal.y && player.y < portal.y + portal.height) {
+                    if (player.mode !== portal.mode) {
+                        player.mode = portal.mode;
+                        document.getElementById('modeIndicator').textContent = portal.mode;
+                        // Mode change particles
+                        for (let i = 0; i < 15; i++) {
+                            particles.push({
+                                x: player.x + PLAYER_SIZE / 2,
+                                y: player.y + PLAYER_SIZE / 2,
+                                vx: (Math.random() - 0.5) * 10,
+                                vy: (Math.random() - 0.5) * 10,
+                                life: 25,
+                                color: '#f0f',
+                                size: 5
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Check orbs
+            for (const orb of orbs) {
+                const dist = Math.sqrt(
+                    Math.pow(player.x + PLAYER_SIZE/2 - orb.x, 2) +
+                    Math.pow(player.y + PLAYER_SIZE/2 - orb.y, 2)
+                );
+                if (dist < 40 && holding) {
+                    player.velocityY = JUMP_FORCE * 1.2;
+                    orb.used = true;
+                    createJumpParticles();
+                }
+            }
+
+            // Check pads
+            for (const pad of pads) {
+                if (player.x + PLAYER_SIZE > pad.x && player.x < pad.x + 60 &&
+                    player.y + PLAYER_SIZE > pad.y && player.y + PLAYER_SIZE < pad.y + 30) {
+                    player.velocityY = JUMP_FORCE * 1.5;
+                    player.grounded = false;
+                    createJumpParticles();
+                }
+            }
+
+            // Check obstacle collisions
+            for (const obs of obstacles) {
+                let collision = false;
+                const px = player.x + 5;
+                const py = player.y + 5;
+                const pw = PLAYER_SIZE - 10;
+                const ph = PLAYER_SIZE - 10;
+
+                if (obs.type === 'spike') {
+                    // Triangle collision (simplified)
+                    const cx = obs.x + obs.width / 2;
+                    const cy = obs.upsideDown ? obs.y + obs.height : obs.y;
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        // More precise triangle check
+                        const playerCX = px + pw / 2;
+                        const playerCY = py + ph / 2;
+                        if (Math.abs(playerCX - cx) < 20 &&
+                            (obs.upsideDown ? playerCY > cy - 30 : playerCY < cy + 30)) {
+                            collision = true;
+                        }
+                    }
+                } else if (obs.type === 'block') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        collision = true;
+                    }
+                } else if (obs.type === 'sawblade') {
+                    const dist = Math.sqrt(
+                        Math.pow(px + pw/2 - (obs.x + obs.width/2), 2) +
+                        Math.pow(py + ph/2 - (obs.y + obs.height/2), 2)
+                    );
+                    if (dist < obs.width / 2 + pw / 3) {
+                        collision = true;
+                    }
+                } else if (obs.type === 'laser') {
+                    if (obs.active) {
+                        if (px < obs.x + obs.width - 15 && px + pw > obs.x + 15 &&
+                            py < obs.y + 30 && py + ph > obs.y) {
+                            collision = true;
+                        }
+                    }
+                } else if (obs.type === 'crusher') {
+                    const crushY = obs.currentY || obs.y;
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < crushY + obs.height + 10 && py + ph > crushY) {
+                        collision = true;
+                    }
+                } else if (obs.type === 'gear') {
+                    const dist = Math.sqrt(
+                        Math.pow(px + pw/2 - (obs.x + obs.width/2), 2) +
+                        Math.pow(py + ph/2 - (obs.y + obs.height/2), 2)
+                    );
+                    if (dist < obs.width / 2 + pw / 4) {
+                        collision = true;
+                    }
+                } else if (obs.type === 'hammer') {
+                    if (obs.hammerX && obs.hammerY) {
+                        const dist = Math.sqrt(
+                            Math.pow(px + pw/2 - obs.hammerX, 2) +
+                            Math.pow(py + ph/2 - obs.hammerY, 2)
+                        );
+                        if (dist < 35) {
+                            collision = true;
+                        }
+                    }
+                } else if (obs.type === 'flame') {
+                    if (obs.active) {
+                        if (px < obs.x + obs.width && px + pw > obs.x &&
+                            py < GROUND_Y - 20 && py + ph > GROUND_Y - 120) {
+                            collision = true;
+                        }
+                    }
+                }
+
+                if (collision) {
+                    die();
+                    return;
+                }
+            }
+
+            // Trail particles
+            if (Math.random() < 0.5) {
+                trailParticles.push({
+                    x: player.x,
+                    y: player.y + PLAYER_SIZE / 2,
+                    life: 15,
+                    size: 3 + Math.random() * 3
+                });
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Update trail
+            for (let i = trailParticles.length - 1; i >= 0; i--) {
+                trailParticles[i].x -= GAME_SPEED;
+                trailParticles[i].life--;
+                if (trailParticles[i].life <= 0) {
+                    trailParticles.splice(i, 1);
+                }
+            }
+        }
+
+        function draw() {
+            // Background
+            ctx.fillStyle = `rgb(${bgColor.r}, ${bgColor.g}, ${bgColor.b})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background grid
+            ctx.strokeStyle = `rgba(${bgColor.r + 30}, ${bgColor.g + 30}, ${bgColor.b + 30}, 0.5)`;
+            ctx.lineWidth = 1;
+            const gridOffset = cameraX % 50;
+            for (let x = -gridOffset; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Decorations
+            for (const dec of decorations) {
+                const screenX = dec.x - cameraX;
+                if (screenX > -50 && screenX < canvas.width + 50) {
+                    ctx.fillStyle = groundColor + '33';
+                    ctx.save();
+                    ctx.translate(screenX, dec.y);
+                    ctx.rotate(cameraX * 0.01);
+                    if (dec.type === 0) {
+                        ctx.fillRect(-dec.size/2, -dec.size/2, dec.size, dec.size);
+                    } else if (dec.type === 1) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, -dec.size/2);
+                        ctx.lineTo(dec.size/2, dec.size/2);
+                        ctx.lineTo(-dec.size/2, dec.size/2);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else {
+                        ctx.beginPath();
+                        ctx.arc(0, 0, dec.size/2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            }
+
+            // Ground
+            ctx.fillStyle = groundColor;
+            ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+
+            // Ground glow
+            const groundGlow = ctx.createLinearGradient(0, GROUND_Y - 20, 0, GROUND_Y);
+            groundGlow.addColorStop(0, 'transparent');
+            groundGlow.addColorStop(1, groundColor + '44');
+            ctx.fillStyle = groundGlow;
+            ctx.fillRect(0, GROUND_Y - 20, canvas.width, 20);
+
+            // Ceiling
+            ctx.fillStyle = groundColor;
+            ctx.fillRect(0, 0, canvas.width, CEILING_Y);
+
+            // Trail particles
+            for (const p of trailParticles) {
+                const screenX = p.x - cameraX + 150;
+                ctx.fillStyle = groundColor + Math.floor(p.life / 15 * 99).toString(16).padStart(2, '0');
+                ctx.beginPath();
+                ctx.arc(screenX, p.y, p.size * (p.life / 15), 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Platforms
+            for (const plat of platforms) {
+                const screenX = plat.x - cameraX;
+                if (screenX > -plat.width && screenX < canvas.width) {
+                    ctx.fillStyle = groundColor;
+                    ctx.fillRect(screenX, plat.y, plat.width, plat.height);
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(screenX, plat.y, plat.width, plat.height);
+                }
+            }
+
+            // Portals
+            for (const portal of portals) {
+                const screenX = portal.x - cameraX;
+                if (screenX > -50 && screenX < canvas.width) {
+                    const gradient = ctx.createLinearGradient(screenX, portal.y, screenX + 40, portal.y);
+                    let color1, color2;
+                    switch(portal.mode) {
+                        case MODES.SHIP: color1 = '#f0f'; color2 = '#f0f'; break;
+                        case MODES.WAVE: color1 = '#0ff'; color2 = '#0f0'; break;
+                        case MODES.UFO: color1 = '#ff0'; color2 = '#f80'; break;
+                        case MODES.BALL: color1 = '#f80'; color2 = '#f00'; break;
+                        default: color1 = '#0f0'; color2 = '#0ff';
+                    }
+                    gradient.addColorStop(0, color1);
+                    gradient.addColorStop(1, color2);
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(screenX, portal.y, 40, portal.height);
+
+                    // Portal glow
+                    ctx.shadowColor = color1;
+                    ctx.shadowBlur = 20;
+                    ctx.fillRect(screenX, portal.y, 40, portal.height);
+                    ctx.shadowBlur = 0;
+                }
+            }
+
+            // Orbs
+            for (const orb of orbs) {
+                if (orb.used) continue;
+                const screenX = orb.x - cameraX;
+                if (screenX > -30 && screenX < canvas.width) {
+                    ctx.fillStyle = '#ff0';
+                    ctx.beginPath();
+                    ctx.arc(screenX, orb.y, 20, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fa0';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(screenX, orb.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Pads
+            for (const pad of pads) {
+                const screenX = pad.x - cameraX;
+                if (screenX > -60 && screenX < canvas.width) {
+                    ctx.fillStyle = '#ff0';
+                    ctx.beginPath();
+                    ctx.moveTo(screenX, pad.y + 15);
+                    ctx.lineTo(screenX + 30, pad.y);
+                    ctx.lineTo(screenX + 60, pad.y + 15);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#fa0';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            // Obstacles
+            for (const obs of obstacles) {
+                const screenX = obs.x - cameraX;
+                if (screenX > -obs.width && screenX < canvas.width + obs.width) {
+                    ctx.save();
+
+                    if (obs.type === 'spike') {
+                        ctx.fillStyle = groundColor;
+                        ctx.beginPath();
+                        if (obs.upsideDown) {
+                            ctx.moveTo(screenX + obs.width / 2, obs.y + obs.height);
+                            ctx.lineTo(screenX + obs.width, obs.y);
+                            ctx.lineTo(screenX, obs.y);
+                        } else {
+                            ctx.moveTo(screenX + obs.width / 2, obs.y - obs.height);
+                            ctx.lineTo(screenX + obs.width, obs.y);
+                            ctx.lineTo(screenX, obs.y);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    } else if (obs.type === 'block') {
+                        ctx.fillStyle = groundColor;
+                        ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(screenX, obs.y, obs.width, obs.height);
+                    } else if (obs.type === 'sawblade') {
+                        ctx.translate(screenX + obs.width/2, obs.y + obs.height/2);
+                        ctx.rotate(cameraX * 0.05);
+                        ctx.fillStyle = '#666';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, obs.width/2, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Teeth
+                        ctx.fillStyle = '#888';
+                        for (let i = 0; i < 8; i++) {
+                            ctx.save();
+                            ctx.rotate(i * Math.PI / 4);
+                            ctx.beginPath();
+                            ctx.moveTo(obs.width/2 - 5, -5);
+                            ctx.lineTo(obs.width/2 + 8, 0);
+                            ctx.lineTo(obs.width/2 - 5, 5);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.restore();
+                        }
+                        ctx.fillStyle = '#444';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (obs.type === 'laser') {
+                        // Laser beam obstacle
+                        const laserOn = Math.floor(Date.now() / 500) % 2 === 0;
+                        // Emitters
+                        ctx.fillStyle = '#444';
+                        ctx.fillRect(screenX, obs.y, 15, 30);
+                        ctx.fillRect(screenX + obs.width - 15, obs.y, 15, 30);
+                        // Lens
+                        ctx.fillStyle = laserOn ? '#f00' : '#600';
+                        ctx.beginPath();
+                        ctx.arc(screenX + 7, obs.y + 15, 5, 0, Math.PI * 2);
+                        ctx.arc(screenX + obs.width - 8, obs.y + 15, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Beam
+                        if (laserOn) {
+                            ctx.fillStyle = '#f00';
+                            ctx.shadowColor = '#f00';
+                            ctx.shadowBlur = 15;
+                            ctx.fillRect(screenX + 15, obs.y + 12, obs.width - 30, 6);
+                            ctx.shadowBlur = 0;
+                        }
+                        obs.active = laserOn;
+                    } else if (obs.type === 'crusher') {
+                        // Crushing block from above
+                        const crushPhase = (Date.now() + obs.offset) % 2000;
+                        let crushY = obs.y;
+                        if (crushPhase < 500) {
+                            crushY = obs.y + (crushPhase / 500) * (GROUND_Y - obs.y - obs.height);
+                        } else if (crushPhase < 700) {
+                            crushY = GROUND_Y - obs.height;
+                        } else if (crushPhase < 1200) {
+                            crushY = obs.y + (1 - (crushPhase - 700) / 500) * (GROUND_Y - obs.y - obs.height);
+                        }
+                        obs.currentY = crushY;
+                        // Crusher body
+                        ctx.fillStyle = '#666';
+                        ctx.fillRect(screenX, crushY, obs.width, obs.height);
+                        // Warning stripes
+                        ctx.fillStyle = '#ff0';
+                        for (let i = 0; i < 3; i++) {
+                            ctx.fillRect(screenX + 5 + i * 20, crushY + obs.height - 10, 10, 8);
+                        }
+                        // Spikes on bottom
+                        ctx.fillStyle = '#888';
+                        for (let i = 0; i < 4; i++) {
+                            ctx.beginPath();
+                            ctx.moveTo(screenX + 10 + i * 15, crushY + obs.height);
+                            ctx.lineTo(screenX + 17 + i * 15, crushY + obs.height + 10);
+                            ctx.lineTo(screenX + 3 + i * 15, crushY + obs.height + 10);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                    } else if (obs.type === 'gear') {
+                        // Rotating gear obstacle
+                        ctx.translate(screenX + obs.width/2, obs.y + obs.height/2);
+                        ctx.rotate(cameraX * 0.03);
+                        ctx.fillStyle = '#754';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, obs.width/2 - 10, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Gear teeth
+                        ctx.fillStyle = '#965';
+                        for (let i = 0; i < 12; i++) {
+                            ctx.save();
+                            ctx.rotate(i * Math.PI / 6);
+                            ctx.fillRect(-8, obs.width/2 - 15, 16, 18);
+                            ctx.restore();
+                        }
+                        // Center hole
+                        ctx.fillStyle = '#432';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (obs.type === 'hammer') {
+                        // Swinging hammer
+                        const swingAngle = Math.sin((Date.now() + obs.offset) * 0.003) * 1.2;
+                        ctx.translate(screenX + obs.width/2, obs.y);
+                        ctx.rotate(swingAngle);
+                        // Chain
+                        ctx.strokeStyle = '#666';
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(0, 60);
+                        ctx.stroke();
+                        // Hammer head
+                        ctx.fillStyle = '#888';
+                        ctx.fillRect(-20, 50, 40, 30);
+                        ctx.fillStyle = '#666';
+                        ctx.fillRect(-25, 55, 10, 20);
+                        ctx.fillRect(15, 55, 10, 20);
+                        obs.hammerX = screenX + obs.width/2 + Math.sin(swingAngle) * 65;
+                        obs.hammerY = obs.y + Math.cos(swingAngle) * 65;
+                    } else if (obs.type === 'flame') {
+                        // Fire jet obstacle
+                        const flameOn = Math.floor((Date.now() + obs.offset) / 800) % 2 === 0;
+                        // Pipe
+                        ctx.fillStyle = '#555';
+                        ctx.fillRect(screenX, GROUND_Y - 15, obs.width, 15);
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(screenX + 5, GROUND_Y - 20, obs.width - 10, 8);
+                        // Flame
+                        if (flameOn) {
+                            ctx.fillStyle = '#f80';
+                            ctx.shadowColor = '#f80';
+                            ctx.shadowBlur = 20;
+                            for (let i = 0; i < 5; i++) {
+                                const flameHeight = 80 + Math.random() * 40;
+                                ctx.beginPath();
+                                ctx.moveTo(screenX + 10 + i * 10, GROUND_Y - 20);
+                                ctx.lineTo(screenX + 15 + i * 10, GROUND_Y - 20 - flameHeight);
+                                ctx.lineTo(screenX + 20 + i * 10, GROUND_Y - 20);
+                                ctx.fill();
+                            }
+                            ctx.fillStyle = '#ff0';
+                            for (let i = 0; i < 5; i++) {
+                                const flameHeight = 50 + Math.random() * 30;
+                                ctx.beginPath();
+                                ctx.moveTo(screenX + 12 + i * 10, GROUND_Y - 20);
+                                ctx.lineTo(screenX + 15 + i * 10, GROUND_Y - 20 - flameHeight);
+                                ctx.lineTo(screenX + 18 + i * 10, GROUND_Y - 20);
+                                ctx.fill();
+                            }
+                            ctx.shadowBlur = 0;
+                        }
+                        obs.active = flameOn;
+                    }
+
+                    ctx.restore();
+                }
+            }
+
+            // Particles
+            for (const p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 40;
+                ctx.beginPath();
+                ctx.arc(p.x - cameraX + 150, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Player
+            const screenPlayerX = 150;
+            ctx.save();
+            ctx.translate(screenPlayerX + PLAYER_SIZE/2, player.y + PLAYER_SIZE/2);
+            ctx.rotate(player.rotation * Math.PI / 180);
+
+            // Player glow
+            ctx.shadowColor = groundColor;
+            ctx.shadowBlur = 15;
+
+            if (player.mode === MODES.CUBE || player.mode === MODES.BALL) {
+                // Robot Box body
+                ctx.fillStyle = '#555';
+                ctx.fillRect(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE, PLAYER_SIZE);
+
+                // Metal panel lines
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(-PLAYER_SIZE/2 + 3, -PLAYER_SIZE/2 + 3, PLAYER_SIZE - 6, PLAYER_SIZE - 6);
+
+                // Rivets in corners
+                ctx.fillStyle = '#888';
+                ctx.beginPath();
+                ctx.arc(-PLAYER_SIZE/2 + 6, -PLAYER_SIZE/2 + 6, 3, 0, Math.PI * 2);
+                ctx.arc(PLAYER_SIZE/2 - 6, -PLAYER_SIZE/2 + 6, 3, 0, Math.PI * 2);
+                ctx.arc(-PLAYER_SIZE/2 + 6, PLAYER_SIZE/2 - 6, 3, 0, Math.PI * 2);
+                ctx.arc(PLAYER_SIZE/2 - 6, PLAYER_SIZE/2 - 6, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Robot eyes (glowing)
+                ctx.fillStyle = '#0ff';
+                ctx.shadowColor = '#0ff';
+                ctx.shadowBlur = 8;
+                ctx.fillRect(-10, -8, 8, 6);
+                ctx.fillRect(2, -8, 8, 6);
+
+                // Eye pupils
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 0;
+                ctx.fillRect(-8, -6, 3, 3);
+                ctx.fillRect(4, -6, 3, 3);
+
+                // Mouth grill
+                ctx.fillStyle = '#222';
+                ctx.fillRect(-8, 4, 16, 8);
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(-6 + i * 4, 5);
+                    ctx.lineTo(-6 + i * 4, 11);
+                    ctx.stroke();
+                }
+
+                // Antenna
+                ctx.strokeStyle = '#777';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -PLAYER_SIZE/2);
+                ctx.lineTo(0, -PLAYER_SIZE/2 - 8);
+                ctx.stroke();
+                ctx.fillStyle = '#f00';
+                ctx.shadowColor = '#f00';
+                ctx.shadowBlur = 5;
+                ctx.beginPath();
+                ctx.arc(0, -PLAYER_SIZE/2 - 10, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Outline
+                ctx.strokeStyle = groundColor;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-PLAYER_SIZE/2, -PLAYER_SIZE/2, PLAYER_SIZE, PLAYER_SIZE);
+            } else if (player.mode === MODES.SHIP) {
+                // Ship shape
+                ctx.fillStyle = groundColor;
+                ctx.beginPath();
+                ctx.moveTo(PLAYER_SIZE/2, 0);
+                ctx.lineTo(-PLAYER_SIZE/2, -PLAYER_SIZE/2);
+                ctx.lineTo(-PLAYER_SIZE/3, 0);
+                ctx.lineTo(-PLAYER_SIZE/2, PLAYER_SIZE/2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else if (player.mode === MODES.WAVE) {
+                // Wave shape (small triangle)
+                ctx.fillStyle = groundColor;
+                ctx.beginPath();
+                ctx.moveTo(PLAYER_SIZE/2, 0);
+                ctx.lineTo(-PLAYER_SIZE/2, -PLAYER_SIZE/3);
+                ctx.lineTo(-PLAYER_SIZE/2, PLAYER_SIZE/3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else if (player.mode === MODES.UFO) {
+                // UFO shape
+                ctx.fillStyle = groundColor;
+                ctx.beginPath();
+                ctx.ellipse(0, 5, PLAYER_SIZE/2, PLAYER_SIZE/4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(0, -5, PLAYER_SIZE/3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) {
+                // Still draw death particles
+                ctx.fillStyle = `rgb(${bgColor.r}, ${bgColor.g}, ${bgColor.b})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                for (const p of particles) {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life / 40;
+                    ctx.beginPath();
+                    ctx.arc(p.x - cameraX + 150, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.3;
+                    p.life--;
+                }
+                ctx.globalAlpha = 1;
+                if (particles.length > 0) {
+                    particles = particles.filter(p => p.life > 0);
+                    requestAnimationFrame(gameLoop);
+                }
+                return;
+            }
+
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                if (!holding) {
+                    jump();
+                }
+                holding = true;
+                e.preventDefault();
+            }
+            if (e.key === 'z' || e.key === 'Z') {
+                setCheckpoint();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                holding = false;
+            }
+        });
+
+        canvas.addEventListener('mousedown', () => {
+            if (!holding) jump();
+            holding = true;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            holding = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (!holding) jump();
+            holding = true;
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('touchend', () => {
+            holding = false;
+        });
+    </script>
+</body>
+</html>

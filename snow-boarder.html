@@ -1,0 +1,2331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Snow Boarder">
+    <title>Snow Boarder - Endless Mountain Run</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        .game-container {
+            text-align: center;
+            position: relative;
+        }
+        .hud {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            color: #fff;
+            font-size: 1.2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+            text-align: left;
+        }
+        .hud div {
+            margin: 5px 0;
+        }
+        .distance { color: #4ecca3; }
+        .coins { color: #ffd700; }
+        .trail-hud {
+            color: #fff;
+            font-size: 1rem;
+            background: rgba(0,0,0,0.5);
+            padding: 3px 10px;
+            border-radius: 5px;
+            margin-top: 10px !important;
+        }
+        .mogul-warning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 165, 0, 0.95);
+            color: #000;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+            z-index: 15;
+            display: none;
+            border: 4px solid #ff8c00;
+            animation: mogulPulse 0.3s infinite alternate;
+        }
+        .mogul-warning .timer {
+            font-size: 3rem;
+            color: #8b0000;
+            display: block;
+            margin: 10px 0;
+        }
+        .mogul-warning .hint {
+            font-size: 1rem;
+            color: #333;
+        }
+        @keyframes mogulPulse {
+            from { transform: translate(-50%, -50%) scale(1); }
+            to { transform: translate(-50%, -50%) scale(1.05); }
+        }
+        .warning {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff4444;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff0000;
+            z-index: 10;
+            animation: pulse 0.5s infinite;
+            display: none;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .chase-timer {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffaa00;
+            font-size: 1.2rem;
+            z-index: 10;
+            display: none;
+        }
+        canvas {
+            border: 3px solid #4ecca3;
+            box-shadow: 0 0 30px rgba(78, 204, 163, 0.3);
+            border-radius: 10px;
+            touch-action: none;
+        }
+        .instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            font-size: 0.9rem;
+            z-index: 10;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #e74c3c;
+            display: none;
+            z-index: 20;
+        }
+        .game-over h2 {
+            color: #e74c3c;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        .game-over p {
+            color: #fff;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        .game-over .cause {
+            color: #ff6b6b;
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #4ecca3;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            color: #1a1a2e;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #3db892;
+            transform: scale(1.05);
+        }
+        .start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #4ecca3;
+            z-index: 20;
+            text-align: center;
+        }
+        .start-screen h1 {
+            color: #4ecca3;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        .start-screen p {
+            color: #ccc;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .start-screen .rules {
+            color: #ff6b6b;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 100, 100, 0.1);
+            border-radius: 10px;
+        }
+        .store-btn {
+            background: #ffd700;
+            color: #1a1a2e;
+            margin-top: 15px;
+        }
+        .store-btn:hover {
+            background: #ffed4a;
+        }
+        .store-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #ffd700;
+            z-index: 25;
+            text-align: center;
+            display: none;
+            max-width: 650px;
+            width: 95%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .store-screen h2 {
+            color: #ffd700;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        .store-stats {
+            color: #4ecca3;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .store-stats span {
+            color: #ffd700;
+        }
+        .boards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .board-item {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #444;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .board-item:hover {
+            border-color: #4ecca3;
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .board-item.selected {
+            border-color: #4ecca3;
+            box-shadow: 0 0 15px rgba(78, 204, 163, 0.5);
+        }
+        .board-item.locked {
+            opacity: 0.7;
+        }
+        .board-item .board-preview {
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+        .board-item .board-name {
+            color: #fff;
+            font-size: 0.7rem;
+            margin-bottom: 3px;
+        }
+        .board-item .board-rarity {
+            font-size: 0.65rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        .board-item .board-rarity.common { color: #aaaaaa; }
+        .board-item .board-rarity.uncommon { color: #1eff00; }
+        .board-item .board-rarity.rare { color: #0070dd; }
+        .board-item .board-rarity.legendary { color: #ff8000; }
+        .board-item .board-rarity.mythical { color: #e268a8; text-shadow: 0 0 10px #e268a8; }
+        .board-item .board-price {
+            color: #ffd700;
+            font-size: 0.75rem;
+        }
+        .board-item .board-price.owned {
+            color: #4ecca3;
+        }
+        .close-store {
+            background: #666;
+            margin-top: 10px;
+        }
+        .close-store:hover {
+            background: #888;
+        }
+        .map-btn {
+            background: #2ecc71;
+            margin-left: 10px;
+        }
+        .map-btn:hover {
+            background: #27ae60;
+        }
+        .trail-map-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(240, 248, 255, 0.98);
+            padding: 20px;
+            border-radius: 15px;
+            border: 4px solid #2c3e50;
+            z-index: 25;
+            display: none;
+            max-width: 700px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .trail-map-screen h2 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .trail-legend {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            color: #2c3e50;
+        }
+        .difficulty-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .difficulty-icon.green { color: #27ae60; }
+        .difficulty-icon.blue { color: #2980b9; }
+        .difficulty-icon.black { color: #000; }
+        .difficulty-icon.double-black { color: #000; font-size: 10px; }
+        .mountain-map {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(180deg, #87ceeb 0%, #b0e0e6 30%, #fff 50%, #f0f8ff 100%);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #2c3e50;
+        }
+        .mountain-shape {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 85%;
+        }
+        .trail {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            padding: 3px 6px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            white-space: nowrap;
+            border: 2px solid transparent;
+        }
+        .trail:hover {
+            transform: scale(1.15);
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .trail:has(.green):hover { border-color: #27ae60; }
+        .trail:has(.blue):hover { border-color: #2980b9; }
+        .trail:has(.black):hover { border-color: #000; }
+        .trail:has(.double-black):hover { border-color: #000; }
+        .trail-icon {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .trail-icon.green { color: #27ae60; }
+        .trail-icon.blue { color: #2980b9; }
+        .trail-icon.black { color: #000; }
+        .trail-icon.double-black { color: #000; font-size: 8px; }
+        .trail-line {
+            position: absolute;
+            background: rgba(0,0,0,0.3);
+            transform-origin: top left;
+        }
+        .trail-line.green-trail { background: rgba(39, 174, 96, 0.6); height: 3px; }
+        .trail-line.blue-trail { background: rgba(41, 128, 185, 0.6); height: 3px; }
+        .trail-line.black-trail { background: rgba(0, 0, 0, 0.5); height: 3px; }
+        .trail-line.double-black-trail { background: rgba(0, 0, 0, 0.7); height: 4px; }
+        .lift-line {
+            position: absolute;
+            background: #333;
+            height: 2px;
+        }
+        .lift-label {
+            position: absolute;
+            font-size: 0.6rem;
+            color: #c0392b;
+            font-weight: bold;
+            background: rgba(255,255,255,0.8);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .summit-marker {
+            position: absolute;
+            font-size: 0.7rem;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .close-map {
+            background: #666;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 15px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .close-map:hover {
+            background: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="hud">
+            <div class="distance">Distance: <span id="distance">0</span>m</div>
+            <div class="coins">Coins: <span id="coins">0</span></div>
+            <div>Best: <span id="best">0</span>m</div>
+            <div class="trail-hud" id="trailName" style="display:none;"></div>
+        </div>
+        <div class="warning" id="warning">SNOWMOBILE CHASING!</div>
+        <div class="chase-timer" id="chaseTimer">Escape in: <span id="escapeTime">10</span>s</div>
+        <div class="mogul-warning" id="mogulWarning">
+            MOGUL AHEAD!
+            <span class="timer" id="mogulTimer">5</span>
+            <span class="hint">Press SPACE to jump!</span>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+        <p class="instructions">Arrow Keys / W-S to move | SPACE to jump | Touch: Left/Right sides to move, Center tap to jump</p>
+
+        <div class="start-screen" id="startScreen">
+            <h1>Snow Boarder</h1>
+            <p>Race down the endless mountain!</p>
+            <p>Dodge branches and polar bears on skis!</p>
+            <p style="color: #ffd700; margin-top: 15px;">Your Coins: <span id="startCoins">0</span></p>
+            <div class="rules">
+                <p>If you hit an obstacle, a SNOWMOBILE will chase you!</p>
+                <p>Survive 10 seconds to escape it.</p>
+                <p>Hit another obstacle while being chased = GAME OVER!</p>
+            </div>
+            <button onclick="currentTrail = null; startGame()">Start Boarding!</button>
+            <button class="store-btn" onclick="openStore()">Store</button>
+            <button class="map-btn" onclick="openTrailMap()">Trail Map</button>
+        </div>
+
+        <div class="store-screen" id="storeScreen">
+            <h2>Board Shop</h2>
+            <div class="store-stats">
+                Your Coins: <span id="storeCoins">0</span> | High Score: <span id="storeHighScore">0</span>m
+            </div>
+            <div class="boards-grid" id="boardsGrid">
+                <!-- Boards will be added by JavaScript -->
+            </div>
+            <button class="close-store" onclick="closeStore()">Back</button>
+        </div>
+
+        <div class="trail-map-screen" id="trailMapScreen">
+            <h2>Frosty Peak Mountain - Trail Map</h2>
+            <p style="color: #666; font-size: 0.85rem; margin-bottom: 10px;">Click any trail to ride it!</p>
+            <div class="trail-legend">
+                <div class="legend-item">
+                    <div class="difficulty-icon green">●</div>
+                    <span>Easiest</span>
+                </div>
+                <div class="legend-item">
+                    <div class="difficulty-icon blue">■</div>
+                    <span>Intermediate</span>
+                </div>
+                <div class="legend-item">
+                    <div class="difficulty-icon black">◆</div>
+                    <span>Advanced</span>
+                </div>
+                <div class="legend-item">
+                    <div class="difficulty-icon double-black">◆◆</div>
+                    <span>Expert Only</span>
+                </div>
+            </div>
+            <div class="mountain-map">
+                <svg class="mountain-shape" viewBox="0 0 700 340" preserveAspectRatio="none">
+                    <!-- Main mountain -->
+                    <polygon fill="#f5f5f5" stroke="#ddd" stroke-width="1" points="350,10 50,340 650,340"/>
+                    <!-- Left peak -->
+                    <polygon fill="#e8e8e8" stroke="#ddd" stroke-width="1" points="150,80 30,340 270,340"/>
+                    <!-- Right peak -->
+                    <polygon fill="#eee" stroke="#ddd" stroke-width="1" points="550,60 420,340 680,340"/>
+                    <!-- Snow caps -->
+                    <polygon fill="#fff" points="350,10 320,60 380,60"/>
+                    <polygon fill="#fff" points="150,80 130,110 170,110"/>
+                    <polygon fill="#fff" points="550,60 530,95 570,95"/>
+                    <!-- Trees at base -->
+                    <rect fill="#228b22" x="40" y="300" width="8" height="20" rx="2"/>
+                    <rect fill="#228b22" x="60" y="305" width="6" height="15" rx="2"/>
+                    <rect fill="#228b22" x="620" y="295" width="10" height="25" rx="2"/>
+                    <rect fill="#228b22" x="645" y="302" width="7" height="18" rx="2"/>
+                    <rect fill="#228b22" x="80" y="310" width="5" height="12" rx="1"/>
+                    <rect fill="#228b22" x="600" y="308" width="6" height="14" rx="1"/>
+                </svg>
+
+                <!-- Summit marker -->
+                <div class="summit-marker" style="top: 15px; left: 50%; transform: translateX(-50%);">Summit 12,450ft</div>
+
+                <!-- Lifts -->
+                <div class="lift-line" style="top: 50px; left: 280px; width: 150px; transform: rotate(70deg);"></div>
+                <div class="lift-label" style="top: 85px; left: 315px;">Summit Express</div>
+
+                <div class="lift-line" style="top: 180px; left: 100px; width: 120px; transform: rotate(55deg);"></div>
+                <div class="lift-label" style="top: 210px; left: 110px;">West Lift</div>
+
+                <div class="lift-line" style="top: 150px; left: 480px; width: 130px; transform: rotate(65deg);"></div>
+                <div class="lift-label" style="top: 175px; left: 510px;">East Lift</div>
+
+                <!-- GREEN TRAILS (Easiest) -->
+                <div class="trail" style="top: 180px; left: 200px;" onclick="selectTrail('Bunny Slope')" title="Perfect for beginners!">
+                    <span class="trail-icon green">●</span> Bunny Slope
+                </div>
+                <div class="trail" style="top: 220px; left: 280px;" onclick="selectTrail('Easy Street')" title="A relaxing cruise down.">
+                    <span class="trail-icon green">●</span> Easy Street
+                </div>
+                <div class="trail" style="top: 260px; left: 180px;" onclick="selectTrail('Gentle Giant')" title="Wide and forgiving.">
+                    <span class="trail-icon green">●</span> Gentle Giant
+                </div>
+                <div class="trail" style="top: 300px; left: 250px;" onclick="selectTrail('Meadow Run')" title="Scenic meadow views.">
+                    <span class="trail-icon green">●</span> Meadow Run
+                </div>
+                <div class="trail" style="top: 240px; left: 400px;" onclick="selectTrail('Snowflake')" title="Light and easy.">
+                    <span class="trail-icon green">●</span> Snowflake
+                </div>
+                <div class="trail" style="top: 280px; left: 480px;" onclick="selectTrail('Family Fun')" title="Great for all ages!">
+                    <span class="trail-icon green">●</span> Family Fun
+                </div>
+
+                <!-- BLUE TRAILS (Intermediate) -->
+                <div class="trail" style="top: 120px; left: 250px;" onclick="selectTrail('Cruiser')" title="A classic intermediate run.">
+                    <span class="trail-icon blue">■</span> Cruiser
+                </div>
+                <div class="trail" style="top: 150px; left: 380px;" onclick="selectTrail('Blue Moon')" title="Ride under the moonlight.">
+                    <span class="trail-icon blue">■</span> Blue Moon
+                </div>
+                <div class="trail" style="top: 180px; left: 450px;" onclick="selectTrail('Timber Trail')" title="Watch out for trees!">
+                    <span class="trail-icon blue">■</span> Timber Trail
+                </div>
+                <div class="trail" style="top: 200px; left: 100px;" onclick="selectTrail('West Ridge')" title="Ridge line adventure.">
+                    <span class="trail-icon blue">■</span> West Ridge
+                </div>
+                <div class="trail" style="top: 160px; left: 150px;" onclick="selectTrail('Powder Pass')" title="Fresh powder awaits!">
+                    <span class="trail-icon blue">■</span> Powder Pass
+                </div>
+                <div class="trail" style="top: 220px; left: 520px;" onclick="selectTrail('Glacier Way')" title="Icy but fun.">
+                    <span class="trail-icon blue">■</span> Glacier Way
+                </div>
+                <div class="trail" style="top: 140px; left: 550px;" onclick="selectTrail('Pine Drop')" title="Through the pine forest.">
+                    <span class="trail-icon blue">■</span> Pine Drop
+                </div>
+
+                <!-- BLACK DIAMOND TRAILS (Advanced) -->
+                <div class="trail" style="top: 80px; left: 300px;" onclick="selectTrail('Thunder Road')" title="Fast and furious!">
+                    <span class="trail-icon black">◆</span> Thunder Road
+                </div>
+                <div class="trail" style="top: 100px; left: 420px;" onclick="selectTrail('Devil\\'s Dive')" title="Steep drops ahead!">
+                    <span class="trail-icon black">◆</span> Devil's Dive
+                </div>
+                <div class="trail" style="top: 130px; left: 80px;" onclick="selectTrail('Avalanche Alley')" title="Danger at every turn.">
+                    <span class="trail-icon black">◆</span> Avalanche Alley
+                </div>
+                <div class="trail" style="top: 110px; left: 510px;" onclick="selectTrail('The Plunge')" title="Hold your breath!">
+                    <span class="trail-icon black">◆</span> The Plunge
+                </div>
+                <div class="trail" style="top: 90px; left: 180px;" onclick="selectTrail('Nightmare')" title="Your worst fears realized.">
+                    <span class="trail-icon black">◆</span> Nightmare
+                </div>
+                <div class="trail" style="top: 170px; left: 560px;" onclick="selectTrail('Cliffhanger')" title="Edge of the cliff!">
+                    <span class="trail-icon black">◆</span> Cliffhanger
+                </div>
+
+                <!-- DOUBLE BLACK DIAMOND TRAILS (Expert) -->
+                <div class="trail" style="top: 50px; left: 340px;" onclick="selectTrail('Death Wish')" title="Only the brave survive.">
+                    <span class="trail-icon double-black">◆◆</span> Death Wish
+                </div>
+                <div class="trail" style="top: 70px; left: 450px;" onclick="selectTrail('The Abyss')" title="Stare into the void.">
+                    <span class="trail-icon double-black">◆◆</span> The Abyss
+                </div>
+                <div class="trail" style="top: 60px; left: 220px;" onclick="selectTrail('Insanity')" title="Pure madness!">
+                    <span class="trail-icon double-black">◆◆</span> Insanity
+                </div>
+                <div class="trail" style="top: 85px; left: 570px;" onclick="selectTrail('Widow Maker')" title="Legendary difficulty.">
+                    <span class="trail-icon double-black">◆◆</span> Widow Maker
+                </div>
+                <div class="trail" style="top: 40px; left: 280px;" onclick="selectTrail('No Return')" title="Point of no return!">
+                    <span class="trail-icon double-black">◆◆</span> No Return
+                </div>
+
+                <!-- Base Lodge -->
+                <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; color: #8b4513; font-weight: bold; background: rgba(255,255,255,0.9); padding: 4px 8px; border-radius: 4px;">
+                    Base Lodge - Elevation 8,200ft
+                </div>
+            </div>
+            <button class="close-map" onclick="closeTrailMap()">Back</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h2>Wipeout!</h2>
+            <p>Distance: <span id="finalDistance">0</span>m</p>
+            <p style="color: #ffd700;">Coins: <span id="finalCoins">0</span></p>
+            <p class="cause" id="cause"></p>
+            <button onclick="startGame()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Trail system
+        const trails = {
+            // GREEN TRAILS (Easiest)
+            'Bunny Slope': { difficulty: 'green', speed: 4, obstacleRate: 0.008, coinRate: 0.025, description: 'Perfect for beginners!' },
+            'Easy Street': { difficulty: 'green', speed: 4.5, obstacleRate: 0.01, coinRate: 0.025, description: 'A relaxing cruise down.' },
+            'Gentle Giant': { difficulty: 'green', speed: 4, obstacleRate: 0.009, coinRate: 0.03, description: 'Wide and forgiving.' },
+            'Meadow Run': { difficulty: 'green', speed: 4.5, obstacleRate: 0.01, coinRate: 0.025, description: 'Scenic meadow views.' },
+            'Snowflake': { difficulty: 'green', speed: 5, obstacleRate: 0.011, coinRate: 0.025, description: 'Light and easy.' },
+            'Family Fun': { difficulty: 'green', speed: 4, obstacleRate: 0.008, coinRate: 0.03, description: 'Great for all ages!' },
+
+            // BLUE TRAILS (Intermediate)
+            'Cruiser': { difficulty: 'blue', speed: 6, obstacleRate: 0.015, coinRate: 0.02, description: 'A classic intermediate run.' },
+            'Blue Moon': { difficulty: 'blue', speed: 6.5, obstacleRate: 0.016, coinRate: 0.02, description: 'Ride under the moonlight.' },
+            'Timber Trail': { difficulty: 'blue', speed: 6, obstacleRate: 0.018, coinRate: 0.02, description: 'Watch out for trees!' },
+            'West Ridge': { difficulty: 'blue', speed: 6.5, obstacleRate: 0.015, coinRate: 0.022, description: 'Ridge line adventure.' },
+            'Powder Pass': { difficulty: 'blue', speed: 7, obstacleRate: 0.017, coinRate: 0.02, description: 'Fresh powder awaits!' },
+            'Glacier Way': { difficulty: 'blue', speed: 6, obstacleRate: 0.016, coinRate: 0.022, description: 'Icy but fun.' },
+            'Pine Drop': { difficulty: 'blue', speed: 6.5, obstacleRate: 0.018, coinRate: 0.02, description: 'Through the pine forest.' },
+
+            // BLACK DIAMOND TRAILS (Advanced)
+            'Thunder Road': { difficulty: 'black', speed: 8, obstacleRate: 0.022, coinRate: 0.018, description: 'Fast and furious!' },
+            "Devil's Dive": { difficulty: 'black', speed: 8.5, obstacleRate: 0.024, coinRate: 0.018, description: 'Steep drops ahead!' },
+            'Avalanche Alley': { difficulty: 'black', speed: 8, obstacleRate: 0.025, coinRate: 0.016, description: 'Danger at every turn.' },
+            'The Plunge': { difficulty: 'black', speed: 9, obstacleRate: 0.023, coinRate: 0.018, description: 'Hold your breath!' },
+            'Nightmare': { difficulty: 'black', speed: 8.5, obstacleRate: 0.026, coinRate: 0.016, description: 'Your worst fears realized.' },
+            'Cliffhanger': { difficulty: 'black', speed: 8, obstacleRate: 0.024, coinRate: 0.018, description: 'Edge of the cliff!' },
+
+            // DOUBLE BLACK DIAMOND TRAILS (Expert)
+            'Death Wish': { difficulty: 'double-black', speed: 10, obstacleRate: 0.03, coinRate: 0.015, description: 'Only the brave survive.' },
+            'The Abyss': { difficulty: 'double-black', speed: 10.5, obstacleRate: 0.032, coinRate: 0.015, description: 'Stare into the void.' },
+            'Insanity': { difficulty: 'double-black', speed: 11, obstacleRate: 0.035, coinRate: 0.012, description: 'Pure madness!' },
+            'Widow Maker': { difficulty: 'double-black', speed: 10, obstacleRate: 0.033, coinRate: 0.015, description: 'Legendary difficulty.' },
+            'No Return': { difficulty: 'double-black', speed: 12, obstacleRate: 0.038, coinRate: 0.01, description: 'Point of no return!' }
+        };
+
+        let currentTrail = null;
+        let baseSpeed = 6;
+        let obstacleSpawnRate = 0.02;
+        let coinSpawnRate = 0.02;
+
+        // Game state
+        let gameRunning = false;
+        let distance = 0;
+        let bestDistance = parseInt(localStorage.getItem('snowBoarderBest')) || 0;
+        let speed = 6;
+        let playerY = canvas.height / 2;
+        let targetY = canvas.height / 2;
+        const playerX = canvas.width - 120; // Player on right side
+
+        // Chase mechanic
+        let beingChased = false;
+        let chaseTimer = 0;
+        let snowmobileX = canvas.width + 100;
+        let snowmobileY = canvas.height / 2;
+
+        // Snowmobile crash animation
+        let snowmobileCrashing = false;
+        let crashX = 0;
+        let crashY = 0;
+        let crashRotation = 0;
+        let crashDebris = [];
+        let crashTimer = 0;
+
+        // Obstacles and coins
+        let obstacles = [];
+        let coins = [];
+        let coinCount = 0;
+        let snowflakes = [];
+        let coinCollectEffects = [];
+
+        // Moving mountain elements
+        let mountainOffset = 0;
+
+        // Animation
+        let frameCount = 0;
+
+        // Controls
+        let moveUp = false;
+        let moveDown = false;
+
+        // Mogul jump mechanic
+        let mogulApproaching = null;
+        let mogulTimer = 0;
+        let isJumping = false;
+        let jumpHeight = 0;
+
+        document.getElementById('best').textContent = bestDistance;
+
+        // Store and boards system
+        const boards = [
+            // === COMMON (0-5 coins) ===
+            { id: 'classic', name: 'Classic Red', price: 0, rarity: 'Common', colors: { main: '#e74c3c', accent: '#f39c12', border: '#c0392b' } },
+            { id: 'basic_blue', name: 'Basic Blue', price: 1, rarity: 'Common', colors: { main: '#3498db', accent: '#5dade2', border: '#2980b9' } },
+            { id: 'basic_green', name: 'Basic Green', price: 1, rarity: 'Common', colors: { main: '#27ae60', accent: '#58d68d', border: '#1e8449' } },
+            { id: 'basic_yellow', name: 'Basic Yellow', price: 2, rarity: 'Common', colors: { main: '#f4d03f', accent: '#f7dc6f', border: '#d4ac0d' } },
+            { id: 'basic_purple', name: 'Basic Purple', price: 2, rarity: 'Common', colors: { main: '#8e44ad', accent: '#a569bd', border: '#6c3483' } },
+            { id: 'basic_orange', name: 'Basic Orange', price: 2, rarity: 'Common', colors: { main: '#e67e22', accent: '#f0b27a', border: '#ca6f1e' } },
+            { id: 'basic_pink', name: 'Basic Pink', price: 3, rarity: 'Common', colors: { main: '#e91e63', accent: '#f48fb1', border: '#c2185b' } },
+            { id: 'basic_gray', name: 'Stone Gray', price: 3, rarity: 'Common', colors: { main: '#7f8c8d', accent: '#95a5a6', border: '#566573' } },
+            { id: 'basic_brown', name: 'Wooden', price: 3, rarity: 'Common', colors: { main: '#8b4513', accent: '#a0522d', border: '#5d2e0c' } },
+            { id: 'basic_white', name: 'Snow White', price: 4, rarity: 'Common', colors: { main: '#ecf0f1', accent: '#ffffff', border: '#bdc3c7' } },
+            { id: 'basic_black', name: 'Midnight', price: 4, rarity: 'Common', colors: { main: '#2c3e50', accent: '#34495e', border: '#1a252f' } },
+            { id: 'basic_teal', name: 'Teal Time', price: 5, rarity: 'Common', colors: { main: '#008080', accent: '#20b2aa', border: '#006666' } },
+
+            // === UNCOMMON (6-15 coins) ===
+            { id: 'ocean', name: 'Ocean Wave', price: 6, rarity: 'Uncommon', colors: { main: '#3498db', accent: '#1abc9c', border: '#2980b9' } },
+            { id: 'sunset', name: 'Sunset', price: 7, rarity: 'Uncommon', colors: { main: '#e67e22', accent: '#f1c40f', border: '#d35400' } },
+            { id: 'mint', name: 'Mint Fresh', price: 7, rarity: 'Uncommon', colors: { main: '#1abc9c', accent: '#2ecc71', border: '#16a085' } },
+            { id: 'coral', name: 'Coral Reef', price: 8, rarity: 'Uncommon', colors: { main: '#ff6b6b', accent: '#ffa502', border: '#ee5a5a' } },
+            { id: 'lavender', name: 'Lavender Dream', price: 8, rarity: 'Uncommon', colors: { main: '#9b59b6', accent: '#d5a6e6', border: '#8e44ad' } },
+            { id: 'forest', name: 'Forest Mist', price: 9, rarity: 'Uncommon', colors: { main: '#2d5016', accent: '#4a7023', border: '#1e3610' } },
+            { id: 'cherry', name: 'Cherry Blossom', price: 9, rarity: 'Uncommon', colors: { main: '#ffb7c5', accent: '#ffffff', border: '#ff8fa3' } },
+            { id: 'aqua', name: 'Aqua Marine', price: 10, rarity: 'Uncommon', colors: { main: '#00d9ff', accent: '#00ffcc', border: '#00b8d4' } },
+            { id: 'bronze', name: 'Bronze Medal', price: 10, rarity: 'Uncommon', colors: { main: '#cd7f32', accent: '#daa06d', border: '#a65e20' } },
+            { id: 'crimson', name: 'Crimson Tide', price: 11, rarity: 'Uncommon', colors: { main: '#dc143c', accent: '#ff4757', border: '#b01030' } },
+            { id: 'lime', name: 'Lime Rush', price: 11, rarity: 'Uncommon', colors: { main: '#32cd32', accent: '#7cfc00', border: '#228b22' } },
+            { id: 'peach', name: 'Peach Fuzz', price: 12, rarity: 'Uncommon', colors: { main: '#ffcba4', accent: '#ffe5b4', border: '#e5a882' } },
+            { id: 'steel', name: 'Steel Runner', price: 12, rarity: 'Uncommon', colors: { main: '#71797e', accent: '#a9a9a9', border: '#4a5459' } },
+            { id: 'candy', name: 'Candy Cane', price: 13, rarity: 'Uncommon', colors: { main: '#ff4757', accent: '#ffffff', border: '#d63031' } },
+            { id: 'denim', name: 'Denim Blue', price: 14, rarity: 'Uncommon', colors: { main: '#1560bd', accent: '#4682b4', border: '#104e8b' } },
+            { id: 'rust', name: 'Rusty', price: 15, rarity: 'Uncommon', colors: { main: '#b7410e', accent: '#d4652f', border: '#8b3103' } },
+
+            // === RARE (16-35 coins) ===
+            { id: 'galaxy', name: 'Galaxy', price: 16, rarity: 'Rare', colors: { main: '#9b59b6', accent: '#e91e63', border: '#8e44ad' } },
+            { id: 'neon', name: 'Neon Pulse', price: 18, rarity: 'Rare', colors: { main: '#ff00ff', accent: '#00ffff', border: '#cc00cc' } },
+            { id: 'arctic', name: 'Arctic Frost', price: 18, rarity: 'Rare', colors: { main: '#a8e6cf', accent: '#dcedc1', border: '#88d4b5' } },
+            { id: 'gold', name: 'Golden Pro', price: 20, rarity: 'Rare', colors: { main: '#f1c40f', accent: '#fff', border: '#f39c12' } },
+            { id: 'aurora', name: 'Aurora Borealis', price: 22, rarity: 'Rare', colors: { main: '#00ff87', accent: '#60efff', border: '#00cc6a' } },
+            { id: 'lava', name: 'Lava Flow', price: 22, rarity: 'Rare', colors: { main: '#ff4500', accent: '#ff6347', border: '#cc3700' } },
+            { id: 'ice', name: 'Ice Crystal', price: 24, rarity: 'Rare', colors: { main: '#b0e0e6', accent: '#e0ffff', border: '#87ceeb' } },
+            { id: 'toxic', name: 'Toxic Waste', price: 24, rarity: 'Rare', colors: { main: '#39ff14', accent: '#ccff00', border: '#2eb810' } },
+            { id: 'thunder', name: 'Thunder Strike', price: 25, rarity: 'Rare', colors: { main: '#f9ca24', accent: '#ffffff', border: '#f0932b' } },
+            { id: 'venom', name: 'Venom', price: 26, rarity: 'Rare', colors: { main: '#8b008b', accent: '#00ff00', border: '#660066' } },
+            { id: 'sapphire', name: 'Sapphire', price: 28, rarity: 'Rare', colors: { main: '#0f52ba', accent: '#6495ed', border: '#082567' } },
+            { id: 'emerald', name: 'Emerald', price: 28, rarity: 'Rare', colors: { main: '#50c878', accent: '#98fb98', border: '#3cb371' } },
+            { id: 'ruby', name: 'Ruby Red', price: 30, rarity: 'Rare', colors: { main: '#e0115f', accent: '#ff6b9d', border: '#b30e4d' } },
+            { id: 'amethyst', name: 'Amethyst', price: 30, rarity: 'Rare', colors: { main: '#9966cc', accent: '#dda0dd', border: '#7b4ea3' } },
+            { id: 'tiger', name: 'Tiger Stripe', price: 32, rarity: 'Rare', colors: { main: '#ff9f00', accent: '#000000', border: '#cc7f00' } },
+            { id: 'zebra', name: 'Zebra', price: 32, rarity: 'Rare', colors: { main: '#ffffff', accent: '#000000', border: '#cccccc' } },
+            { id: 'camo', name: 'Camouflage', price: 35, rarity: 'Rare', colors: { main: '#4b5320', accent: '#8b8b00', border: '#333b14' } },
+
+            // === LEGENDARY (36-75 coins) ===
+            { id: 'diamond', name: 'Diamond', price: 40, rarity: 'Legendary', colors: { main: '#b9f2ff', accent: '#ffffff', border: '#87ceeb' } },
+            { id: 'plasma', name: 'Plasma Core', price: 42, rarity: 'Legendary', colors: { main: '#ff1493', accent: '#00ffff', border: '#c71585' } },
+            { id: 'supernova', name: 'Supernova', price: 45, rarity: 'Legendary', colors: { main: '#ff6b35', accent: '#f7c59f', border: '#ff4500' } },
+            { id: 'nebula', name: 'Nebula', price: 48, rarity: 'Legendary', colors: { main: '#663399', accent: '#ff69b4', border: '#4b0082' } },
+            { id: 'phoenix', name: 'Phoenix Fire', price: 50, rarity: 'Legendary', colors: { main: '#ff4500', accent: '#ffd700', border: '#cc3700' } },
+            { id: 'frost_king', name: 'Frost King', price: 52, rarity: 'Legendary', colors: { main: '#00bfff', accent: '#e0ffff', border: '#0099cc' } },
+            { id: 'shadow', name: 'Shadow Walker', price: 55, rarity: 'Legendary', colors: { main: '#1a1a2e', accent: '#4a4e69', border: '#0d0d17' } },
+            { id: 'solar', name: 'Solar Flare', price: 55, rarity: 'Legendary', colors: { main: '#ffa500', accent: '#ffff00', border: '#ff8c00' } },
+            { id: 'hologram', name: 'Hologram', price: 58, rarity: 'Legendary', colors: { main: '#ff00ff', accent: '#00ff00', border: '#ff00aa' } },
+            { id: 'prism', name: 'Prism', price: 60, rarity: 'Legendary', colors: { main: '#ff0000', accent: '#00ff00', border: '#0000ff' } },
+            { id: 'obsidian', name: 'Obsidian', price: 60, rarity: 'Legendary', colors: { main: '#0b0b0b', accent: '#4a0080', border: '#000000' } },
+            { id: 'platinum', name: 'Platinum', price: 65, rarity: 'Legendary', colors: { main: '#e5e4e2', accent: '#ffffff', border: '#c0c0c0' } },
+            { id: 'dragon', name: 'Dragon Scale', price: 65, rarity: 'Legendary', colors: { main: '#228b22', accent: '#ffd700', border: '#145214' } },
+            { id: 'lightning', name: 'Lightning Bolt', price: 68, rarity: 'Legendary', colors: { main: '#1e90ff', accent: '#ffff00', border: '#0066cc' } },
+            { id: 'inferno', name: 'Inferno', price: 70, rarity: 'Legendary', colors: { main: '#8b0000', accent: '#ff4500', border: '#660000' } },
+            { id: 'blizzard', name: 'Blizzard', price: 72, rarity: 'Legendary', colors: { main: '#f0f8ff', accent: '#87cefa', border: '#b0c4de' } },
+            { id: 'spectrum', name: 'Spectrum', price: 75, rarity: 'Legendary', colors: { main: '#ff0080', accent: '#80ff00', border: '#0080ff' } },
+
+            // === MYTHICAL (80+ coins) ===
+            { id: 'void', name: 'Void Walker', price: 80, rarity: 'Mythical', colors: { main: '#0d0221', accent: '#7b2cbf', border: '#000000' } },
+            { id: 'celestial', name: 'Celestial', price: 85, rarity: 'Mythical', colors: { main: '#191970', accent: '#ffd700', border: '#0c0c35' } },
+            { id: 'cosmic', name: 'Cosmic Dust', price: 90, rarity: 'Mythical', colors: { main: '#2e0854', accent: '#ff6ec7', border: '#1a0330' } },
+            { id: 'ethereal', name: 'Ethereal', price: 95, rarity: 'Mythical', colors: { main: '#e6e6fa', accent: '#dda0dd', border: '#b8b8dc' } },
+            { id: 'rainbow', name: 'Rainbow Rider', price: 100, rarity: 'Mythical', colors: { main: '#ff0000', accent: '#00ff00', border: '#ff8800' } },
+            { id: 'galaxy_king', name: 'Galaxy King', price: 110, rarity: 'Mythical', colors: { main: '#1a0033', accent: '#ff00ff', border: '#0d001a' } },
+            { id: 'black_hole', name: 'Black Hole', price: 120, rarity: 'Mythical', colors: { main: '#000000', accent: '#ff4500', border: '#1a0a00' } },
+            { id: 'antimatter', name: 'Antimatter', price: 125, rarity: 'Mythical', colors: { main: '#1c1c1c', accent: '#00ffff', border: '#0a0a0a' } },
+            { id: 'dimension', name: 'Dimension Rift', price: 130, rarity: 'Mythical', colors: { main: '#4b0082', accent: '#00ff7f', border: '#2d004d' } },
+            { id: 'singularity', name: 'Singularity', price: 140, rarity: 'Mythical', colors: { main: '#000033', accent: '#ffffff', border: '#000011' } },
+            { id: 'infinity', name: 'Infinity', price: 150, rarity: 'Mythical', colors: { main: '#ffd700', accent: '#ff00ff', border: '#ccac00' } },
+            { id: 'transcendent', name: 'Transcendent', price: 175, rarity: 'Mythical', colors: { main: '#ffffff', accent: '#ffd700', border: '#f0e68c' } },
+            { id: 'godlike', name: 'Godlike', price: 200, rarity: 'Mythical', colors: { main: '#ffd700', accent: '#ffffff', border: '#ffec8b' } },
+            { id: 'omega', name: 'Omega', price: 250, rarity: 'Mythical', colors: { main: '#8b0000', accent: '#ffd700', border: '#5c0000' } },
+            { id: 'ultimate', name: 'The Ultimate', price: 500, rarity: 'Mythical', colors: { main: '#000000', accent: '#ffd700', border: '#1a1a00' } }
+        ];
+
+        let totalCoins = parseInt(localStorage.getItem('snowBoarderTotalCoins')) || 0;
+        let ownedBoards = JSON.parse(localStorage.getItem('snowBoarderOwnedBoards')) || ['classic'];
+        let selectedBoard = localStorage.getItem('snowBoarderSelectedBoard') || 'classic';
+
+        function getSelectedBoardColors() {
+            const board = boards.find(b => b.id === selectedBoard);
+            return board ? board.colors : boards[0].colors;
+        }
+
+        function openStore() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('storeScreen').style.display = 'block';
+            document.getElementById('storeCoins').textContent = totalCoins;
+            document.getElementById('storeHighScore').textContent = bestDistance;
+            renderBoards();
+        }
+
+        function closeStore() {
+            document.getElementById('storeScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'block';
+            updateStartScreenCoins();
+        }
+
+        function openTrailMap() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('trailMapScreen').style.display = 'block';
+        }
+
+        function closeTrailMap() {
+            document.getElementById('trailMapScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'block';
+        }
+
+        function updateStartScreenCoins() {
+            document.getElementById('startCoins').textContent = totalCoins;
+        }
+
+        // Initialize start screen coins
+        updateStartScreenCoins();
+
+        function renderBoards() {
+            const grid = document.getElementById('boardsGrid');
+            grid.innerHTML = '';
+
+            boards.forEach(board => {
+                const owned = ownedBoards.includes(board.id);
+                const isSelected = selectedBoard === board.id;
+
+                const item = document.createElement('div');
+                item.className = 'board-item' + (isSelected ? ' selected' : '') + (!owned ? ' locked' : '');
+                item.onclick = () => handleBoardClick(board.id);
+
+                item.innerHTML = `
+                    <div class="board-preview">
+                        <svg width="60" height="30" viewBox="0 0 80 40">
+                            <ellipse cx="40" cy="20" rx="38" ry="12" fill="${board.colors.main}" stroke="${board.colors.border}" stroke-width="2"/>
+                            <ellipse cx="25" cy="20" rx="8" ry="4" fill="${board.colors.accent}" opacity="0.7"/>
+                            <ellipse cx="55" cy="20" rx="8" ry="4" fill="${board.colors.accent}" opacity="0.7"/>
+                        </svg>
+                    </div>
+                    <div class="board-name">${board.name}</div>
+                    ${board.rarity ? `<div class="board-rarity ${board.rarity.toLowerCase()}">${board.rarity}</div>` : ''}
+                    <div class="board-price ${owned ? 'owned' : ''}">
+                        ${owned ? (isSelected ? 'SELECTED' : 'OWNED') : board.price + ' coins'}
+                    </div>
+                `;
+
+                grid.appendChild(item);
+            });
+        }
+
+        function handleBoardClick(boardId) {
+            const board = boards.find(b => b.id === boardId);
+            if (!board) return;
+
+            if (ownedBoards.includes(boardId)) {
+                // Select this board
+                selectedBoard = boardId;
+                localStorage.setItem('snowBoarderSelectedBoard', selectedBoard);
+                renderBoards();
+            } else {
+                // Try to buy
+                if (totalCoins >= board.price) {
+                    totalCoins -= board.price;
+                    ownedBoards.push(boardId);
+                    selectedBoard = boardId;
+
+                    localStorage.setItem('snowBoarderTotalCoins', totalCoins);
+                    localStorage.setItem('snowBoarderOwnedBoards', JSON.stringify(ownedBoards));
+                    localStorage.setItem('snowBoarderSelectedBoard', selectedBoard);
+
+                    document.getElementById('storeCoins').textContent = totalCoins;
+                    renderBoards();
+                }
+            }
+        }
+
+        function selectTrail(trailName) {
+            currentTrail = trailName;
+            const trail = trails[trailName];
+            baseSpeed = trail.speed;
+            obstacleSpawnRate = trail.obstacleRate;
+            coinSpawnRate = trail.coinRate;
+            document.getElementById('trailMapScreen').style.display = 'none';
+            startGame();
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('storeScreen').style.display = 'none';
+            document.getElementById('trailMapScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('warning').style.display = 'none';
+            document.getElementById('chaseTimer').style.display = 'none';
+            document.getElementById('mogulWarning').style.display = 'none';
+
+            // If no trail selected, use default settings (free ride)
+            if (!currentTrail) {
+                baseSpeed = 6;
+                obstacleSpawnRate = 0.02;
+                coinSpawnRate = 0.02;
+            }
+
+            // Update trail display
+            const trailHud = document.getElementById('trailName');
+            if (currentTrail && trails[currentTrail]) {
+                const trail = trails[currentTrail];
+                const icons = { 'green': '●', 'blue': '■', 'black': '◆', 'double-black': '◆◆' };
+                const colors = { 'green': '#27ae60', 'blue': '#2980b9', 'black': '#000', 'double-black': '#000' };
+                trailHud.innerHTML = `<span style="color:${colors[trail.difficulty]}">${icons[trail.difficulty]}</span> ${currentTrail}`;
+                trailHud.style.display = 'block';
+            } else {
+                trailHud.innerHTML = 'Free Ride';
+                trailHud.style.display = 'block';
+            }
+
+            gameRunning = true;
+            distance = 0;
+            speed = baseSpeed;
+            playerY = canvas.height / 2;
+            targetY = canvas.height / 2;
+            beingChased = false;
+            chaseTimer = 0;
+            snowmobileX = canvas.width + 100;
+            obstacles = [];
+            coins = [];
+            coinCount = 0;
+            coinCollectEffects = [];
+            snowflakes = [];
+            mountainOffset = 0;
+            mogulApproaching = null;
+            mogulTimer = 0;
+            isJumping = false;
+            jumpHeight = 0;
+            snowmobileCrashing = false;
+            crashDebris = [];
+            crashTimer = 0;
+            document.getElementById('coins').textContent = '0';
+
+            // Create initial snowflakes
+            for (let i = 0; i < 60; i++) {
+                snowflakes.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 3 + 1,
+                    speed: Math.random() * 2 + 1
+                });
+            }
+
+            gameLoop();
+        }
+
+        function spawnObstacle() {
+            let types = ['branch', 'polarBear', 'branch', 'branch'];
+
+            // Add moguls for black and double-black trails
+            const trail = currentTrail ? trails[currentTrail] : null;
+            if (trail && (trail.difficulty === 'black' || trail.difficulty === 'double-black')) {
+                // More moguls on double black
+                if (trail.difficulty === 'double-black') {
+                    types = ['branch', 'polarBear', 'branch', 'mogul', 'mogul', 'branch'];
+                } else {
+                    types = ['branch', 'polarBear', 'branch', 'branch', 'mogul'];
+                }
+            }
+
+            const type = types[Math.floor(Math.random() * types.length)];
+
+            // Spawn in lanes (vertical positions)
+            const laneHeight = canvas.height / 5;
+            const lane = Math.floor(Math.random() * 4) + 0.5; // Avoid very top and bottom
+            const y = laneHeight * lane + laneHeight / 2;
+
+            // Moguls spawn across the full width of the path
+            if (type === 'mogul') {
+                obstacles.push({
+                    x: -120,
+                    y: canvas.height / 2,
+                    type: type,
+                    width: 120,
+                    height: canvas.height - 60,
+                    frame: 0,
+                    jumped: false,
+                    warningShown: false
+                });
+            } else {
+                obstacles.push({
+                    x: -80,
+                    y: y,
+                    type: type,
+                    width: type === 'branch' ? 50 : 60,
+                    height: type === 'branch' ? 40 : 50,
+                    frame: 0
+                });
+            }
+        }
+
+        function spawnCoin() {
+            // Spawn coins at random vertical positions
+            const laneHeight = canvas.height / 6;
+            const lane = Math.floor(Math.random() * 5) + 0.5;
+            const y = laneHeight * lane + laneHeight / 2;
+
+            coins.push({
+                x: -40,
+                y: y,
+                rotation: 0,
+                collected: false
+            });
+        }
+
+        // Draw spinning coin
+        function drawCoin(x, y, rotation) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Coin glow
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Coin squish for rotation effect
+            const scaleX = Math.cos(rotation);
+            ctx.scale(Math.abs(scaleX) * 0.5 + 0.5, 1);
+
+            // Outer coin
+            const gradient = ctx.createRadialGradient(-3, -3, 0, 0, 0, 18);
+            gradient.addColorStop(0, '#fff176');
+            gradient.addColorStop(0.3, '#ffd700');
+            gradient.addColorStop(0.7, '#ffc107');
+            gradient.addColorStop(1, '#ff8f00');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, 18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Coin border
+            ctx.strokeStyle = '#ff8f00';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Inner circle
+            ctx.strokeStyle = '#ffb300';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Dollar sign or star
+            if (Math.abs(scaleX) > 0.3) {
+                ctx.fillStyle = '#ff8f00';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('$', 0, 1);
+            }
+
+            ctx.restore();
+        }
+
+        // Draw coin collect effect
+        function drawCoinEffect(effect) {
+            ctx.save();
+            ctx.translate(effect.x, effect.y);
+            ctx.globalAlpha = effect.alpha;
+
+            // Expanding ring
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, effect.radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Sparkles
+            ctx.fillStyle = '#fff176';
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2 + effect.radius * 0.1;
+                const sparkleX = Math.cos(angle) * effect.radius * 0.8;
+                const sparkleY = Math.sin(angle) * effect.radius * 0.8;
+                ctx.beginPath();
+                ctx.arc(sparkleX, sparkleY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // +1 text floating up
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('+1', 0, -effect.radius - 10);
+
+            ctx.restore();
+        }
+
+        // Draw player as triangle pointing LEFT (going downhill left)
+        function drawPlayer(x, y) {
+            const boardColors = getSelectedBoardColors();
+
+            // Handle jump animation
+            if (isJumping) {
+                jumpHeight = Math.min(jumpHeight + 3, 40);
+            } else {
+                jumpHeight = Math.max(jumpHeight - 2, 0);
+            }
+
+            ctx.save();
+            ctx.translate(x, y - jumpHeight);
+
+            // Jump effect - show "JUMP!" text and motion lines when jumping
+            if (jumpHeight > 10) {
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('JUMP!', 0, -50);
+
+                // Motion lines
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(20 + i * 10, 30 + jumpHeight);
+                    ctx.lineTo(40 + i * 10, 35 + jumpHeight);
+                    ctx.stroke();
+                }
+            }
+
+            // Snow spray behind (less when jumping)
+            if (jumpHeight < 20) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                for (let i = 0; i < 5; i++) {
+                    const sprayX = 30 + Math.random() * 20;
+                    const sprayY = (Math.random() - 0.5) * 30;
+                    ctx.beginPath();
+                    ctx.arc(sprayX, sprayY + jumpHeight, 3 + Math.random() * 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Shadow (moves away and shrinks when jumping)
+            ctx.fillStyle = 'rgba(0,0,0,' + (0.3 - jumpHeight * 0.005) + ')';
+            ctx.beginPath();
+            ctx.ellipse(5, 25 + jumpHeight, 25 - jumpHeight * 0.3, 8 - jumpHeight * 0.1, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Trail marks
+            ctx.strokeStyle = 'rgba(200, 230, 255, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(25, -8);
+            ctx.lineTo(70, -8);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(25, 8);
+            ctx.lineTo(70, 8);
+            ctx.stroke();
+
+            // Main triangle body (pointing LEFT - downhill direction)
+            ctx.fillStyle = boardColors.main;
+            ctx.beginPath();
+            ctx.moveTo(-30, 0);    // Left point (front, going downhill)
+            ctx.lineTo(25, -22);   // Top right
+            ctx.lineTo(25, 22);    // Bottom right
+            ctx.closePath();
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = boardColors.border;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Inner triangle design
+            ctx.fillStyle = boardColors.accent;
+            ctx.beginPath();
+            ctx.moveTo(-15, 0);
+            ctx.lineTo(12, -12);
+            ctx.lineTo(12, 12);
+            ctx.closePath();
+            ctx.fill();
+
+            // Person on board (small circle for head)
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.arc(5, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Goggles
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(-3, -4, 10, 6);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(-2, -3, 4, 4);
+            ctx.fillRect(3, -3, 4, 4);
+
+            // Arms stretched back
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(8, -5);
+            ctx.lineTo(22, -12);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(8, 5);
+            ctx.lineTo(22, 12);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Draw branch obstacle (oriented for side-scrolling)
+        function drawBranch(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(0, 25, 25, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Main branch (vertical orientation)
+            ctx.strokeStyle = '#5d4037';
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(0, -30);
+            ctx.lineTo(0, 30);
+            ctx.stroke();
+
+            // Smaller branches
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(-20, -25);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(20, -10);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, 15);
+            ctx.lineTo(-15, 25);
+            ctx.stroke();
+
+            // Twigs
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#6d4c41';
+            ctx.beginPath();
+            ctx.moveTo(-20, -25);
+            ctx.lineTo(-28, -30);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(20, -10);
+            ctx.lineTo(28, -15);
+            ctx.stroke();
+
+            // Snow on branch
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.ellipse(-5, -20, 8, 4, 0.3, 0, Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(5, 5, 6, 3, -0.2, 0, Math.PI);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Draw mogul obstacle (bumpy snow mounds across the trail)
+        function drawMogul(x, y, jumped) {
+            ctx.save();
+            ctx.translate(x, 0);
+
+            // Draw multiple rows of snow bumps across the full height
+            const rows = 7;
+            const cols = 3;
+            const bumpHeight = 25;
+            const bumpWidth = 30;
+            const rowSpacing = canvas.height / (rows + 1);
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const bumpX = col * 35 - 30;
+                    const bumpY = rowSpacing * (row + 1) + (col % 2) * 20;
+
+                    // Shadow
+                    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                    ctx.beginPath();
+                    ctx.ellipse(bumpX + 10, bumpY + 18, bumpWidth - 5, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Main bump (snow mound)
+                    const gradient = ctx.createRadialGradient(bumpX, bumpY - 5, 0, bumpX, bumpY, bumpWidth);
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(0.4, '#e8f4f8');
+                    gradient.addColorStop(0.8, '#c5dde8');
+                    gradient.addColorStop(1, '#a8c8d8');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.ellipse(bumpX, bumpY, bumpWidth, bumpHeight, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Snow highlight on top
+                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                    ctx.beginPath();
+                    ctx.ellipse(bumpX - 5, bumpY - 12, 12, 6, -0.3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Icy blue tint at base
+                    ctx.fillStyle = 'rgba(100, 180, 220, 0.4)';
+                    ctx.beginPath();
+                    ctx.ellipse(bumpX + 5, bumpY + 15, 18, 10, 0, 0, Math.PI);
+                    ctx.fill();
+                }
+            }
+
+            // Warning pole on the side
+            ctx.fillStyle = '#ff6600';
+            ctx.fillRect(-55, 50, 8, canvas.height - 100);
+
+            // Warning signs
+            ctx.fillStyle = '#ffff00';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 4; i++) {
+                const signY = 80 + i * 100;
+                ctx.beginPath();
+                ctx.moveTo(-51, signY - 15);
+                ctx.lineTo(-35, signY);
+                ctx.lineTo(-51, signY + 15);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('!', -47, signY + 5);
+                ctx.fillStyle = '#ffff00';
+            }
+
+            // "MOGULS" text at top
+            ctx.fillStyle = '#ff6600';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('MOGULS', 20, 30);
+
+            ctx.restore();
+        }
+
+        // Draw polar bear on skis (facing left, going downhill)
+        function drawPolarBear(x, y, frame) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Ski animation wobble
+            const wobble = Math.sin(frame * 0.2) * 3;
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(0, 35, 30, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Skis (horizontal, pointing left)
+            ctx.fillStyle = '#e74c3c';
+            ctx.save();
+            ctx.translate(0, 28 + wobble * 0.5);
+            ctx.beginPath();
+            ctx.ellipse(0, -5, 35, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(0, 5, 35, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Body
+            ctx.fillStyle = '#f5f5f5';
+            ctx.beginPath();
+            ctx.ellipse(5, 5, 25, 22, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body shading
+            ctx.fillStyle = '#e0e0e0';
+            ctx.beginPath();
+            ctx.ellipse(10, 8, 15, 14, 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head (facing left)
+            ctx.fillStyle = '#f5f5f5';
+            ctx.beginPath();
+            ctx.ellipse(-18, -5, 18, 16, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ears
+            ctx.beginPath();
+            ctx.arc(-22, -22, 7, 0, Math.PI * 2);
+            ctx.arc(-8, -22, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Inner ears
+            ctx.fillStyle = '#ffcccc';
+            ctx.beginPath();
+            ctx.arc(-22, -22, 4, 0, Math.PI * 2);
+            ctx.arc(-8, -22, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Snout (pointing left)
+            ctx.fillStyle = '#e0e0e0';
+            ctx.beginPath();
+            ctx.ellipse(-30, -2, 10, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Nose
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.ellipse(-38, -2, 4, 3, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(-22, -8, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eye shine
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(-23, -9, 1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ski poles
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+
+            // Arms holding poles forward
+            ctx.beginPath();
+            ctx.moveTo(-5, 0);
+            ctx.lineTo(-35 - wobble, 20);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(15, 5);
+            ctx.lineTo(-10 + wobble, 25);
+            ctx.stroke();
+
+            // Pole baskets
+            ctx.fillStyle = '#f39c12';
+            ctx.beginPath();
+            ctx.arc(-35 - wobble, 20, 4, 0, Math.PI * 2);
+            ctx.arc(-10 + wobble, 25, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Scarf flowing back (to the right)
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.ellipse(-10, -5, 12, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Scarf tail (flowing right/behind)
+            ctx.fillStyle = '#c0392b';
+            ctx.beginPath();
+            ctx.moveTo(0, -5);
+            ctx.quadraticCurveTo(20 + wobble, -8, 25 + wobble, 0);
+            ctx.quadraticCurveTo(20, 5, 5, -3);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawSnowmobile(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Headlight glow (pointing left)
+            ctx.fillStyle = 'rgba(255, 255, 100, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(-40, -15);
+            ctx.lineTo(-120, -40);
+            ctx.lineTo(-120, 40);
+            ctx.lineTo(-40, 15);
+            ctx.closePath();
+            ctx.fill();
+
+            // Track
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.ellipse(20, 0, 12, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Track treads
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            for (let i = -25; i < 25; i += 7) {
+                ctx.beginPath();
+                ctx.moveTo(12, i);
+                ctx.lineTo(28, i);
+                ctx.stroke();
+            }
+
+            // Skis at front
+            ctx.fillStyle = '#444';
+            ctx.beginPath();
+            ctx.ellipse(-30, -12, 25, 5, 0, 0, Math.PI * 2);
+            ctx.ellipse(-30, 12, 25, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body
+            ctx.fillStyle = '#c0392b';
+            ctx.beginPath();
+            ctx.moveTo(-35, -20);
+            ctx.lineTo(-40, 0);
+            ctx.lineTo(-35, 20);
+            ctx.lineTo(30, 20);
+            ctx.lineTo(40, 0);
+            ctx.lineTo(30, -20);
+            ctx.closePath();
+            ctx.fill();
+
+            // Windshield
+            ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
+            ctx.beginPath();
+            ctx.moveTo(-35, -15);
+            ctx.lineTo(-50, -10);
+            ctx.lineTo(-50, 10);
+            ctx.lineTo(-35, 15);
+            ctx.closePath();
+            ctx.fill();
+
+            // Headlights
+            ctx.fillStyle = '#ffeb3b';
+            ctx.beginPath();
+            ctx.arc(-40, -10, 5, 0, Math.PI * 2);
+            ctx.arc(-40, 10, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Driver
+            ctx.fillStyle = '#2c3e50';
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Driver helmet visor (facing left)
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(-5, 0, 8, Math.PI * 0.5, Math.PI * 1.5);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawMovingMountain() {
+            // Update offset for scrolling
+            mountainOffset += speed;
+
+            // Sky gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#1a237e');
+            skyGrad.addColorStop(0.4, '#3949ab');
+            skyGrad.addColorStop(1, '#7986cb');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Sun in top left
+            ctx.fillStyle = '#fff59d';
+            ctx.beginPath();
+            ctx.arc(60, 50, 30, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255, 245, 157, 0.3)';
+            ctx.beginPath();
+            ctx.arc(60, 50, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Distant mountains (slow parallax)
+            const distantSpeed = mountainOffset * 0.1;
+            ctx.fillStyle = '#5c6bc0';
+            ctx.beginPath();
+            ctx.moveTo(0, 120);
+            for (let i = 0; i < canvas.width + 200; i += 150) {
+                const x = ((i - distantSpeed) % (canvas.width + 200)) - 100;
+                ctx.lineTo(x, 50 + Math.sin(i * 0.02) * 30);
+                ctx.lineTo(x + 75, 100 + Math.sin(i * 0.02 + 1) * 20);
+            }
+            ctx.lineTo(canvas.width, 120);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow caps on distant mountains
+            ctx.fillStyle = '#e8eaf6';
+            const capSpeed = mountainOffset * 0.1;
+            for (let i = 0; i < canvas.width + 200; i += 150) {
+                const x = ((i - capSpeed) % (canvas.width + 200)) - 100;
+                const peakY = 50 + Math.sin(i * 0.02) * 30;
+                ctx.beginPath();
+                ctx.moveTo(x, peakY);
+                ctx.lineTo(x - 20, peakY + 25);
+                ctx.lineTo(x + 20, peakY + 25);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Mid mountains
+            const midSpeed = mountainOffset * 0.3;
+            ctx.fillStyle = '#7986cb';
+            ctx.beginPath();
+            ctx.moveTo(0, 160);
+            for (let i = 0; i < canvas.width + 150; i += 100) {
+                const x = ((i - midSpeed) % (canvas.width + 150)) - 75;
+                ctx.lineTo(x, 90 + Math.sin(i * 0.03) * 25);
+                ctx.lineTo(x + 50, 140 + Math.sin(i * 0.03 + 1) * 15);
+            }
+            ctx.lineTo(canvas.width, 160);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow slope (angled to show downhill left)
+            ctx.fillStyle = '#e3f2fd';
+            ctx.beginPath();
+            ctx.moveTo(0, 140);
+            ctx.lineTo(canvas.width, 180);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Slope texture lines (moving right to left)
+            ctx.strokeStyle = 'rgba(144, 202, 249, 0.5)';
+            ctx.lineWidth = 2;
+            const lineOffset = mountainOffset % 100;
+            for (let x = canvas.width + lineOffset; x > -100; x -= 100) {
+                ctx.beginPath();
+                ctx.moveTo(x, 150);
+                ctx.lineTo(x - 50, canvas.height);
+                ctx.stroke();
+            }
+
+            // Moving trees at top edge
+            const treeOffset = mountainOffset % 200;
+            for (let x = canvas.width + 100 - treeOffset; x > -100; x -= 200) {
+                drawBackgroundTree(x, 135);
+            }
+
+            // Moving trees at bottom edge
+            for (let x = canvas.width + 150 - treeOffset; x > -100; x -= 180) {
+                drawBackgroundTree(x, canvas.height - 20);
+            }
+        }
+
+        function drawBackgroundTree(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            const scale = y > 200 ? 0.8 : 0.6;
+            ctx.scale(scale, scale);
+
+            // Trunk
+            ctx.fillStyle = '#5d4037';
+            ctx.fillRect(-4, -10, 8, 25);
+
+            // Pine layers
+            ctx.fillStyle = '#2e7d32';
+            ctx.beginPath();
+            ctx.moveTo(0, -45);
+            ctx.lineTo(-18, -10);
+            ctx.lineTo(18, -10);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(0, -35);
+            ctx.lineTo(-22, 0);
+            ctx.lineTo(22, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(0, -45);
+            ctx.lineTo(-8, -30);
+            ctx.lineTo(8, -30);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function updateSnowflakes() {
+            for (const flake of snowflakes) {
+                // Snow moves right to left (with the wind going downhill)
+                flake.x -= flake.speed + speed * 0.5;
+                flake.y += Math.sin(frameCount * 0.02 + flake.x * 0.01) * 0.5;
+
+                if (flake.x < -10) {
+                    flake.x = canvas.width + 10;
+                    flake.y = Math.random() * canvas.height;
+                }
+            }
+        }
+
+        function drawSnowflakes() {
+            ctx.fillStyle = '#fff';
+            for (const flake of snowflakes) {
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function checkCollision(px, py, obstacle) {
+            const playerWidth = 50;
+            const playerHeight = 40;
+
+            return (
+                px - playerWidth / 2 < obstacle.x + obstacle.width / 2 &&
+                px + playerWidth / 2 > obstacle.x - obstacle.width / 2 &&
+                py - playerHeight / 2 < obstacle.y + obstacle.height / 2 &&
+                py + playerHeight / 2 > obstacle.y - obstacle.height / 2
+            );
+        }
+
+        function gameOver(cause) {
+            gameRunning = false;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalDistance').textContent = Math.floor(distance);
+            document.getElementById('finalCoins').textContent = coinCount;
+            document.getElementById('cause').textContent = cause;
+            document.getElementById('warning').style.display = 'none';
+            document.getElementById('chaseTimer').style.display = 'none';
+
+            // Add collected coins to total
+            totalCoins += coinCount;
+            localStorage.setItem('snowBoarderTotalCoins', totalCoins);
+            updateStartScreenCoins();
+
+            if (distance > bestDistance) {
+                bestDistance = Math.floor(distance);
+                localStorage.setItem('snowBoarderBest', bestDistance);
+                document.getElementById('best').textContent = bestDistance;
+            }
+        }
+
+        function update() {
+            frameCount++;
+            distance += speed * 0.15;
+
+            // Increase speed over time
+            speed = 6 + distance * 0.003;
+            if (speed > 14) speed = 14;
+
+            // Player movement (up/down)
+            const moveSpeed = 6;
+            if (moveUp) {
+                targetY -= moveSpeed;
+            }
+            if (moveDown) {
+                targetY += moveSpeed;
+            }
+
+            // Keep player in bounds
+            targetY = Math.max(60, Math.min(canvas.height - 60, targetY));
+
+            // Smooth movement
+            playerY += (targetY - playerY) * 0.12;
+
+            // Spawn obstacles from the left (using trail-specific rate)
+            if (Math.random() < obstacleSpawnRate) {
+                spawnObstacle();
+            }
+
+            // Spawn coins (using trail-specific rate)
+            if (Math.random() < coinSpawnRate) {
+                spawnCoin();
+            }
+
+            // Update obstacles (moving right)
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].x += speed;
+                obstacles[i].frame++;
+
+                // Special handling for moguls
+                if (obstacles[i].type === 'mogul') {
+                    // Show warning when mogul is approaching (when it's at a certain distance)
+                    if (!obstacles[i].warningShown && obstacles[i].x > playerX - 400 && obstacles[i].x < playerX - 100) {
+                        obstacles[i].warningShown = true;
+                        mogulApproaching = obstacles[i];
+                        mogulTimer = 5;
+                        document.getElementById('mogulWarning').style.display = 'block';
+                        document.getElementById('mogulTimer').textContent = '5';
+                    }
+
+                    // Update mogul timer
+                    if (mogulApproaching === obstacles[i]) {
+                        mogulTimer -= 1/60; // Decrease by frame time
+                        const displayTime = Math.ceil(mogulTimer);
+                        document.getElementById('mogulTimer').textContent = displayTime;
+
+                        if (mogulTimer <= 0 && !obstacles[i].jumped) {
+                            // Time ran out, didn't jump - hit the mogul
+                            document.getElementById('mogulWarning').style.display = 'none';
+                            mogulApproaching = null;
+                            obstacles.splice(i, 1);
+
+                            if (beingChased) {
+                                gameOver('You crashed into the moguls! The snowmobile caught you!');
+                                return;
+                            } else {
+                                beingChased = true;
+                                chaseTimer = 10;
+                                snowmobileX = canvas.width + 100;
+                                document.getElementById('warning').style.display = 'block';
+                                document.getElementById('chaseTimer').style.display = 'block';
+                            }
+                            continue;
+                        }
+                    }
+
+                    // If jumped, pass through safely
+                    if (obstacles[i].jumped && obstacles[i].x > playerX) {
+                        // Successfully jumped over mogul
+                        isJumping = false;
+                    }
+
+                    // Remove off-screen moguls
+                    if (obstacles[i].x > canvas.width + 150) {
+                        if (mogulApproaching === obstacles[i]) {
+                            mogulApproaching = null;
+                            document.getElementById('mogulWarning').style.display = 'none';
+                        }
+                        obstacles.splice(i, 1);
+                    }
+                    continue;
+                }
+
+                // Check collision for non-mogul obstacles (skip if jumping over mogul)
+                if (!isJumping && jumpHeight < 10 && checkCollision(playerX, playerY, obstacles[i])) {
+                    const hitType = obstacles[i].type === 'branch' ? 'a branch' : 'a polar bear';
+                    obstacles.splice(i, 1);
+
+                    if (beingChased) {
+                        gameOver(`You hit ${hitType}! The snowmobile caught you!`);
+                        return;
+                    } else {
+                        beingChased = true;
+                        chaseTimer = 10;
+                        snowmobileX = canvas.width + 100;
+                        document.getElementById('warning').style.display = 'block';
+                        document.getElementById('chaseTimer').style.display = 'block';
+                    }
+                    continue;
+                }
+
+                // Remove off-screen obstacles
+                if (obstacles[i].x > canvas.width + 100) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Update coins (moving right)
+            for (let i = coins.length - 1; i >= 0; i--) {
+                coins[i].x += speed;
+                coins[i].rotation += 0.15; // Spin the coin
+
+                // Check coin collection
+                const coinDist = Math.sqrt(
+                    Math.pow(playerX - coins[i].x, 2) +
+                    Math.pow(playerY - coins[i].y, 2)
+                );
+
+                if (coinDist < 40) {
+                    // Collect coin!
+                    coinCount++;
+                    document.getElementById('coins').textContent = coinCount;
+
+                    // Add collect effect
+                    coinCollectEffects.push({
+                        x: coins[i].x,
+                        y: coins[i].y,
+                        radius: 10,
+                        alpha: 1
+                    });
+
+                    coins.splice(i, 1);
+                    continue;
+                }
+
+                // Remove off-screen coins
+                if (coins[i].x > canvas.width + 50) {
+                    coins.splice(i, 1);
+                }
+            }
+
+            // Update coin collect effects
+            for (let i = coinCollectEffects.length - 1; i >= 0; i--) {
+                coinCollectEffects[i].radius += 3;
+                coinCollectEffects[i].alpha -= 0.05;
+                coinCollectEffects[i].x += speed; // Move with the world
+
+                if (coinCollectEffects[i].alpha <= 0) {
+                    coinCollectEffects.splice(i, 1);
+                }
+            }
+
+            // Chase mechanic - snowmobile comes from behind (right side)
+            if (beingChased) {
+                const targetX = playerX + 80;
+                snowmobileX += (targetX - snowmobileX) * 0.02;
+                snowmobileY += (playerY - snowmobileY) * 0.03;
+
+                // Check if snowmobile hits a branch, polar bear, or mogul
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obs = obstacles[i];
+                    if (obs.type === 'branch' || obs.type === 'polarBear' || obs.type === 'mogul') {
+                        const dx = snowmobileX - obs.x;
+                        const dy = snowmobileY - obs.y;
+
+                        // Moguls are tall, so check x distance and if snowmobile is within the mogul's height
+                        let crashed = false;
+                        if (obs.type === 'mogul') {
+                            if (Math.abs(dx) < 80 && snowmobileY > 30 && snowmobileY < canvas.height - 30) {
+                                crashed = true;
+                            }
+                        } else {
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const hitDist = obs.type === 'polarBear' ? 60 : 50;
+                            if (dist < hitDist) {
+                                crashed = true;
+                            }
+                        }
+
+                        if (crashed) {
+                            // Snowmobile crashed!
+                            let crashedInto = 'a tree';
+                            if (obs.type === 'polarBear') crashedInto = 'a polar bear';
+                            if (obs.type === 'mogul') crashedInto = 'the moguls';
+
+                            beingChased = false;
+
+                            // Start crash animation
+                            snowmobileCrashing = true;
+                            crashX = snowmobileX;
+                            crashY = snowmobileY;
+                            crashRotation = 0;
+                            crashTimer = 60; // 1 second animation
+
+                            // Create debris particles
+                            crashDebris = [];
+                            for (let d = 0; d < 15; d++) {
+                                crashDebris.push({
+                                    x: crashX,
+                                    y: crashY,
+                                    vx: (Math.random() - 0.5) * 15,
+                                    vy: (Math.random() - 0.5) * 15 - 5,
+                                    size: Math.random() * 10 + 5,
+                                    color: ['#333', '#555', '#e74c3c', '#f39c12', '#777'][Math.floor(Math.random() * 5)],
+                                    rotation: Math.random() * Math.PI * 2
+                                });
+                            }
+
+                            // Add snow explosion
+                            for (let s = 0; s < 20; s++) {
+                                crashDebris.push({
+                                    x: crashX,
+                                    y: crashY,
+                                    vx: (Math.random() - 0.5) * 12,
+                                    vy: (Math.random() - 0.5) * 12,
+                                    size: Math.random() * 8 + 3,
+                                    color: '#fff',
+                                    rotation: 0,
+                                    isSnow: true
+                                });
+                            }
+
+                            if (obs.type !== 'mogul') {
+                                obstacles.splice(i, 1); // Remove the obstacle (but keep moguls)
+                            }
+                            document.getElementById('warning').style.display = 'none';
+                            document.getElementById('chaseTimer').style.display = 'none';
+
+                            // Show crash message briefly
+                            const warning = document.getElementById('warning');
+                            warning.textContent = `SNOWMOBILE HIT ${crashedInto.toUpperCase()}!`;
+                            warning.style.display = 'block';
+                            warning.style.color = '#4ecca3';
+                            setTimeout(() => {
+                                warning.style.display = 'none';
+                                warning.textContent = 'SNOWMOBILE CHASING!';
+                                warning.style.color = '#ff4444';
+                            }, 1500);
+                            break;
+                        }
+                    }
+                }
+
+                if (frameCount % 60 === 0) {
+                    chaseTimer--;
+                    document.getElementById('escapeTime').textContent = chaseTimer;
+
+                    if (chaseTimer <= 0) {
+                        beingChased = false;
+                        document.getElementById('warning').style.display = 'none';
+                        document.getElementById('chaseTimer').style.display = 'none';
+                    }
+                }
+            } else {
+                snowmobileX += 5;
+                if (snowmobileX > canvas.width + 150) snowmobileX = canvas.width + 150;
+            }
+
+            updateSnowflakes();
+            document.getElementById('distance').textContent = Math.floor(distance);
+        }
+
+        function draw() {
+            drawMovingMountain();
+
+            // Draw coins
+            for (const coin of coins) {
+                drawCoin(coin.x, coin.y, coin.rotation);
+            }
+
+            // Draw coin collect effects
+            for (const effect of coinCollectEffects) {
+                drawCoinEffect(effect);
+            }
+
+            // Draw obstacles (sorted by X for depth, further left = further away)
+            obstacles.sort((a, b) => a.x - b.x);
+            for (const obs of obstacles) {
+                if (obs.type === 'branch') {
+                    drawBranch(obs.x, obs.y);
+                } else if (obs.type === 'polarBear') {
+                    drawPolarBear(obs.x, obs.y, obs.frame);
+                } else if (obs.type === 'mogul') {
+                    drawMogul(obs.x, obs.y, obs.jumped);
+                }
+            }
+
+            // Draw snowmobile if chasing (from the right/behind)
+            if (beingChased || snowmobileX < canvas.width + 100) {
+                drawSnowmobile(snowmobileX, snowmobileY);
+            }
+
+            // Draw crash animation
+            if (snowmobileCrashing) {
+                // Update crash animation
+                crashTimer--;
+                crashRotation += 0.3;
+                crashX += speed; // Move with the world
+
+                // Draw spinning crashed snowmobile
+                ctx.save();
+                ctx.translate(crashX, crashY);
+                ctx.rotate(crashRotation);
+                ctx.globalAlpha = crashTimer / 60;
+
+                // Simplified crashed snowmobile shape
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-25, -10, 50, 20);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(-20, -15, 15, 10);
+
+                ctx.restore();
+
+                // Update and draw debris
+                for (let d = crashDebris.length - 1; d >= 0; d--) {
+                    const debris = crashDebris[d];
+                    debris.x += debris.vx + speed;
+                    debris.y += debris.vy;
+                    debris.vy += 0.3; // Gravity
+                    debris.rotation += 0.1;
+
+                    ctx.save();
+                    ctx.translate(debris.x, debris.y);
+                    ctx.rotate(debris.rotation);
+                    ctx.globalAlpha = crashTimer / 60;
+
+                    if (debris.isSnow) {
+                        // Snow particles
+                        ctx.fillStyle = debris.color;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, debris.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        // Metal/parts debris
+                        ctx.fillStyle = debris.color;
+                        ctx.fillRect(-debris.size / 2, -debris.size / 2, debris.size, debris.size);
+                    }
+
+                    ctx.restore();
+
+                    // Remove debris that's off screen
+                    if (debris.y > canvas.height + 50) {
+                        crashDebris.splice(d, 1);
+                    }
+                }
+
+                // End crash animation
+                if (crashTimer <= 0) {
+                    snowmobileCrashing = false;
+                    crashDebris = [];
+                }
+            }
+
+            // Draw player
+            drawPlayer(playerX, playerY);
+
+            // Draw snowflakes on top
+            drawSnowflakes();
+
+            // Chase vignette effect
+            if (beingChased) {
+                const gradient = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, canvas.height * 0.3,
+                    canvas.width / 2, canvas.height / 2, canvas.height
+                );
+                gradient.addColorStop(0, 'rgba(255, 0, 0, 0)');
+                gradient.addColorStop(1, 'rgba(255, 0, 0, 0.2)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            update();
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Keyboard controls (Up/Down now)
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    moveUp = true;
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    moveDown = true;
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    // Jump over mogul
+                    if (mogulApproaching && !isJumping) {
+                        isJumping = true;
+                        mogulApproaching.jumped = true;
+                        document.getElementById('mogulWarning').style.display = 'none';
+                        mogulApproaching = null;
+                        mogulTimer = 0;
+                    }
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    moveUp = false;
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    moveDown = false;
+                    break;
+            }
+        });
+
+        // Touch controls (left/right sides to move, center tap to jump)
+        let touchStartY = 0;
+        let touchStartX = 0;
+        let touchStartTime = 0;
+        let activeTouches = {};
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+
+                activeTouches[touch.identifier] = { x: touchX, y: touchY, startY: touchY };
+
+                // Check for center tap (jump for moguls)
+                if (touchX > screenThird && touchX < screenThird * 2) {
+                    // Center zone - trigger jump for mogul
+                    if (gameRunning && mogulApproaching && !isJumping) {
+                        isJumping = true;
+                        mogulApproaching.jumped = true;
+                        document.getElementById('mogulWarning').style.display = 'none';
+                        mogulApproaching = null;
+                        mogulTimer = 0;
+                    }
+                } else if (touchX < screenThird) {
+                    // Left third - move up
+                    moveUp = true;
+                    moveDown = false;
+                } else {
+                    // Right third - move down
+                    moveDown = true;
+                    moveUp = false;
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!gameRunning) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const screenThird = rect.width / 3;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+
+                const oldTouch = activeTouches[touch.identifier];
+                if (oldTouch) {
+                    // Also support swipe up/down for traditional control
+                    const deltaY = touchY - oldTouch.startY;
+
+                    if (deltaY < -30) {
+                        moveUp = true;
+                        moveDown = false;
+                    } else if (deltaY > 30) {
+                        moveDown = true;
+                        moveUp = false;
+                    }
+                }
+
+                activeTouches[touch.identifier] = { x: touchX, y: touchY, startY: oldTouch ? oldTouch.startY : touchY };
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                delete activeTouches[touch.identifier];
+            }
+
+            // Only reset movement if no touches remain
+            if (Object.keys(activeTouches).length === 0) {
+                moveUp = false;
+                moveDown = false;
+            }
+        });
+
+        // Initial draw
+        drawMovingMountain();
+        for (let i = 0; i < 60; i++) {
+            snowflakes.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 3 + 1,
+                speed: Math.random() * 2 + 1
+            });
+        }
+        drawSnowflakes();
+        drawPlayer(playerX, canvas.height / 2);
+    </script>
+</body>
+</html>

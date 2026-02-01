@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ice Dodger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a3a5c 0%, #0d1b2a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(100, 200, 255, 0.3);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #87ceeb;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        #ui.visible {
+            opacity: 1;
+        }
+        #startScreen, #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 20, 40, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 52px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #87ceeb, #00bfff, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #87ceeb;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #00bfff, #87ceeb);
+            color: #000;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(135, 206, 235, 0.5);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #888;
+        }
+        .high-score {
+            color: #00bfff;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .story {
+            font-size: 14px;
+            color: #6ab7d4;
+            margin-bottom: 20px;
+            font-style: italic;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div id="scoreDisplay">Score: 0</div>
+        </div>
+
+        <div id="startScreen">
+            <h1>ICE DODGER</h1>
+            <p class="story">Your boat went over a frozen waterfall!</p>
+            <p class="story">Stay on the rock! Dodge the falling ice and avoid the roaming penguins!</p>
+            <div class="controls">
+                <p>Arrow Left/Right or A/D - Move on the rock</p>
+                <p>Space - Jump</p>
+            </div>
+            <div class="high-score" id="highScoreDisplay"></div>
+            <button onclick="startIntro()">Start Game</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2 id="deathMessage">Frozen!</h2>
+            <p id="finalScore"></p>
+            <div class="high-score" id="gameOverHighScore"></div>
+            <button onclick="startIntro()">Try Again</button>
+            <button onclick="backToMenu()">Main Menu</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Rock platform
+        const rock = {
+            x: canvas.width / 2 - 100,
+            y: canvas.height - 100,
+            width: 200,
+            height: 60
+        };
+
+        // Boat for intro
+        let boat = {
+            x: canvas.width / 2,
+            y: -60,
+            width: 80,
+            height: 35,
+            vy: 0,
+            vx: 0,
+            rotation: 0,
+            rotationSpeed: 0,
+            visible: false
+        };
+
+        // Game state
+        let player = {
+            x: canvas.width / 2,
+            y: rock.y - 25,
+            width: 40,
+            height: 50,
+            speed: 5,
+            vx: 0,
+            vy: 0,
+            rotation: 0,
+            rotationSpeed: 0,
+            onBoat: false,
+            isJumping: false,
+            groundY: rock.y - 25,
+            jumpPower: -12,
+            gravity: 0.5
+        };
+
+        let iceChunks = [];
+        let penguins = [];
+        let particles = [];
+        let waterfallDrops = [];
+        let gameRunning = false;
+        let score = 0;
+        let highScore = 0;
+        let difficulty = 1;
+        let spawnTimer = 0;
+        let penguinSpawnTimer = 0;
+
+        // Intro animation state
+        let introPlaying = false;
+        let introPhase = 0;
+        let introTimer = 0;
+        let introText = '';
+        let introTextAlpha = 0;
+        let cameraShake = 0;
+        let cameraY = 0; // For scrolling effect
+
+        // Waterfall animation
+        let waterfallOffset = 0;
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Load saved data
+        function loadSaveData() {
+            const saved = localStorage.getItem('iceDodgerSave');
+            if (saved) {
+                const data = JSON.parse(saved);
+                highScore = data.highScore || 0;
+            }
+            updateHighScoreDisplay();
+        }
+
+        function saveData() {
+            const data = {
+                highScore: highScore
+            };
+            localStorage.setItem('iceDodgerSave', JSON.stringify(data));
+        }
+
+        function updateHighScoreDisplay() {
+            document.getElementById('highScoreDisplay').textContent = highScore > 0 ? `High Score: ${highScore}` : '';
+        }
+
+        function spawnIce() {
+            const size = 30 + Math.random() * 40;
+            const xMin = 200;
+            const xMax = 600 - size;
+            iceChunks.push({
+                x: xMin + Math.random() * (xMax - xMin),
+                y: -size,
+                width: size,
+                height: size * 0.7,
+                speed: 2 + Math.random() * 2 + difficulty * 0.5,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.1,
+                type: Math.floor(Math.random() * 3)
+            });
+        }
+
+        function spawnPenguin() {
+            const side = Math.random() < 0.5 ? -60 : canvas.width + 60;
+            const direction = side < 0 ? 1 : -1;
+            penguins.push({
+                x: side,
+                y: rock.y - 25,
+                width: 40,
+                height: 50,
+                speed: (1.5 + Math.random() * 1.5) * direction,
+                waddle: 0,
+                waddleSpeed: 0.2 + Math.random() * 0.1,
+                onRock: false
+            });
+        }
+
+        function createSplash(x, y) {
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: -Math.random() * 8 - 3,
+                    life: 40,
+                    size: 4 + Math.random() * 5,
+                    color: `rgba(135, 206, 235, ${0.6 + Math.random() * 0.4})`
+                });
+            }
+        }
+
+        function createIceShatter(x, y) {
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 25,
+                    size: 4 + Math.random() * 6,
+                    color: `rgba(200, 230, 255, ${0.7 + Math.random() * 0.3})`,
+                    isIce: true
+                });
+            }
+        }
+
+        function createLandingDust(x, y) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 40,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: -Math.random() * 4 - 1,
+                    life: 30,
+                    size: 5 + Math.random() * 8,
+                    color: `rgba(150, 140, 130, ${0.5 + Math.random() * 0.3})`
+                });
+            }
+        }
+
+        function createBoatDebris(x, y) {
+            // Wood splinters
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 60,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: -Math.random() * 5 - 2,
+                    life: 50,
+                    size: 6 + Math.random() * 10,
+                    color: '#8B4513',
+                    isWood: true
+                });
+            }
+        }
+
+        function createFeathers(x, y) {
+            // Black and white feathers
+            for (let i = 0; i < 10; i++) {
+                const isWhite = Math.random() > 0.5;
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 30,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: -Math.random() * 6 - 2,
+                    life: 40,
+                    size: 5 + Math.random() * 5,
+                    color: isWhite ? '#f0f0f0' : '#1a1a2e',
+                    isFeather: true
+                });
+            }
+        }
+
+        function startIntro() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('ui').classList.remove('visible');
+
+            // Reset boat for intro - starts above screen, coming down river
+            boat.x = canvas.width / 2;
+            boat.y = -100;
+            boat.vy = 2;
+            boat.vx = 0;
+            boat.rotation = 0;
+            boat.rotationSpeed = 0;
+            boat.visible = true;
+
+            // Player starts on boat
+            player.x = canvas.width / 2;
+            player.y = boat.y - 30;
+            player.vx = 0;
+            player.vy = 0;
+            player.rotation = 0;
+            player.rotationSpeed = 0;
+            player.onBoat = true;
+            player.isJumping = false;
+
+            iceChunks = [];
+            penguins = [];
+            particles = [];
+            waterfallDrops = [];
+            score = 0;
+            difficulty = 1;
+            spawnTimer = 0;
+            penguinSpawnTimer = 0;
+
+            introPlaying = true;
+            introPhase = 0;
+            introTimer = 0;
+            introText = '';
+            introTextAlpha = 0;
+            cameraShake = 0;
+            cameraY = -400; // Start camera looking at top
+
+            gameRunning = false;
+        }
+
+        function updateIntro() {
+            introTimer++;
+            waterfallOffset = (waterfallOffset + 8) % 50;
+
+            // Update waterfall drops
+            if (Math.random() < 0.5) {
+                waterfallDrops.push({
+                    x: 200 + Math.random() * 400,
+                    y: -cameraY,
+                    speed: 6 + Math.random() * 4,
+                    size: 2 + Math.random() * 3
+                });
+            }
+            for (let i = waterfallDrops.length - 1; i >= 0; i--) {
+                waterfallDrops[i].y += waterfallDrops[i].speed;
+                if (waterfallDrops[i].y > canvas.height - cameraY + 100) {
+                    waterfallDrops.splice(i, 1);
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.3;
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Phase 0: Boat floating down toward waterfall edge
+            if (introPhase === 0) {
+                boat.vy += 0.05;
+                boat.y += boat.vy;
+
+                // Player stays on boat
+                player.x = boat.x;
+                player.y = boat.y - 30;
+
+                // Camera follows boat
+                cameraY = Math.min(0, boat.y - 150);
+
+                // Boat rocks slightly
+                boat.rotation = Math.sin(introTimer * 0.1) * 0.05;
+
+                if (introTimer === 30) {
+                    introText = "Nice day for a boat ride...";
+                    introTextAlpha = 1;
+                }
+
+                // Boat reaches the edge (around y = 50)
+                if (boat.y > 30) {
+                    introPhase = 1;
+                    introTimer = 0;
+                    introText = "Wait... is that a WATERFALL?!";
+                    introTextAlpha = 1;
+                }
+            }
+
+            // Phase 1: Boat tips over the edge
+            else if (introPhase === 1) {
+                boat.vy += 0.3;
+                boat.y += boat.vy;
+                boat.rotationSpeed = 0.08;
+                boat.rotation += boat.rotationSpeed;
+
+                // Player falls off boat
+                if (introTimer === 20 && player.onBoat) {
+                    player.onBoat = false;
+                    player.vx = (Math.random() - 0.5) * 3;
+                    player.vy = boat.vy - 2;
+                    player.rotationSpeed = 0.15;
+                    introText = "AAAAAHHH!";
+                    introTextAlpha = 1;
+                }
+
+                // Update player if off boat
+                if (!player.onBoat) {
+                    player.vy += 0.4;
+                    player.x += player.vx;
+                    player.y += player.vy;
+                    player.rotation += player.rotationSpeed;
+
+                    // Water splash effects
+                    if (Math.random() < 0.4) {
+                        particles.push({
+                            x: player.x + (Math.random() - 0.5) * 40,
+                            y: player.y + (Math.random() - 0.5) * 40,
+                            vx: (Math.random() - 0.5) * 5,
+                            vy: Math.random() * 3,
+                            life: 20,
+                            size: 3 + Math.random() * 5,
+                            color: 'rgba(200, 230, 255, 0.7)'
+                        });
+                    }
+                } else {
+                    player.x = boat.x + Math.sin(boat.rotation) * 20;
+                    player.y = boat.y - 30 * Math.cos(boat.rotation);
+                }
+
+                // Camera follows action, transitioning to normal view
+                const targetCameraY = Math.min(0, player.y - 300);
+                cameraY += (targetCameraY - cameraY) * 0.05;
+
+                // Boat splashes into water
+                if (boat.y > canvas.height - 80) {
+                    createSplash(boat.x, canvas.height - 50);
+                    createBoatDebris(boat.x, canvas.height - 50);
+                    boat.visible = false;
+                    cameraShake = 10;
+                }
+
+                // Player lands on rock
+                if (player.y >= rock.y - 25) {
+                    player.y = rock.y - 25;
+                    player.x = Math.max(rock.x + 40, Math.min(rock.x + rock.width - 40, player.x));
+                    player.vy = 0;
+                    player.vx = 0;
+                    player.rotation = 0;
+                    player.rotationSpeed = 0;
+                    introPhase = 2;
+                    introTimer = 0;
+                    cameraShake = 20;
+                    cameraY = 0;
+                    createLandingDust(player.x, rock.y);
+                    createSplash(player.x - 60, canvas.height - 40);
+                    createSplash(player.x + 60, canvas.height - 40);
+                }
+            }
+
+            // Phase 2: Landed, show tutorial text
+            else if (introPhase === 2) {
+                cameraShake *= 0.9;
+                cameraY = 0;
+
+                if (introTimer === 1) {
+                    introText = "OOF!";
+                    introTextAlpha = 1;
+                }
+
+                if (introTimer === 60) {
+                    introText = "Stay on the rock!";
+                    introTextAlpha = 1;
+                }
+
+                if (introTimer === 140) {
+                    introText = "Watch out for ice!";
+                    introTextAlpha = 1;
+                }
+
+                if (introTimer === 220) {
+                    introText = "Avoid the penguins!";
+                    introTextAlpha = 1;
+                }
+
+                if (introTimer > 280) {
+                    introTextAlpha -= 0.02;
+                }
+
+                if (introTimer >= 320) {
+                    introPhase = 3;
+                    introTimer = 0;
+                }
+            }
+
+            // Phase 3: Start game
+            else if (introPhase === 3) {
+                introPlaying = false;
+                gameRunning = true;
+                boat.visible = false;
+                document.getElementById('ui').classList.add('visible');
+            }
+
+            // Fade out text
+            if (introTextAlpha > 0 && introPhase < 3) {
+                if (introTimer % 80 > 60) {
+                    introTextAlpha -= 0.03;
+                }
+            }
+        }
+
+        function update() {
+            if (introPlaying) {
+                updateIntro();
+                return;
+            }
+
+            if (!gameRunning) return;
+
+            // Update waterfall animation
+            waterfallOffset = (waterfallOffset + 8) % 50;
+
+            // Update waterfall drops
+            if (Math.random() < 0.4) {
+                waterfallDrops.push({
+                    x: 200 + Math.random() * 400,
+                    y: 0,
+                    speed: 6 + Math.random() * 4,
+                    size: 2 + Math.random() * 3
+                });
+            }
+            for (let i = waterfallDrops.length - 1; i >= 0; i--) {
+                waterfallDrops[i].y += waterfallDrops[i].speed;
+                if (waterfallDrops[i].y > canvas.height) {
+                    waterfallDrops.splice(i, 1);
+                }
+            }
+
+            // Player input
+            if (keys['ArrowLeft'] || keys['KeyA']) {
+                player.x -= player.speed;
+            }
+            if (keys['ArrowRight'] || keys['KeyD']) {
+                player.x += player.speed;
+            }
+
+            // Jump with spacebar
+            if (keys['Space'] && !player.isJumping) {
+                player.isJumping = true;
+                player.vy = player.jumpPower;
+            }
+
+            // Apply gravity when jumping
+            if (player.isJumping) {
+                player.vy += player.gravity;
+                player.y += player.vy;
+
+                // Land back on rock
+                if (player.y >= player.groundY) {
+                    player.y = player.groundY;
+                    player.vy = 0;
+                    player.isJumping = false;
+                }
+            }
+
+            // Check if player is on rock
+            const playerLeft = player.x - player.width / 2;
+            const playerRight = player.x + player.width / 2;
+            const onRock = playerLeft >= rock.x - 10 && playerRight <= rock.x + rock.width + 10;
+
+            if (!onRock) {
+                createSplash(player.x, canvas.height - 40);
+                endGame('Fell in the water!');
+                return;
+            }
+
+            // Keep player on rock bounds
+            player.x = Math.max(rock.x + player.width / 2, Math.min(rock.x + rock.width - player.width / 2, player.x));
+
+            // Spawn ice
+            spawnTimer++;
+            const spawnRate = Math.max(20, 60 - difficulty * 5);
+            if (spawnTimer >= spawnRate) {
+                spawnIce();
+                spawnTimer = 0;
+            }
+
+            // Spawn penguins
+            penguinSpawnTimer++;
+            const penguinRate = Math.max(100, 300 - difficulty * 20);
+            if (penguinSpawnTimer >= penguinRate) {
+                spawnPenguin();
+                penguinSpawnTimer = 0;
+            }
+
+            // Update ice chunks
+            for (let i = iceChunks.length - 1; i >= 0; i--) {
+                const ice = iceChunks[i];
+                ice.y += ice.speed;
+                ice.rotation += ice.rotationSpeed;
+
+                if (checkCollision(player, ice)) {
+                    createIceShatter(ice.x + ice.width / 2, ice.y + ice.height / 2);
+                    cameraShake = 10;
+                    endGame('Frozen!');
+                    return;
+                }
+
+                if (ice.y + ice.height > rock.y &&
+                    ice.x + ice.width > rock.x &&
+                    ice.x < rock.x + rock.width) {
+                    createIceShatter(ice.x + ice.width / 2, rock.y);
+                    iceChunks.splice(i, 1);
+                    continue;
+                }
+
+                if (ice.y > canvas.height - 50) {
+                    createSplash(ice.x + ice.width / 2, canvas.height - 40);
+                    iceChunks.splice(i, 1);
+                }
+            }
+
+            // Update penguins
+            for (let i = penguins.length - 1; i >= 0; i--) {
+                const penguin = penguins[i];
+                penguin.x += penguin.speed;
+                penguin.waddle += penguin.waddleSpeed;
+
+                const penguinCenter = penguin.x + penguin.width / 2;
+                penguin.onRock = penguinCenter > rock.x && penguinCenter < rock.x + rock.width;
+
+                if (penguin.onRock && checkCollision(player, penguin)) {
+                    // Check if player is jumping on top of penguin
+                    const playerBottom = player.y + player.height / 2;
+                    const penguinTop = penguin.y;
+                    const landingOnTop = player.isJumping && player.vy > 0 && playerBottom < penguinTop + 20;
+
+                    if (landingOnTop) {
+                        // Kill penguin!
+                        createFeathers(penguin.x + penguin.width / 2, penguin.y);
+                        createSplash(penguin.x + penguin.width / 2, penguin.y + penguin.height);
+                        penguins.splice(i, 1);
+                        score += 100; // Bonus points for killing penguin
+                        player.vy = player.jumpPower * 0.7; // Bounce up
+                        cameraShake = 5;
+                    } else {
+                        endGame('Attacked by penguin!');
+                        return;
+                    }
+                }
+
+                if (penguin.x < -80 || penguin.x > canvas.width + 80) {
+                    penguins.splice(i, 1);
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.3;
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            cameraShake *= 0.9;
+            score++;
+            difficulty = 1 + Math.floor(score / 500);
+            document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+        }
+
+        function checkCollision(a, b) {
+            const aLeft = a.x - a.width / 2;
+            const aRight = a.x + a.width / 2;
+            const aTop = a.y - a.height / 2;
+            const aBottom = a.y + a.height / 2;
+
+            const bLeft = b.x;
+            const bRight = b.x + b.width;
+            const bTop = b.y;
+            const bBottom = b.y + b.height;
+
+            const padding = 8;
+            return aLeft + padding < bRight &&
+                   aRight - padding > bLeft &&
+                   aTop + padding < bBottom &&
+                   aBottom - padding > bTop;
+        }
+
+        function draw() {
+            ctx.save();
+
+            // Apply camera shake
+            if (cameraShake > 0.5) {
+                ctx.translate(
+                    (Math.random() - 0.5) * cameraShake,
+                    (Math.random() - 0.5) * cameraShake
+                );
+            }
+
+            // Apply camera Y offset for intro
+            if (introPlaying) {
+                ctx.translate(0, -cameraY);
+            }
+
+            // Draw background
+            drawBackground();
+            drawWaterfall();
+            drawCliffs();
+            drawMist();
+            drawWater();
+            drawRock();
+
+            // Draw waterfall drops
+            ctx.fillStyle = 'rgba(200, 230, 255, 0.6)';
+            for (const drop of waterfallDrops) {
+                ctx.beginPath();
+                ctx.ellipse(drop.x, drop.y, drop.size / 2, drop.size * 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw boat if visible
+            if (boat.visible) {
+                drawBoat();
+            }
+
+            // Draw ice chunks
+            for (const ice of iceChunks) {
+                drawIceChunk(ice);
+            }
+
+            // Draw penguins
+            for (const penguin of penguins) {
+                drawPenguin(penguin);
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                ctx.globalAlpha = p.life / 40;
+                ctx.fillStyle = p.color;
+                if (p.isIce) {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.life * 0.2);
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                } else if (p.isWood) {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.life * 0.15);
+                    ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+                    ctx.restore();
+                } else if (p.isFeather) {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.life * 0.2);
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, p.size / 2, p.size, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player
+            drawPlayer();
+
+            ctx.restore();
+
+            // Draw intro text (outside camera transformations)
+            if (introPlaying && introText && introTextAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, introTextAlpha);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 36px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 10;
+                ctx.fillText(introText, canvas.width / 2, canvas.height / 2 - 50);
+                ctx.restore();
+            }
+        }
+
+        function drawBoat() {
+            ctx.save();
+            ctx.translate(boat.x, boat.y);
+            ctx.rotate(boat.rotation);
+
+            // Boat shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(3, 5, boat.width / 2, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Boat hull
+            ctx.fillStyle = '#8B4513';
+            ctx.beginPath();
+            ctx.moveTo(-boat.width / 2, 0);
+            ctx.quadraticCurveTo(-boat.width / 2 - 5, boat.height / 2, -boat.width / 3, boat.height);
+            ctx.lineTo(boat.width / 3, boat.height);
+            ctx.quadraticCurveTo(boat.width / 2 + 5, boat.height / 2, boat.width / 2, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Boat rim
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Boat inside
+            ctx.fillStyle = '#A0522D';
+            ctx.beginPath();
+            ctx.moveTo(-boat.width / 2 + 5, 3);
+            ctx.quadraticCurveTo(-boat.width / 2, boat.height / 2 - 5, -boat.width / 3 + 5, boat.height - 5);
+            ctx.lineTo(boat.width / 3 - 5, boat.height - 5);
+            ctx.quadraticCurveTo(boat.width / 2, boat.height / 2 - 5, boat.width / 2 - 5, 3);
+            ctx.closePath();
+            ctx.fill();
+
+            // Boat seats
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(-boat.width / 3, boat.height / 3, boat.width / 1.5, 5);
+
+            // Oars
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+
+            // Left oar
+            ctx.beginPath();
+            ctx.moveTo(-boat.width / 4, boat.height / 2);
+            ctx.lineTo(-boat.width / 2 - 25, boat.height / 2 + 15);
+            ctx.stroke();
+            ctx.fillStyle = '#654321';
+            ctx.beginPath();
+            ctx.ellipse(-boat.width / 2 - 30, boat.height / 2 + 18, 8, 4, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Right oar
+            ctx.beginPath();
+            ctx.moveTo(boat.width / 4, boat.height / 2);
+            ctx.lineTo(boat.width / 2 + 25, boat.height / 2 + 15);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(boat.width / 2 + 30, boat.height / 2 + 18, 8, 4, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawBackground() {
+            // Extended background for camera scrolling
+            const skyGradient = ctx.createLinearGradient(0, cameraY - 400, 0, canvas.height);
+            skyGradient.addColorStop(0, '#0a1520');
+            skyGradient.addColorStop(0.15, '#152535');
+            skyGradient.addColorStop(0.4, '#1e3d55');
+            skyGradient.addColorStop(0.7, '#2a5070');
+            skyGradient.addColorStop(1, '#356585');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, cameraY - 500, canvas.width, canvas.height + 600);
+
+            // River at top (before waterfall)
+            if (cameraY < -100) {
+                ctx.fillStyle = 'rgba(70, 130, 180, 0.8)';
+                ctx.fillRect(250, cameraY - 400, 300, 450);
+
+                // River banks
+                ctx.fillStyle = '#2a4a3a';
+                ctx.fillRect(200, cameraY - 400, 60, 450);
+                ctx.fillRect(540, cameraY - 400, 60, 450);
+
+                // Snow on banks
+                ctx.fillStyle = 'rgba(220, 235, 250, 0.7)';
+                ctx.fillRect(200, cameraY - 400, 60, 20);
+                ctx.fillRect(540, cameraY - 400, 60, 20);
+            }
+
+            // Distant mountains
+            ctx.fillStyle = '#1a3045';
+            ctx.beginPath();
+            ctx.moveTo(0, 200);
+            ctx.lineTo(100, 120);
+            ctx.lineTo(200, 180);
+            ctx.lineTo(300, 100);
+            ctx.lineTo(400, 150);
+            ctx.lineTo(500, 80);
+            ctx.lineTo(600, 140);
+            ctx.lineTo(700, 90);
+            ctx.lineTo(800, 160);
+            ctx.lineTo(800, 300);
+            ctx.lineTo(0, 300);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow caps
+            ctx.fillStyle = 'rgba(200, 220, 240, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(300, 100);
+            ctx.lineTo(320, 115);
+            ctx.lineTo(280, 115);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(500, 80);
+            ctx.lineTo(525, 100);
+            ctx.lineTo(475, 100);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawWaterfall() {
+            const wfGradient = ctx.createLinearGradient(250, 0, 550, 0);
+            wfGradient.addColorStop(0, 'rgba(100, 160, 200, 0.6)');
+            wfGradient.addColorStop(0.3, 'rgba(150, 200, 230, 0.8)');
+            wfGradient.addColorStop(0.5, 'rgba(180, 220, 245, 0.9)');
+            wfGradient.addColorStop(0.7, 'rgba(150, 200, 230, 0.8)');
+            wfGradient.addColorStop(1, 'rgba(100, 160, 200, 0.6)');
+            ctx.fillStyle = wfGradient;
+
+            ctx.beginPath();
+            ctx.moveTo(280, 0);
+            ctx.lineTo(520, 0);
+            ctx.quadraticCurveTo(580, canvas.height / 2, 620, canvas.height - 60);
+            ctx.lineTo(180, canvas.height - 60);
+            ctx.quadraticCurveTo(220, canvas.height / 2, 280, 0);
+            ctx.fill();
+
+            // Waterfall streaks
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 12; i++) {
+                const baseX = 290 + i * 20;
+                const wobble = Math.sin(Date.now() / 300 + i) * 10;
+                ctx.beginPath();
+                for (let y = waterfallOffset - 50; y < canvas.height - 60; y += 50) {
+                    const progress = y / canvas.height;
+                    const spread = progress * 40;
+                    const x = baseX + wobble + (i - 6) * spread * 0.3;
+                    ctx.moveTo(x + Math.sin(y * 0.03) * 5, y);
+                    ctx.lineTo(x + Math.sin((y + 30) * 0.03) * 5, y + 35);
+                }
+                ctx.stroke();
+            }
+
+            // Bright center
+            ctx.fillStyle = 'rgba(220, 240, 255, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(350, 0);
+            ctx.lineTo(450, 0);
+            ctx.quadraticCurveTo(480, canvas.height / 2, 500, canvas.height - 60);
+            ctx.lineTo(300, canvas.height - 60);
+            ctx.quadraticCurveTo(320, canvas.height / 2, 350, 0);
+            ctx.fill();
+        }
+
+        function drawCliffs() {
+            // Left cliff
+            const leftCliffGradient = ctx.createLinearGradient(0, 0, 250, 0);
+            leftCliffGradient.addColorStop(0, '#1a2a3a');
+            leftCliffGradient.addColorStop(0.7, '#2a4055');
+            leftCliffGradient.addColorStop(1, '#3a5570');
+            ctx.fillStyle = leftCliffGradient;
+
+            ctx.beginPath();
+            ctx.moveTo(0, -500);
+            ctx.lineTo(250, -500);
+            ctx.lineTo(280, 0);
+            ctx.lineTo(250, 50);
+            ctx.lineTo(220, 30);
+            ctx.lineTo(200, 80);
+            ctx.lineTo(170, 60);
+            ctx.lineTo(150, 120);
+            ctx.lineTo(120, 100);
+            ctx.lineTo(100, 180);
+            ctx.lineTo(70, 150);
+            ctx.lineTo(50, 250);
+            ctx.lineTo(0, 200);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow on left cliff
+            ctx.fillStyle = 'rgba(220, 235, 250, 0.8)';
+            ctx.beginPath();
+            ctx.moveTo(0, -500);
+            ctx.lineTo(250, -500);
+            ctx.lineTo(250, -480);
+            ctx.lineTo(0, -480);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(280, 0);
+            ctx.lineTo(250, 15);
+            ctx.lineTo(220, 8);
+            ctx.lineTo(200, 25);
+            ctx.lineTo(170, 15);
+            ctx.lineTo(150, 35);
+            ctx.lineTo(120, 25);
+            ctx.lineTo(100, 50);
+            ctx.lineTo(70, 35);
+            ctx.lineTo(50, 60);
+            ctx.lineTo(0, 40);
+            ctx.lineTo(0, 0);
+            ctx.lineTo(280, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Right cliff
+            const rightCliffGradient = ctx.createLinearGradient(550, 0, 800, 0);
+            rightCliffGradient.addColorStop(0, '#3a5570');
+            rightCliffGradient.addColorStop(0.3, '#2a4055');
+            rightCliffGradient.addColorStop(1, '#1a2a3a');
+            ctx.fillStyle = rightCliffGradient;
+
+            ctx.beginPath();
+            ctx.moveTo(800, -500);
+            ctx.lineTo(550, -500);
+            ctx.lineTo(520, 0);
+            ctx.lineTo(550, 50);
+            ctx.lineTo(580, 30);
+            ctx.lineTo(600, 80);
+            ctx.lineTo(630, 60);
+            ctx.lineTo(650, 120);
+            ctx.lineTo(680, 100);
+            ctx.lineTo(700, 180);
+            ctx.lineTo(730, 150);
+            ctx.lineTo(750, 250);
+            ctx.lineTo(800, 200);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow on right cliff
+            ctx.fillStyle = 'rgba(220, 235, 250, 0.8)';
+            ctx.beginPath();
+            ctx.moveTo(800, -500);
+            ctx.lineTo(550, -500);
+            ctx.lineTo(550, -480);
+            ctx.lineTo(800, -480);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(520, 0);
+            ctx.lineTo(550, 15);
+            ctx.lineTo(580, 8);
+            ctx.lineTo(600, 25);
+            ctx.lineTo(630, 15);
+            ctx.lineTo(650, 35);
+            ctx.lineTo(680, 25);
+            ctx.lineTo(700, 50);
+            ctx.lineTo(730, 35);
+            ctx.lineTo(750, 60);
+            ctx.lineTo(800, 40);
+            ctx.lineTo(800, 0);
+            ctx.lineTo(520, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Icicles
+            ctx.fillStyle = 'rgba(180, 220, 255, 0.9)';
+            const leftIcicles = [
+                {x: 240, y: 50}, {x: 210, y: 35}, {x: 185, y: 75},
+                {x: 155, y: 55}, {x: 130, y: 95}, {x: 105, y: 75}
+            ];
+            for (const pos of leftIcicles) {
+                const height = 15 + Math.random() * 20;
+                ctx.beginPath();
+                ctx.moveTo(pos.x - 4, pos.y);
+                ctx.lineTo(pos.x + 4, pos.y);
+                ctx.lineTo(pos.x, pos.y + height);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            const rightIcicles = [
+                {x: 560, y: 50}, {x: 590, y: 35}, {x: 615, y: 75},
+                {x: 645, y: 55}, {x: 670, y: 95}, {x: 695, y: 75}
+            ];
+            for (const pos of rightIcicles) {
+                const height = 15 + Math.random() * 20;
+                ctx.beginPath();
+                ctx.moveTo(pos.x - 4, pos.y);
+                ctx.lineTo(pos.x + 4, pos.y);
+                ctx.lineTo(pos.x, pos.y + height);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Side cliff edges
+            ctx.fillStyle = '#2a3a4a';
+            ctx.beginPath();
+            ctx.moveTo(0, 200);
+            ctx.lineTo(50, 250);
+            ctx.lineTo(30, 350);
+            ctx.lineTo(60, 450);
+            ctx.lineTo(20, canvas.height - 60);
+            ctx.lineTo(0, canvas.height - 60);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(800, 200);
+            ctx.lineTo(750, 250);
+            ctx.lineTo(770, 350);
+            ctx.lineTo(740, 450);
+            ctx.lineTo(780, canvas.height - 60);
+            ctx.lineTo(800, canvas.height - 60);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawMist() {
+            ctx.fillStyle = 'rgba(200, 230, 255, 0.15)';
+            for (let i = 0; i < 8; i++) {
+                const x = 200 + Math.sin(Date.now() / 800 + i * 0.8) * 100 + i * 50;
+                const y = 150 + i * 60 + Math.sin(Date.now() / 600 + i) * 30;
+                const size = 60 + Math.sin(Date.now() / 500 + i * 1.5) * 20;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = 'rgba(220, 240, 255, 0.25)';
+            for (let i = 0; i < 6; i++) {
+                const x = 250 + i * 60 + Math.sin(Date.now() / 400 + i) * 20;
+                const y = canvas.height - 100 + Math.sin(Date.now() / 300 + i * 2) * 15;
+                const size = 40 + Math.sin(Date.now() / 350 + i) * 15;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawRock() {
+            ctx.save();
+
+            ctx.fillStyle = 'rgba(0, 30, 60, 0.5)';
+            ctx.beginPath();
+            ctx.ellipse(rock.x + rock.width / 2, canvas.height - 25, rock.width / 2 + 20, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const rockGradient = ctx.createLinearGradient(rock.x, rock.y, rock.x, rock.y + rock.height);
+            rockGradient.addColorStop(0, '#6a6a6a');
+            rockGradient.addColorStop(0.3, '#5a5a5a');
+            rockGradient.addColorStop(1, '#3a3a3a');
+            ctx.fillStyle = rockGradient;
+
+            ctx.beginPath();
+            ctx.moveTo(rock.x + 10, rock.y);
+            ctx.lineTo(rock.x + rock.width - 10, rock.y);
+            ctx.quadraticCurveTo(rock.x + rock.width + 15, rock.y + rock.height / 2, rock.x + rock.width - 5, rock.y + rock.height);
+            ctx.lineTo(rock.x + 5, rock.y + rock.height);
+            ctx.quadraticCurveTo(rock.x - 15, rock.y + rock.height / 2, rock.x + 10, rock.y);
+            ctx.fill();
+
+            ctx.fillStyle = '#5a5a5a';
+            ctx.beginPath();
+            ctx.ellipse(rock.x + rock.width / 2, rock.y + 5, rock.width / 2 - 5, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(150, 200, 230, 0.2)';
+            ctx.beginPath();
+            ctx.ellipse(rock.x + rock.width / 2, rock.y + 8, 60, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawWater() {
+            const waterGradient = ctx.createLinearGradient(0, canvas.height - 70, 0, canvas.height);
+            waterGradient.addColorStop(0, 'rgba(40, 100, 140, 0.85)');
+            waterGradient.addColorStop(0.5, 'rgba(30, 80, 120, 0.9)');
+            waterGradient.addColorStop(1, 'rgba(20, 60, 100, 0.95)');
+            ctx.fillStyle = waterGradient;
+            ctx.fillRect(0, canvas.height - 70, canvas.width, 70);
+
+            ctx.fillStyle = 'rgba(180, 220, 245, 0.4)';
+            ctx.beginPath();
+            ctx.ellipse(canvas.width / 2, canvas.height - 55, 150, 25, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(150, 200, 230, 0.4)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 4; i++) {
+                const y = canvas.height - 60 + i * 15;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                for (let x = 0; x <= canvas.width; x += 20) {
+                    ctx.lineTo(x, y + Math.sin((x + Date.now() / 200) * 0.04) * 4);
+                }
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            for (let i = 0; i < 15; i++) {
+                const x = 300 + Math.sin(Date.now() / 150 + i * 0.7) * 100 + (i - 7) * 15;
+                const y = canvas.height - 55 + Math.sin(Date.now() / 100 + i * 1.3) * 8;
+                const size = 4 + Math.random() * 4;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawIceChunk(ice) {
+            ctx.save();
+            ctx.translate(ice.x + ice.width / 2, ice.y + ice.height / 2);
+            ctx.rotate(ice.rotation);
+
+            ctx.fillStyle = 'rgba(0, 50, 100, 0.3)';
+            ctx.fillRect(-ice.width / 2 + 3, -ice.height / 2 + 3, ice.width, ice.height);
+
+            const iceGradient = ctx.createLinearGradient(-ice.width / 2, -ice.height / 2, ice.width / 2, ice.height / 2);
+            iceGradient.addColorStop(0, '#e0f0ff');
+            iceGradient.addColorStop(0.5, '#b0d8f0');
+            iceGradient.addColorStop(1, '#80c0e0');
+            ctx.fillStyle = iceGradient;
+
+            ctx.beginPath();
+            if (ice.type === 0) {
+                ctx.moveTo(-ice.width / 2, -ice.height / 2);
+                ctx.lineTo(ice.width / 2 - 5, -ice.height / 2 + 3);
+                ctx.lineTo(ice.width / 2, ice.height / 2 - 5);
+                ctx.lineTo(-ice.width / 2 + 5, ice.height / 2);
+            } else if (ice.type === 1) {
+                ctx.moveTo(0, -ice.height / 2);
+                ctx.lineTo(ice.width / 2, ice.height / 2);
+                ctx.lineTo(-ice.width / 2, ice.height / 2 - 5);
+            } else {
+                ctx.moveTo(-ice.width / 3, -ice.height / 2);
+                ctx.lineTo(ice.width / 3, -ice.height / 2 + 5);
+                ctx.lineTo(ice.width / 2, 0);
+                ctx.lineTo(ice.width / 4, ice.height / 2);
+                ctx.lineTo(-ice.width / 3, ice.height / 2 - 3);
+                ctx.lineTo(-ice.width / 2, 0);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawPenguin(penguin) {
+            ctx.save();
+            const facing = penguin.speed > 0 ? 1 : -1;
+            ctx.translate(penguin.x + penguin.width / 2, penguin.y + penguin.height / 2);
+            ctx.scale(facing, 1);
+            ctx.rotate(Math.sin(penguin.waddle) * 0.1);
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 16, 22, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#f0f0f0';
+            ctx.beginPath();
+            ctx.ellipse(0, 3, 11, 16, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.arc(0, -18, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#f0f0f0';
+            ctx.beginPath();
+            ctx.ellipse(0, -16, 8, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-4, -18, 3, 0, Math.PI * 2);
+            ctx.arc(4, -18, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ff8c00';
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(6, -12);
+            ctx.lineTo(0, -10);
+            ctx.closePath();
+            ctx.fill();
+
+            const footOffset = Math.sin(penguin.waddle) * 3;
+            ctx.beginPath();
+            ctx.ellipse(-6, 22 + footOffset, 6, 4, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(6, 22 - footOffset, 6, 4, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            if ((introPlaying || player.onBoat) && player.rotation !== 0) {
+                ctx.rotate(player.rotation);
+            }
+
+            if (!introPlaying || introPhase >= 2) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(3, player.height / 2 + 3, player.width / 2, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Legs
+            ctx.fillStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.ellipse(0, 5, player.width / 2 - 3, player.height / 2 - 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Jacket
+            ctx.fillStyle = '#4ecdc4';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, player.width / 2 - 5, player.height / 3, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head
+            ctx.fillStyle = '#ffd8a8';
+            ctx.beginPath();
+            ctx.arc(0, -player.height / 3, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hat
+            ctx.fillStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.arc(0, -player.height / 3 - 5, 13, Math.PI, 0);
+            ctx.fill();
+
+            // Pom pom
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(0, -player.height / 3 - 17, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-4, -player.height / 3 - 2, 2, 0, Math.PI * 2);
+            ctx.arc(4, -player.height / 3 - 2, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mouth (scared during intro falling, worried otherwise)
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            if (introPlaying && introPhase === 1 && !player.onBoat) {
+                // Screaming mouth
+                ctx.ellipse(0, -player.height / 3 + 6, 6, 5, 0, 0, Math.PI * 2);
+            } else {
+                ctx.ellipse(0, -player.height / 3 + 6, 4, 3, 0, 0, Math.PI * 2);
+            }
+            ctx.fill();
+
+            // Arms
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+
+            if (introPlaying && introPhase === 1 && !player.onBoat) {
+                // Arms flailing while falling
+                ctx.beginPath();
+                ctx.moveTo(-8, -5);
+                ctx.lineTo(-25 + Math.sin(Date.now() / 50) * 10, -20 + Math.cos(Date.now() / 50) * 10);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(8, -5);
+                ctx.lineTo(25 + Math.cos(Date.now() / 50) * 10, -20 + Math.sin(Date.now() / 50) * 10);
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.moveTo(-8, -5);
+                ctx.lineTo(-20, -10 + Math.sin(Date.now() / 150) * 5);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(8, -5);
+                ctx.lineTo(20, -10 - Math.sin(Date.now() / 150) * 5);
+                ctx.stroke();
+            }
+
+            // Hands
+            ctx.fillStyle = '#ffd8a8';
+            if (introPlaying && introPhase === 1 && !player.onBoat) {
+                ctx.beginPath();
+                ctx.arc(-25 + Math.sin(Date.now() / 50) * 10, -20 + Math.cos(Date.now() / 50) * 10, 4, 0, Math.PI * 2);
+                ctx.arc(25 + Math.cos(Date.now() / 50) * 10, -20 + Math.sin(Date.now() / 50) * 10, 4, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(-20, -10 + Math.sin(Date.now() / 150) * 5, 4, 0, Math.PI * 2);
+                ctx.arc(20, -10 - Math.sin(Date.now() / 150) * 5, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function endGame(message) {
+            gameRunning = false;
+
+            if (score > highScore) {
+                highScore = score;
+            }
+
+            saveData();
+            updateHighScoreDisplay();
+
+            document.getElementById('deathMessage').textContent = message || 'Frozen!';
+            document.getElementById('finalScore').textContent = `Score: ${score}`;
+            document.getElementById('gameOverHighScore').textContent = score >= highScore ? 'New High Score!' : `High Score: ${highScore}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function backToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+            document.getElementById('ui').classList.remove('visible');
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        loadSaveData();
+        gameLoop();
+    </script>
+</body>
+</html>

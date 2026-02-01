@@ -1,0 +1,4360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxy Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(100, 100, 255, 0.5);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #startScreen, #winScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 20, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00ffff, #ff00ff, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 {
+            font-size: 36px;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+        .cyan { color: #00ffff; }
+        .gold { color: #ffd700; }
+        .pink { color: #ff69b4; }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 15px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #00ffff, #0088ff);
+            color: #000;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div id="location">Universe Map</div>
+            <div id="discovered"></div>
+        </div>
+
+        <div id="startScreen">
+            <h1>Galaxy Explorer</h1>
+            <p>Explore the universe!</p>
+            <p><span class="cyan">5 Galaxies</span> - <span class="gold">100 Stars</span> - <span class="pink">800-1200 Planets</span></p>
+            <p style="margin-top: 20px;">Arrow Keys - Move ship / Move on planet</p>
+            <p>Space - Enter / Land / Jump / Interact</p>
+            <p>J - Leave planet or exit building</p>
+            <p style="color: #ff4400;">R - Red Giant | S - Supernova | T - Reset</p>
+            <p style="color: #00ffaa;">B - Rewind Time | W - Back To Present</p>
+            <p style="color: #ffaa00;">F - See The Future</p>
+            <p style="color: #90ee90;">Mild planets (Forest/Tropical/Grassland) have RPG villages!</p>
+            <button onclick="startGame()">Explore!</button>
+        </div>
+
+        <div id="winScreen" style="display: none;">
+            <h2>Universe Complete!</h2>
+            <p>You discovered everything!</p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game data
+        let gameState = 'universe'; // universe, galaxy, star, planet
+        let currentGalaxy = null;
+        let currentStar = null;
+        let currentPlanet = null;
+        let currentMoon = null;
+        let onMoon = false;
+
+        let player = { x: 400, y: 300, angle: 0, vx: 0, vy: 0 };
+
+        // Planet level data
+        let planetPlayer = { x: 100, y: 300, vx: 0, vy: 0, onGround: false, canDoubleJump: true, spaceReleased: true };
+        let platforms = [];
+        let obstacles = [];
+        let coins = [];
+        let goal = { x: 2500, y: 350 };
+        let cameraX = 0;
+        let cameraY = 0;
+        let levelLength = 2800;
+
+        // RPG mode data
+        let isRPGPlanet = false;
+        let rpgPlayer = { x: 400, y: 300, speed: 3, direction: 'down' };
+        let buildings = [];
+        let npcs = [];
+        let waterAreas = [];
+        let trees = [];
+        let playerHouse = null;
+        let insideBuilding = null;
+        let currentNPC = null;
+        let dialogueText = '';
+        let dialogueTimer = 0;
+        let rpgWorldWidth = 1600;
+        let rpgWorldHeight = 1200;
+
+        let universeData = {
+            galaxies: [],
+            totalPlanets: 0,
+            discoveredPlanets: 0
+        };
+
+        let stars = [];
+        let particles = [];
+        let gameRunning = false;
+
+        // Time rewind system - max 4.5 snapshots (we'll use 5)
+        let timeSnapshots = [];
+        const MAX_SNAPSHOTS = 5;
+        let lastSnapshotTime = 0;
+        const SNAPSHOT_INTERVAL = 1000; // Save every 1 second
+
+        // Planet formation system
+        let formingMode = false;
+        let formationProgress = 0; // 0 = dust clouds, 1 = fully formed
+        let formationDust = []; // Dust particles during formation
+        let formationPhase = 0; // 0=dust, 1=accretion, 2=collisions, 3=cooling
+        let formationEvents = []; // Dramatic events during formation
+        let protoplanets = []; // Extra planets that will collide
+        let planetRings = []; // Rings from moon collisions
+
+        // Future vision system - shows what will happen to the star system
+        let futureVisionMode = false;
+        let futureProgress = 0; // 0 to 1 (full timeline)
+        let futurePhase = 0; // Current phase of stellar evolution
+        let futureMessage = '';
+        let futureSavedState = null; // Save current state to restore after
+        let futureSpeed = 0.0006; // MUCH slower speed of future playback
+        let futureEvents = []; // Scheduled dramatic events
+        let futureCollisionPlanets = []; // Planets that will collide
+        let futureNewRings = []; // Rings formed from moon collisions
+        let futureEventTriggered = {}; // Track which events have fired
+        let futurePaused = false; // Is the future vision paused?
+
+        function saveTimeSnapshot() {
+            if (!currentStar) return;
+
+            const snapshot = {
+                timestamp: Date.now(),
+                star: {
+                    isRedGiant: currentStar.isRedGiant,
+                    isWhiteDwarf: currentStar.isWhiteDwarf,
+                    redGiantRadius: currentStar.redGiantRadius,
+                    color: currentStar.color
+                },
+                planets: currentStar.planets.map(p => ({
+                    destroyed: p.destroyed,
+                    type: p.type,
+                    color: p.color,
+                    heating: p.heating,
+                    dried: p.dried,
+                    groundScorched: p.groundScorched,
+                    originalType: p.originalType,
+                    originalColor: p.originalColor
+                })),
+                totalPlanets: universeData.totalPlanets
+            };
+
+            timeSnapshots.push(snapshot);
+            if (timeSnapshots.length > MAX_SNAPSHOTS) {
+                timeSnapshots.shift(); // Remove oldest
+            }
+        }
+
+        function rewindTime() {
+            if (!currentStar) return false;
+
+            // If no snapshots left, trigger planet formation!
+            if (timeSnapshots.length === 0) {
+                if (!formingMode) {
+                    startPlanetFormation();
+                    return true;
+                }
+                return false;
+            }
+
+            const snapshot = timeSnapshots.pop();
+
+            // Restore star state
+            currentStar.isRedGiant = snapshot.star.isRedGiant;
+            currentStar.isWhiteDwarf = snapshot.star.isWhiteDwarf;
+            currentStar.redGiantRadius = snapshot.star.redGiantRadius;
+            currentStar.color = snapshot.star.color;
+
+            // Restore planet states
+            for (let i = 0; i < currentStar.planets.length; i++) {
+                if (snapshot.planets[i]) {
+                    currentStar.planets[i].destroyed = snapshot.planets[i].destroyed;
+                    currentStar.planets[i].type = snapshot.planets[i].type;
+                    currentStar.planets[i].color = snapshot.planets[i].color;
+                    currentStar.planets[i].heating = snapshot.planets[i].heating;
+                    currentStar.planets[i].dried = snapshot.planets[i].dried;
+                    currentStar.planets[i].groundScorched = snapshot.planets[i].groundScorched;
+                }
+            }
+
+            universeData.totalPlanets = snapshot.totalPlanets;
+
+            // Rewind visual effect
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: canvas.width/2 + (Math.random() - 0.5) * 300,
+                    y: canvas.height/2 + (Math.random() - 0.5) * 300,
+                    vx: (canvas.width/2 - (canvas.width/2 + (Math.random() - 0.5) * 300)) * 0.05,
+                    vy: (canvas.height/2 - (canvas.height/2 + (Math.random() - 0.5) * 300)) * 0.05,
+                    life: 30,
+                    color: '#00ffff'
+                });
+            }
+
+            return true;
+        }
+
+        function startPlanetFormation() {
+            formingMode = true;
+            formationProgress = 0;
+            formationPhase = 0;
+            formationDust = [];
+            formationEvents = [];
+            protoplanets = [];
+            planetRings = [];
+
+            // Reset star to original state - but make it brighter/younger
+            currentStar.isRedGiant = false;
+            currentStar.isWhiteDwarf = false;
+            currentStar.redGiantRadius = 35;
+            currentStar.color = '#ffffaa'; // Young bright star
+
+            // Reset all planets - start as molten/lava (very hot!)
+            for (let planet of currentStar.planets) {
+                planet.destroyed = false;
+                planet.heating = true;
+                planet.dried = false;
+                planet.groundScorched = false;
+                planet.formingRadius = 0; // Start at 0 size
+                planet.temperature = 1.0; // Max heat
+                // All planets start as lava!
+                planet.type = 'lava';
+                planet.color = '#ff4400';
+
+                // Create lots of dust particles for this planet's orbit
+                for (let i = 0; i < 60; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = planet.distance + (Math.random() - 0.5) * 100;
+                    formationDust.push({
+                        x: canvas.width/2 + Math.cos(angle) * dist,
+                        y: canvas.height/2 + Math.sin(angle) * dist,
+                        targetPlanet: planet,
+                        angle: angle,
+                        dist: dist,
+                        size: 1 + Math.random() * 4,
+                        color: Math.random() < 0.5 ? '#ff6600' : '#ffaa00',
+                        speed: 0.005 + Math.random() * 0.01
+                    });
+                }
+
+                // Create rings from moons (moons will form into rings first, then some become moons again)
+                if (planet.moons && planet.moons.length > 0) {
+                    planetRings.push({
+                        planet: planet,
+                        innerRadius: planet.radius + 5,
+                        outerRadius: planet.radius + 25,
+                        color: '#aaaaaa',
+                        opacity: 0,
+                        particles: []
+                    });
+                    // Add ring particles
+                    for (let r = 0; r < 50; r++) {
+                        const ringAngle = Math.random() * Math.PI * 2;
+                        const ringDist = planet.radius + 5 + Math.random() * 20;
+                        planetRings[planetRings.length - 1].particles.push({
+                            angle: ringAngle,
+                            dist: ringDist,
+                            size: 0.5 + Math.random() * 1.5,
+                            speed: 0.03 + Math.random() * 0.02
+                        });
+                    }
+                    // Hide moons initially
+                    for (let moon of planet.moons) {
+                        moon.forming = true;
+                        moon.formingRadius = 0;
+                    }
+                }
+            }
+
+            // Create protoplanets that will collide (dramatic!)
+            const numProtoplanets = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < numProtoplanets; i++) {
+                const targetPlanet = currentStar.planets[Math.floor(Math.random() * currentStar.planets.length)];
+                protoplanets.push({
+                    angle: Math.random() * Math.PI * 2,
+                    distance: targetPlanet.distance + (Math.random() - 0.5) * 30,
+                    radius: 3 + Math.random() * 5,
+                    color: '#ff6600',
+                    orbitSpeed: 0.003 + Math.random() * 0.004,
+                    targetPlanet: targetPlanet,
+                    collided: false,
+                    collisionTime: 0.3 + Math.random() * 0.4 // When collision happens
+                });
+            }
+
+            // Schedule dramatic events
+            formationEvents = [
+                { time: 0.1, type: 'text', message: 'DUST CLOUDS FORMING...' },
+                { time: 0.2, type: 'text', message: 'PROTOPLANETS EMERGING...' },
+                { time: 0.35, type: 'text', message: 'PLANETARY COLLISIONS!' },
+                { time: 0.5, type: 'text', message: 'RING SYSTEMS FORMING...' },
+                { time: 0.6, type: 'text', message: 'MOONS COALESCING...' },
+                { time: 0.75, type: 'text', message: 'PLANETS COOLING...' },
+                { time: 0.9, type: 'text', message: 'SYSTEM STABILIZING...' }
+            ];
+
+            // Clear snapshots for fresh start
+            timeSnapshots = [];
+        }
+
+        // Start the future vision - shows stellar evolution fast-forward
+        function startFutureVision() {
+            if (!currentStar || futureVisionMode || formingMode) return;
+
+            futureVisionMode = true;
+            futureProgress = 0;
+            futurePhase = 0;
+            futureMessage = '';
+            futureCollisionPlanets = [];
+            futureNewRings = [];
+            futureEventTriggered = {};
+
+            // Save current state to restore later
+            futureSavedState = {
+                isRedGiant: currentStar.isRedGiant,
+                isWhiteDwarf: currentStar.isWhiteDwarf,
+                redGiantRadius: currentStar.redGiantRadius,
+                color: currentStar.color,
+                planets: currentStar.planets.map(p => ({
+                    destroyed: p.destroyed,
+                    type: p.type,
+                    color: p.color,
+                    heating: p.heating,
+                    dried: p.dried,
+                    groundScorched: p.groundScorched,
+                    hasRings: p.hasRings,
+                    rings: p.rings ? JSON.parse(JSON.stringify(p.rings)) : null,
+                    moons: p.moons ? p.moons.map(m => ({...m})) : []
+                }))
+            };
+
+            // Reset star to beginning for the vision
+            currentStar.isRedGiant = false;
+            currentStar.isWhiteDwarf = false;
+            currentStar.redGiantRadius = 35;
+            currentStar.color = currentStar.originalColor || '#ffdd44';
+
+            // Reset planets
+            for (let planet of currentStar.planets) {
+                planet.destroyed = false;
+                planet.heating = false;
+                planet.dried = false;
+                planet.groundScorched = false;
+                planet.type = planet.originalType;
+                planet.color = planet.originalColor;
+                planet.futureColliding = false;
+                planet.collisionTarget = null;
+                planet.collisionAngleOffset = 0;
+            }
+
+            // Set up dramatic collision events
+            // Pick two planets to collide (if we have enough)
+            if (currentStar.planets.length >= 3) {
+                const idx1 = 1; // Second planet
+                const idx2 = 2; // Third planet
+                futureCollisionPlanets = [
+                    { planet1: currentStar.planets[idx1], planet2: currentStar.planets[idx2], time: 0.12, triggered: false }
+                ];
+                // Make planet 2 slowly approach planet 1's orbit
+                currentStar.planets[idx2].futureColliding = true;
+                currentStar.planets[idx2].collisionTarget = currentStar.planets[idx1];
+                currentStar.planets[idx2].originalDistance = currentStar.planets[idx2].distance;
+            }
+
+            // Set up moon collision to form ring (pick a planet with moons)
+            for (let planet of currentStar.planets) {
+                if (planet.moons && planet.moons.length >= 1 && !planet.hasRings) {
+                    futureNewRings.push({
+                        planet: planet,
+                        moon: planet.moons[0],
+                        time: 0.22,
+                        triggered: false,
+                        ringForming: false,
+                        ringProgress: 0
+                    });
+                    break; // Just one ring formation event
+                }
+            }
+        }
+
+        function updateFutureVision() {
+            if (!futureVisionMode || !currentStar) return;
+
+            // Don't advance time if paused
+            if (!futurePaused) {
+                futureProgress += futureSpeed;
+            }
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Update colliding planets - make them approach each other
+            for (let collision of futureCollisionPlanets) {
+                if (!collision.triggered && collision.planet2.futureColliding) {
+                    // Slowly decrease distance to match planet1
+                    const targetDist = collision.planet1.distance;
+                    collision.planet2.distance += (targetDist - collision.planet2.distance) * 0.01;
+                    // Speed up orbit to catch up
+                    collision.planet2.angle += 0.003;
+                }
+            }
+
+            // Find the life planet
+            let lifePlanet = currentStar.planets.find(p => p.hasLife);
+
+            // === THE LIFE OF A STAR - A DOCUMENTARY ===
+
+            // Phase 0: Young star system (0-0.05)
+            if (futureProgress < 0.05) {
+                futurePhase = 0;
+                futureMessage = '🌟 THE BIRTH - A New Star Ignites';
+            }
+            // Phase 1: Stable young star (0.05-0.10)
+            else if (futureProgress < 0.10) {
+                futurePhase = 1;
+                futureMessage = '⭐ +100 Million Years - 8 Planets Orbit in Harmony';
+            }
+            // Phase 2: Life begins! (0.10-0.15)
+            else if (futureProgress < 0.15) {
+                futurePhase = 2;
+                if (lifePlanet && !lifePlanet.destroyed) {
+                    lifePlanet.lifeStage = 0;
+                    futureMessage = '🦠 +500 Million Years - First Microbes Appear on ' + lifePlanet.name + '!';
+                    lifePlanet.color = '#2090ff'; // Slightly greener
+                }
+            }
+            // Phase 3: Plant life (0.15-0.20)
+            else if (futureProgress < 0.20) {
+                futurePhase = 3;
+                if (lifePlanet && !lifePlanet.destroyed) {
+                    lifePlanet.lifeStage = 1;
+                    futureMessage = '🌿 +1 Billion Years - Plants Cover ' + lifePlanet.name;
+                    lifePlanet.color = '#20aa70'; // Green-blue
+                }
+            }
+            // Phase 4: Planetary collision! (0.20-0.25)
+            else if (futureProgress < 0.25) {
+                futurePhase = 4;
+                for (let collision of futureCollisionPlanets) {
+                    if (!collision.triggered && futureProgress >= 0.21) {
+                        collision.triggered = true;
+                        collision.planet1.destroyed = true;
+                        collision.planet2.destroyed = true;
+                        const px = cx + Math.cos(collision.planet1.angle) * collision.planet1.distance;
+                        const py = cy + Math.sin(collision.planet1.angle) * collision.planet1.distance;
+                        for (let i = 0; i < 50; i++) {
+                            particles.push({
+                                x: px, y: py,
+                                vx: (Math.random() - 0.5) * 12,
+                                vy: (Math.random() - 0.5) * 12,
+                                life: 80,
+                                color: ['#ff6600', '#ffaa00', '#ff4400'][Math.floor(Math.random() * 3)]
+                            });
+                        }
+                    }
+                }
+                futureMessage = '💥 +1.5 Billion Years - TWO PLANETS COLLIDE!';
+            }
+            // Phase 5: Animal life (0.25-0.32)
+            else if (futureProgress < 0.32) {
+                futurePhase = 5;
+                if (lifePlanet && !lifePlanet.destroyed) {
+                    lifePlanet.lifeStage = 2;
+                    futureMessage = '🦎 +2 Billion Years - Animals Evolve on ' + lifePlanet.name;
+                    lifePlanet.color = '#30bb60';
+                }
+            }
+            // Phase 6: Moon collision forms ring (0.32-0.38)
+            else if (futureProgress < 0.38) {
+                futurePhase = 6;
+                for (let ringEvent of futureNewRings) {
+                    if (!ringEvent.triggered && futureProgress >= 0.33) {
+                        ringEvent.triggered = true;
+                        const moonIdx = ringEvent.planet.moons.indexOf(ringEvent.moon);
+                        if (moonIdx > -1) ringEvent.planet.moons.splice(moonIdx, 1);
+                        ringEvent.planet.hasRings = true;
+                        const ringWidth = ringEvent.planet.radius * 0.6;
+                        ringEvent.planet.rings = {
+                            innerRadius: ringEvent.planet.radius + 3,
+                            outerRadius: ringEvent.planet.radius + 3 + ringWidth,
+                            colorInner: '#aabbcc', colorOuter: '#8899aa',
+                            tilt: 0.25, rotation: 0, particles: []
+                        };
+                        for (let r = 0; r < 40; r++) {
+                            ringEvent.planet.rings.particles.push({
+                                angle: Math.random() * Math.PI * 2,
+                                dist: ringEvent.planet.rings.innerRadius + Math.random() * ringWidth,
+                                size: 0.5 + Math.random() * 1.5, brightness: 0.5 + Math.random() * 0.5
+                            });
+                        }
+                        const px = cx + Math.cos(ringEvent.planet.angle) * ringEvent.planet.distance;
+                        const py = cy + Math.sin(ringEvent.planet.angle) * ringEvent.planet.distance;
+                        for (let i = 0; i < 25; i++) {
+                            particles.push({ x: px, y: py, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 60, color: '#cccccc' });
+                        }
+                    }
+                }
+                futureMessage = '🌙💥 +2.5 Billion Years - Moon Shatters Into Rings!';
+            }
+            // Phase 7: Civilization rises! (0.38-0.45)
+            else if (futureProgress < 0.45) {
+                futurePhase = 7;
+                if (lifePlanet && !lifePlanet.destroyed) {
+                    lifePlanet.lifeStage = 3;
+                    futureMessage = '🏛️ +3 Billion Years - Civilization Rises on ' + lifePlanet.name + '!';
+                    lifePlanet.color = '#40cc50';
+                }
+            }
+            // Phase 8: Space age (0.45-0.52)
+            else if (futureProgress < 0.52) {
+                futurePhase = 8;
+                if (lifePlanet && !lifePlanet.destroyed) {
+                    lifePlanet.lifeStage = 4;
+                    futureMessage = '🚀 +3.5 Billion Years - ' + lifePlanet.name + ' Reaches Space Age!';
+                }
+            }
+            // Phase 9: Star begins aging (0.52-0.58)
+            else if (futureProgress < 0.58) {
+                futurePhase = 9;
+                futureMessage = '🔶 +4 Billion Years - The Star Begins to Die...';
+                currentStar.color = '#ffcc44';
+            }
+            // Phase 10: Red giant warning - ALL LIFE DIES (0.58-0.65)
+            else if (futureProgress < 0.65) {
+                futurePhase = 10;
+                currentStar.isRedGiant = true;
+                currentStar.color = '#ff6644';
+                const expansionProgress = (futureProgress - 0.58) / 0.07;
+                currentStar.redGiantRadius = 35 + expansionProgress * 100; // Goes up to 135
+
+                // Kill all life when red giant forms!
+                if (lifePlanet && lifePlanet.hasLife && lifePlanet.lifeStage >= 0) {
+                    if (!futureEventTriggered.lifeDied) {
+                        futureEventTriggered.lifeDied = true;
+                        // Death particles from life planet
+                        const px = cx + Math.cos(lifePlanet.angle) * lifePlanet.distance;
+                        const py = cy + Math.sin(lifePlanet.angle) * lifePlanet.distance;
+                        for (let i = 0; i < 30; i++) {
+                            particles.push({ x: px, y: py, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, life: 80, color: '#00ff00' });
+                        }
+                    }
+                    lifePlanet.lifeStage = -1; // All life dead
+                    lifePlanet.hasLife = false;
+                    lifePlanet.type = 'barren';
+                    lifePlanet.color = '#a08060';
+                    futureMessage = '💀 +4.5 Billion Years - ALL LIFE ON ' + lifePlanet.name + ' DIES! Too Hot!';
+                } else {
+                    futureMessage = '🔴 +4.5 Billion Years - RED GIANT BEGINS!';
+                }
+                // Destroy close planets
+                for (let planet of currentStar.planets) {
+                    if (planet.destroyed) continue;
+                    if (planet.distance < currentStar.redGiantRadius) {
+                        planet.destroyed = true;
+                        const px = cx + Math.cos(planet.angle) * planet.distance;
+                        const py = cy + Math.sin(planet.angle) * planet.distance;
+                        for (let i = 0; i < 20; i++) {
+                            particles.push({ x: px, y: py, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6, life: 50, color: '#ff6600' });
+                        }
+                    }
+                }
+            }
+            // Phase 11: Red giant continues, dead planet remains (0.65-0.72)
+            else if (futureProgress < 0.72) {
+                futurePhase = 11;
+                currentStar.color = '#ff4400';
+                currentStar.redGiantRadius = 135 + (futureProgress - 0.65) / 0.07 * 35; // Only up to 170
+                // Destroy inner planets
+                for (let planet of currentStar.planets) {
+                    if (planet.destroyed) continue;
+                    if (planet.distance < currentStar.redGiantRadius) {
+                        planet.destroyed = true;
+                        const px = cx + Math.cos(planet.angle) * planet.distance;
+                        const py = cy + Math.sin(planet.angle) * planet.distance;
+                        for (let i = 0; i < 30; i++) {
+                            particles.push({ x: px, y: py, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 60, color: '#ff6600' });
+                        }
+                    } else if (planet.distance < currentStar.redGiantRadius + 50) {
+                        planet.heating = true;
+                    }
+                }
+                futureMessage = '🔴 +5 Billion Years - ' + (lifePlanet ? lifePlanet.name + ' Is Now A Dead World...' : 'Red Giant Expands...');
+            }
+            // Phase 12: Maximum red giant (0.72-0.78)
+            else if (futureProgress < 0.78) {
+                futurePhase = 12;
+                futureMessage = '🔴 +5.5 Billion Years - Maximum Expansion!';
+                currentStar.redGiantRadius = 170;
+                for (let planet of currentStar.planets) {
+                    if (!planet.destroyed && planet.distance < currentStar.redGiantRadius) {
+                        planet.destroyed = true;
+                        const px = cx + Math.cos(planet.angle) * planet.distance;
+                        const py = cy + Math.sin(planet.angle) * planet.distance;
+                        for (let i = 0; i < 20; i++) {
+                            particles.push({ x: px, y: py, vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6, life: 50, color: '#ff6600' });
+                        }
+                    }
+                }
+            }
+            // Phase 13: Supernova (0.78-0.82)
+            else if (futureProgress < 0.82) {
+                futurePhase = 13;
+                futureMessage = '💥💥💥 +6 Billion Years - SUPERNOVA!!! 💥💥💥';
+                for (let i = 0; i < 10; i++) {
+                    particles.push({
+                        x: cx + (Math.random() - 0.5) * 150,
+                        y: cy + (Math.random() - 0.5) * 150,
+                        vx: (Math.random() - 0.5) * 20,
+                        vy: (Math.random() - 0.5) * 20,
+                        life: 60,
+                        color: Math.random() < 0.5 ? '#ffffff' : '#ffff00'
+                    });
+                }
+            }
+            // Phase 14: White dwarf (0.82-0.92)
+            else if (futureProgress < 0.92) {
+                futurePhase = 14;
+                futureMessage = '⚪ +7 Billion Years - Only A White Dwarf Remains...';
+                currentStar.isRedGiant = false;
+                currentStar.isWhiteDwarf = true;
+                currentStar.color = '#ffffff';
+                currentStar.redGiantRadius = 35;
+                for (let planet of currentStar.planets) {
+                    if (!planet.destroyed) {
+                        planet.dried = true;
+                        planet.heating = false;
+                        planet.type = 'frozen';
+                        planet.color = '#aaddff';
+                    }
+                }
+            }
+            // Phase 15: Black dwarf / end (0.92-1.0)
+            else if (futureProgress < 1.0) {
+                futurePhase = 15;
+                futureMessage = '⚫ +100 Billion Years - Eternal Darkness... The End.';
+                currentStar.color = '#222222';
+                for (let planet of currentStar.planets) {
+                    if (!planet.destroyed) {
+                        planet.color = '#111122';
+                    }
+                }
+            }
+            // End of vision
+            else {
+                endFutureVision();
+            }
+        }
+
+        function endFutureVision() {
+            futureVisionMode = false;
+            futurePaused = false;
+
+            // Restore saved state
+            if (futureSavedState && currentStar) {
+                currentStar.isRedGiant = futureSavedState.isRedGiant;
+                currentStar.isWhiteDwarf = futureSavedState.isWhiteDwarf;
+                currentStar.redGiantRadius = futureSavedState.redGiantRadius;
+                currentStar.color = futureSavedState.color;
+
+                for (let i = 0; i < currentStar.planets.length; i++) {
+                    if (futureSavedState.planets[i]) {
+                        const saved = futureSavedState.planets[i];
+                        const planet = currentStar.planets[i];
+                        planet.destroyed = saved.destroyed;
+                        planet.type = saved.type;
+                        planet.color = saved.color;
+                        planet.heating = saved.heating;
+                        planet.dried = saved.dried;
+                        planet.groundScorched = saved.groundScorched;
+                        planet.hasRings = saved.hasRings;
+                        planet.rings = saved.rings;
+                        planet.moons = saved.moons;
+                        // Reset collision state
+                        planet.futureColliding = false;
+                        planet.collisionTarget = null;
+                        if (planet.originalDistance) {
+                            planet.distance = planet.originalDistance;
+                        }
+                    }
+                }
+            }
+
+            futureSavedState = null;
+            futureMessage = '';
+            futureCollisionPlanets = [];
+            futureNewRings = [];
+        }
+
+        // Pause/unpause the future vision
+        function toggleFuturePause() {
+            if (!futureVisionMode) return;
+            futurePaused = !futurePaused;
+        }
+
+        // Play from the current point in the future - keep current state!
+        function playFromFuture() {
+            if (!futureVisionMode || !futurePaused) return;
+
+            // DON'T restore the saved state - keep the current future state
+            futureVisionMode = false;
+            futurePaused = false;
+            futureSavedState = null;
+            futureMessage = '';
+            futureCollisionPlanets = [];
+            futureNewRings = [];
+
+            // Clean up collision states but keep everything else
+            for (let planet of currentStar.planets) {
+                planet.futureColliding = false;
+                planet.collisionTarget = null;
+            }
+
+            // Clear time snapshots for fresh rewind history
+            timeSnapshots = [];
+
+            // Visual effect - time travel complete!
+            for (let i = 0; i < 40; i++) {
+                particles.push({
+                    x: canvas.width/2 + (Math.random() - 0.5) * 300,
+                    y: canvas.height/2 + (Math.random() - 0.5) * 300,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 50,
+                    color: '#00ffff'
+                });
+            }
+        }
+
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+            if (e.code === 'Space' && gameRunning && gameState !== 'planet') {
+                interact();
+            }
+            if (e.code === 'Space' && gameRunning && gameState === 'planet' && isRPGPlanet) {
+                handleRPGInteraction();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Click to land on moons
+        canvas.addEventListener('click', (e) => {
+            if (!gameRunning || gameState !== 'star' || !currentStar) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // Check if clicked on a moon
+            for (let planet of currentStar.planets) {
+                if (planet.destroyed || !planet.moons) continue;
+                let px = cx + Math.cos(planet.angle) * planet.distance;
+                let py = cy + Math.sin(planet.angle) * planet.distance;
+
+                for (let moon of planet.moons) {
+                    let mx = px + Math.cos(moon.angle) * moon.distance;
+                    let my = py + Math.sin(moon.angle) * moon.distance;
+                    let dx = clickX - mx;
+                    let dy = clickY - my;
+                    if (Math.sqrt(dx*dx + dy*dy) < moon.radius + 10) {
+                        // Clicked on moon!
+                        currentMoon = moon;
+                        currentPlanet = planet;
+                        onMoon = true;
+                        gameState = 'planet';
+                        enterMoonLevel();
+                        return;
+                    }
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyJ' && gameRunning && gameState === 'planet') {
+                // If inside building, exit building first
+                if (isRPGPlanet && insideBuilding) {
+                    insideBuilding = null;
+                    return;
+                }
+                // Leave planet/moon without completing
+                gameState = 'star';
+                player.vx = 0;
+                player.vy = 0;
+                isRPGPlanet = false;
+                onMoon = false;
+                currentMoon = null;
+            }
+            if (e.code === 'KeyR' && gameRunning && (gameState === 'star' || gameState === 'planet') && currentStar && !currentStar.isRedGiant && !currentStar.isWhiteDwarf) {
+                // Trigger red giant!
+                currentStar.isRedGiant = true;
+                currentStar.redGiantRadius = 35;
+            }
+            if (e.code === 'KeyT' && gameRunning && (gameState === 'star' || gameState === 'planet') && currentStar) {
+                // Reset ENTIRE star system
+                currentStar.isRedGiant = false;
+                currentStar.isWhiteDwarf = false;
+                currentStar.redGiantRadius = 35;
+                currentStar.color = currentStar.originalColor;
+
+                // Count restored planets for totalPlanets
+                let restoredCount = 0;
+
+                // Restore ALL planets to original state
+                for (let planet of currentStar.planets) {
+                    // Restore destroyed planets
+                    if (planet.destroyed) {
+                        planet.destroyed = false;
+                        restoredCount++;
+                    }
+
+                    // Restore planet type and color
+                    if (planet.originalType) {
+                        planet.type = planet.originalType;
+                        planet.color = planet.originalColor;
+                    }
+
+                    // Reset all planet states
+                    planet.heating = false;
+                    planet.dried = false;
+                    planet.groundScorched = false;
+                }
+
+                // Update planet count
+                universeData.totalPlanets += restoredCount;
+
+                // If on an RPG planet, regenerate the village
+                if (gameState === 'planet' && isRPGPlanet) {
+                    enterRPGWorld();
+                }
+
+                // Visual feedback - restoration particles
+                for (let i = 0; i < 30; i++) {
+                    particles.push({
+                        x: canvas.width/2,
+                        y: canvas.height/2,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        life: 40,
+                        color: '#00ff88'
+                    });
+                }
+            }
+            if (e.code === 'KeyS' && gameRunning && (gameState === 'star' || gameState === 'planet') && currentStar && currentStar.isRedGiant && !currentStar.isWhiteDwarf) {
+                // Supernova! Turn into white dwarf
+                currentStar.isWhiteDwarf = true;
+                currentStar.isRedGiant = false;
+                currentStar.color = '#ffffff';
+                currentStar.whiteDwarfRadius = 15;
+
+                // Create massive supernova explosion
+                for (let i = 0; i < 100; i++) {
+                    particles.push({
+                        x: canvas.width/2,
+                        y: canvas.height/2,
+                        vx: (Math.random() - 0.5) * 20,
+                        vy: (Math.random() - 0.5) * 20,
+                        life: 80,
+                        color: ['#ffffff', '#ffff00', '#ff8800', '#ff4400'][Math.floor(Math.random() * 4)]
+                    });
+                }
+
+                // Dry out all surviving planets
+                for (let planet of currentStar.planets) {
+                    if (!planet.destroyed) {
+                        planet.dried = true;
+                        // Store original if not stored
+                        if (!planet.originalType) {
+                            planet.originalType = planet.type;
+                            planet.originalColor = planet.color;
+                        }
+                        // Turn into dry/barren types
+                        if (planet.isGasGiant) {
+                            planet.type = 'rocky';
+                            planet.color = '#808080';
+                        } else {
+                            planet.type = 'barren';
+                            planet.color = '#a0826d';
+                        }
+                    }
+                }
+            }
+            if (e.code === 'KeyB' && gameRunning && (gameState === 'star' || gameState === 'planet') && currentStar) {
+                // Rewind time!
+                if (rewindTime()) {
+                    // If on RPG planet, regenerate with restored state
+                    if (gameState === 'planet' && isRPGPlanet) {
+                        enterRPGWorld();
+                    }
+                }
+            }
+            // W key - stop rewind and go back to present (time = 0)
+            if (e.code === 'KeyW' && gameRunning && formingMode && currentStar) {
+                // Stop formation completely - back to present (zero)
+                formingMode = false;
+                formationProgress = 0;
+                formationDust = [];
+                protoplanets = [];
+                planetRings = [];
+                timeSnapshots = [];
+
+                // Restore all planets to original state (present)
+                for (let planet of currentStar.planets) {
+                    planet.destroyed = false;
+                    planet.heating = false;
+                    planet.dried = false;
+                    planet.groundScorched = false;
+                    planet.formingRadius = planet.radius;
+                    planet.temperature = 0;
+                    if (planet.originalType) {
+                        planet.type = planet.originalType;
+                        planet.color = planet.originalColor;
+                    }
+                    if (planet.moons) {
+                        for (let moon of planet.moons) {
+                            moon.forming = false;
+                        }
+                    }
+                }
+
+                // Restore star to present state
+                currentStar.isRedGiant = false;
+                currentStar.isWhiteDwarf = false;
+                currentStar.redGiantRadius = 35;
+                currentStar.color = currentStar.originalColor || '#ffdd44';
+
+                // Visual effect - flash to present
+                for (let i = 0; i < 30; i++) {
+                    particles.push({
+                        x: canvas.width/2 + (Math.random() - 0.5) * 200,
+                        y: canvas.height/2 + (Math.random() - 0.5) * 200,
+                        vx: (Math.random() - 0.5) * 5,
+                        vy: (Math.random() - 0.5) * 5,
+                        life: 40,
+                        color: '#00ffaa'
+                    });
+                }
+            }
+            if (e.code === 'KeyF' && gameRunning && gameState === 'star' && currentStar && !formingMode) {
+                // Toggle future vision (only start if not in vision, F exits completely)
+                if (futureVisionMode) {
+                    endFutureVision();
+                } else {
+                    startFutureVision();
+                }
+            }
+            // Space to pause/unpause future vision
+            if (e.code === 'Space' && futureVisionMode) {
+                e.preventDefault();
+                toggleFuturePause();
+            }
+            // Enter to play from current future point
+            if (e.code === 'Enter' && futureVisionMode && futurePaused) {
+                e.preventDefault();
+                playFromFuture();
+            }
+        });
+
+        function createUniverse() {
+            const galaxyNames = ['Andromeda', 'Milky Way', 'Triangulum', 'Whirlpool', 'Sombrero'];
+            const galaxyColors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a55eea', '#fd79a8'];
+
+            universeData.galaxies = [];
+            universeData.totalPlanets = 0;
+            universeData.discoveredPlanets = 0;
+
+            for (let g = 0; g < 5; g++) {
+                let galaxy = {
+                    name: galaxyNames[g],
+                    color: galaxyColors[g],
+                    x: 150 + (g % 3) * 250,
+                    y: 180 + Math.floor(g / 3) * 250,
+                    visited: false,
+                    stars: []
+                };
+
+                const starNames = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta',
+                                  'Iota', 'Kappa', 'Lambda', 'Mu', 'Nu', 'Xi', 'Omicron', 'Pi',
+                                  'Rho', 'Sigma', 'Tau', 'Upsilon'];
+                const starColors = ['#ffdd44', '#ffaa33', '#ff8855', '#ffcc55', '#ff9944',
+                                   '#ffffaa', '#ffddaa', '#ffbb66', '#fff4cc', '#ffeedd',
+                                   '#ffaaaa', '#aaddff', '#ffccaa', '#ffe4b5', '#ffd700',
+                                   '#ff6347', '#ffa07a', '#ffb347', '#fff8dc', '#ffe4c4'];
+
+                for (let s = 0; s < 20; s++) {
+                    // Position stars in a grid pattern with some randomness
+                    const col = s % 5;
+                    const row = Math.floor(s / 5);
+                    const starColor = starColors[s % starColors.length];
+
+                    let star = {
+                        name: `${galaxy.name} ${starNames[s]}`,
+                        color: starColor,
+                        originalColor: starColor,
+                        x: 80 + col * 160 + (Math.random() - 0.5) * 60,
+                        y: 80 + row * 130 + (Math.random() - 0.5) * 40,
+                        visited: false,
+                        planets: [],
+                        isRedGiant: false,
+                        redGiantRadius: 35,
+                        redGiantMaxRadius: 170
+                    };
+
+                    // Always 8 planets per star (like our solar system)
+                    const numPlanets = 8;
+                    let lifePlanetIndex = 2 + Math.floor(Math.random() * 2); // Planet 3 or 4 gets life (habitable zone)
+
+                    // Each planet gets a unique name based on position
+                    const planetNames = [
+                        'Pyrrhus',   // 1st - closest, volcanic
+                        'Scoria',    // 2nd - hot
+                        'Verdana',   // 3rd - could be life planet
+                        'Ochre',     // 4th - could be life planet
+                        'Kronos',    // 5th - gas giant
+                        'Tempest',   // 6th - stormy
+                        'Glacius',   // 7th - icy
+                        'Umbra'      // 8th - farthest, dark
+                    ];
+
+                    for (let p = 0; p < numPlanets; p++) {
+                        // Temperature based on distance from star
+                        // Only ONE mild planet - the life planet!
+                        let planetType;
+                        const zone = p / numPlanets;
+
+                        if (p === lifePlanetIndex) {
+                            // This is the ONLY mild planet - has life
+                            planetType = 'ocean'; // Will be overwritten anyway
+                        } else if (zone < 0.25) {
+                            // Very close - scorching hot
+                            planetType = ['lava', 'volcanic', 'molten'][Math.floor(Math.random() * 3)];
+                        } else if (zone < 0.5) {
+                            // Close/middle - hot/warm (no mild planets here except life planet)
+                            planetType = ['desert', 'arid', 'barren', 'rocky'][Math.floor(Math.random() * 4)];
+                        } else if (zone < 0.75) {
+                            // Far - cold
+                            planetType = ['tundra', 'rocky', 'stormy'][Math.floor(Math.random() * 3)];
+                        } else {
+                            // Very far - freezing
+                            planetType = ['ice', 'frozen', 'crystal'][Math.floor(Math.random() * 3)];
+                        }
+
+                        const planetColors = {
+                            lava: '#ff4400',
+                            volcanic: '#8b0000',
+                            molten: '#ff6600',
+                            desert: '#d4a84b',
+                            arid: '#c4a35a',
+                            barren: '#a0826d',
+                            forest: '#228b22',
+                            ocean: '#1e90ff',
+                            tropical: '#00aa44',
+                            grassland: '#7cba3d',
+                            tundra: '#b0c4de',
+                            rocky: '#808080',
+                            stormy: '#4a5568',
+                            ice: '#add8e6',
+                            frozen: '#e0ffff',
+                            crystal: '#dda0dd'
+                        };
+
+                        // Each planet gets its unique name based on position
+                        let name = planetNames[p];
+
+                        // Determine if this should be a gas giant (outer planets)
+                        let isGasGiant = false;
+                        let finalType = planetType;
+                        let finalColor = planetColors[planetType];
+                        let planetRadius = 8 + Math.random() * 10;
+
+                        // Outer planets (zone > 0.5) have a chance to be gas giants
+                        if (zone > 0.5 && Math.random() < 0.5) {
+                            isGasGiant = true;
+                            const gasGiantTypes = ['gas_orange', 'gas_blue', 'gas_purple', 'gas_brown'];
+                            finalType = gasGiantTypes[Math.floor(Math.random() * gasGiantTypes.length)];
+                            const gasColors = {
+                                gas_orange: '#e8a848',
+                                gas_blue: '#5588cc',
+                                gas_purple: '#8866aa',
+                                gas_brown: '#aa7744'
+                            };
+                            finalColor = gasColors[finalType];
+                            planetRadius = 16 + Math.random() * 12; // Gas giants are bigger
+                        }
+
+                        // Generate moons (0-6, gas giants have more)
+                        const maxMoons = isGasGiant ? 6 : 3;
+                        const numMoons = Math.floor(Math.random() * (maxMoons + 1));
+                        const moons = [];
+                        const moonColors = ['#aaaaaa', '#888888', '#cccccc', '#999999', '#b0b0b0', '#707070'];
+
+                        for (let m = 0; m < numMoons; m++) {
+                            moons.push({
+                                angle: Math.random() * Math.PI * 2,
+                                distance: planetRadius + 8 + m * 6,
+                                radius: 2 + Math.random() * 3,
+                                color: moonColors[Math.floor(Math.random() * moonColors.length)],
+                                orbitSpeed: 0.02 + Math.random() * 0.03 // Moons orbit faster
+                            });
+                        }
+
+                        // Generate rings (gas giants have higher chance, some others too)
+                        let hasRings = false;
+                        let rings = null;
+                        const ringChance = isGasGiant ? 0.6 : 0.15; // 60% for gas giants, 15% for others
+                        if (Math.random() < ringChance) {
+                            hasRings = true;
+                            const ringColors = [
+                                { inner: '#c4a86a', outer: '#a08050' }, // Gold/brown
+                                { inner: '#aabbcc', outer: '#8899aa' }, // Ice blue
+                                { inner: '#bb9977', outer: '#997755' }, // Tan
+                                { inner: '#ccaa88', outer: '#aa8866' }, // Sandy
+                                { inner: '#9999aa', outer: '#777788' }  // Gray
+                            ];
+                            const ringColor = ringColors[Math.floor(Math.random() * ringColors.length)];
+                            const ringWidth = planetRadius * (0.4 + Math.random() * 0.5);
+                            rings = {
+                                innerRadius: planetRadius + 3,
+                                outerRadius: planetRadius + 3 + ringWidth,
+                                colorInner: ringColor.inner,
+                                colorOuter: ringColor.outer,
+                                tilt: 0.2 + Math.random() * 0.3, // Ring tilt (0 = edge-on, 1 = face-on)
+                                rotation: Math.random() * Math.PI * 2,
+                                particles: []
+                            };
+                            // Add ring particles for detail
+                            for (let r = 0; r < 40; r++) {
+                                rings.particles.push({
+                                    angle: Math.random() * Math.PI * 2,
+                                    dist: rings.innerRadius + Math.random() * ringWidth,
+                                    size: 0.5 + Math.random() * 1.5,
+                                    brightness: 0.5 + Math.random() * 0.5
+                                });
+                            }
+                        }
+
+                        // Check if this is the life planet
+                        let hasLife = (p === lifePlanetIndex);
+                        if (hasLife) {
+                            // Life planet must be green/habitable type
+                            const greenTypes = ['forest', 'tropical', 'grassland'];
+                            finalType = greenTypes[Math.floor(Math.random() * greenTypes.length)];
+                            const greenColors = { forest: '#228b22', tropical: '#00aa44', grassland: '#7cba3d' };
+                            finalColor = greenColors[finalType];
+                            isGasGiant = false;
+                            // Keep the unique planet name
+                        }
+
+                        star.planets.push({
+                            name: name,
+                            color: finalColor,
+                            type: finalType,
+                            originalColor: finalColor,
+                            originalType: finalType,
+                            isGasGiant: isGasGiant,
+                            hasLife: hasLife,
+                            lifeStage: hasLife ? 0 : -1, // 0=microbes, 1=plants, 2=animals, 3=civilization, 4=space age
+                            hasRings: hasRings,
+                            rings: rings,
+                            angle: (p / numPlanets) * Math.PI * 2 + Math.random() * 0.5,
+                            distance: 100 + p * 35, // Planets farther apart
+                            radius: planetRadius,
+                            orbitSpeed: 0.002 + Math.random() * 0.003,
+                            discovered: false,
+                            moons: moons
+                        });
+                        universeData.totalPlanets++;
+                    }
+
+                    galaxy.stars.push(star);
+                }
+
+                universeData.galaxies.push(galaxy);
+            }
+
+            // Background stars
+            stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    twinkle: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function getRandomColor() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a55eea', '#fd79a8', '#00ff7f', '#74b9ff', '#ff9f43'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function enterPlanetLevel() {
+            // Check if this is a mild non-ocean planet for RPG mode
+            const rpgTypes = ['forest', 'tropical', 'grassland'];
+            isRPGPlanet = rpgTypes.includes(currentPlanet.type) || (currentPlanet.originalType && rpgTypes.includes(currentPlanet.originalType));
+
+            if (isRPGPlanet) {
+                enterRPGWorld();
+                return;
+            }
+
+            planetPlayer = { x: 100, y: 300, vx: 0, vy: 0, onGround: false, canDoubleJump: true, spaceReleased: true };
+            cameraX = 0;
+            levelLength = 2500 + Math.random() * 500;
+
+            // Floor positions
+            const FLOOR1 = 500;
+            const FLOOR2 = 300;
+
+            platforms = [];
+            obstacles = [];
+            coins = [];
+
+            // Generate terrain and obstacles
+            let x = 300;
+            while (x < levelLength - 400) {
+                const floor = Math.random() < 0.4 ? FLOOR2 : FLOOR1;
+                const type = Math.floor(Math.random() * 5);
+
+                // Spikes
+                if (type === 0) {
+                    const count = 1 + Math.floor(Math.random() * 3);
+                    for (let i = 0; i < count; i++) {
+                        obstacles.push({
+                            x: x + i * 25,
+                            y: floor,
+                            type: 'spike',
+                            width: 20,
+                            height: 25
+                        });
+                    }
+                    x += count * 25 + 100;
+                }
+                // Moving platform
+                else if (type === 1) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 80,
+                        type: 'moving',
+                        width: 80,
+                        height: 15,
+                        startX: x,
+                        range: 80 + Math.random() * 60
+                    });
+                    x += 200;
+                }
+                // Bouncing enemy
+                else if (type === 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 30,
+                        type: 'bouncer',
+                        width: 30,
+                        height: 30,
+                        startY: floor - 30,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                    x += 150;
+                }
+                // Laser
+                else if (type === 3) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 60,
+                        type: 'laser',
+                        width: 100,
+                        height: 8
+                    });
+                    x += 180;
+                }
+                // Gap with platform
+                else {
+                    platforms.push({
+                        x: x,
+                        y: floor - 50 - Math.random() * 80,
+                        width: 100,
+                        height: 15
+                    });
+                    x += 180;
+                }
+
+                // Add coins
+                if (Math.random() < 0.5) {
+                    const coinY = floor - 80 - Math.random() * 50;
+                    for (let i = 0; i < 3; i++) {
+                        coins.push({
+                            x: x - 60 + i * 30,
+                            y: coinY,
+                            collected: false
+                        });
+                    }
+                }
+
+                x += Math.random() * 80;
+            }
+
+            goal = { x: levelLength - 150, y: FLOOR1 };
+        }
+
+        function enterMoonLevel() {
+            // Moons are smaller, barren, with low gravity
+            planetPlayer = { x: 100, y: 300, vx: 0, vy: 0, onGround: false, canDoubleJump: true, spaceReleased: true };
+            cameraX = 0;
+            levelLength = 1500 + Math.random() * 300; // Shorter than planets
+
+            const FLOOR1 = 500;
+
+            platforms = [];
+            obstacles = [];
+            coins = [];
+
+            // Moon terrain - craters and rocks
+            let x = 250;
+            while (x < levelLength - 300) {
+                const type = Math.floor(Math.random() * 4);
+
+                // Crater (gap)
+                if (type === 0) {
+                    // Just a gap - need to jump
+                    x += 80 + Math.random() * 60;
+                }
+                // Rock pile (platform)
+                else if (type === 1) {
+                    platforms.push({
+                        x: x,
+                        y: FLOOR1 - 40 - Math.random() * 80,
+                        width: 60 + Math.random() * 40,
+                        height: 15
+                    });
+                    x += 120;
+                }
+                // Spike rock
+                else if (type === 2) {
+                    obstacles.push({
+                        x: x,
+                        y: FLOOR1,
+                        type: 'spike',
+                        width: 20,
+                        height: 30
+                    });
+                    x += 100;
+                }
+                // Floating rock platform
+                else {
+                    platforms.push({
+                        x: x,
+                        y: 250 + Math.random() * 150,
+                        width: 80,
+                        height: 20
+                    });
+                    x += 150;
+                }
+
+                // Moon crystals (collectibles)
+                if (Math.random() < 0.4) {
+                    coins.push({
+                        x: x - 30,
+                        y: FLOOR1 - 100 - Math.random() * 80,
+                        collected: false
+                    });
+                }
+
+                x += Math.random() * 60;
+            }
+
+            goal = { x: levelLength - 100, y: FLOOR1 };
+
+            // Give moon a name if it doesn't have one
+            if (!currentMoon.name) {
+                const moonNames = ['Luna', 'Titan', 'Europa', 'Io', 'Ganymede', 'Callisto', 'Phobos', 'Deimos', 'Triton', 'Charon'];
+                currentMoon.name = moonNames[Math.floor(Math.random() * moonNames.length)];
+            }
+            if (!currentMoon.discovered) {
+                currentMoon.discovered = false;
+            }
+        }
+
+        function enterRPGWorld() {
+            rpgPlayer = { x: 200, y: 200, speed: 3, direction: 'down' };
+            cameraX = 0;
+            cameraY = 0;
+            insideBuilding = null;
+            currentNPC = null;
+            dialogueText = '';
+            dialogueTimer = 0;
+
+            buildings = [];
+            npcs = [];
+            waterAreas = [];
+            trees = [];
+
+            // Player's house (always at start)
+            playerHouse = {
+                x: 100, y: 100,
+                width: 120, height: 100,
+                color: '#8B4513',
+                roofColor: '#a0522d',
+                name: 'Your House',
+                isPlayerHouse: true,
+                interior: {
+                    furniture: [
+                        { type: 'bed', x: 20, y: 20, width: 60, height: 40, color: '#4a90d9' },
+                        { type: 'table', x: 100, y: 80, width: 50, height: 40, color: '#8B4513' },
+                        { type: 'chest', x: 20, y: 120, width: 40, height: 30, color: '#daa520' }
+                    ]
+                }
+            };
+            buildings.push(playerHouse);
+
+            // Village buildings
+            const buildingTypes = [
+                { name: 'Shop', color: '#4a7c59', roofColor: '#2d4a35' },
+                { name: 'Inn', color: '#8b7355', roofColor: '#5c4d3d' },
+                { name: 'Library', color: '#6b5b95', roofColor: '#4a3f69' },
+                { name: 'Blacksmith', color: '#555555', roofColor: '#333333' },
+                { name: 'Farm House', color: '#c19a6b', roofColor: '#8b7355' }
+            ];
+
+            // Create village buildings
+            for (let i = 0; i < 5; i++) {
+                let bx, by;
+                let attempts = 0;
+                do {
+                    bx = 300 + Math.random() * (rpgWorldWidth - 500);
+                    by = 100 + Math.random() * (rpgWorldHeight - 300);
+                    attempts++;
+                } while (attempts < 50 && buildings.some(b =>
+                    Math.abs(b.x - bx) < 200 && Math.abs(b.y - by) < 200));
+
+                const bType = buildingTypes[i];
+                buildings.push({
+                    x: bx, y: by,
+                    width: 100 + Math.random() * 40,
+                    height: 80 + Math.random() * 30,
+                    color: bType.color,
+                    roofColor: bType.roofColor,
+                    name: bType.name,
+                    interior: {
+                        furniture: [
+                            { type: 'counter', x: 50, y: 30, width: 100, height: 30, color: '#8B4513' },
+                            { type: 'shelf', x: 20, y: 100, width: 30, height: 60, color: '#654321' }
+                        ]
+                    }
+                });
+            }
+
+            // Create water areas (lakes/ponds)
+            for (let i = 0; i < 3; i++) {
+                let wx, wy;
+                let attempts = 0;
+                do {
+                    wx = 200 + Math.random() * (rpgWorldWidth - 400);
+                    wy = 200 + Math.random() * (rpgWorldHeight - 400);
+                    attempts++;
+                } while (attempts < 50 && (
+                    buildings.some(b => Math.abs(b.x - wx) < 200 && Math.abs(b.y - wy) < 200) ||
+                    waterAreas.some(w => Math.abs(w.x - wx) < 200 && Math.abs(w.y - wy) < 200)
+                ));
+
+                waterAreas.push({
+                    x: wx, y: wy,
+                    width: 100 + Math.random() * 150,
+                    height: 80 + Math.random() * 100
+                });
+            }
+
+            // Create trees
+            for (let i = 0; i < 30; i++) {
+                let tx = Math.random() * rpgWorldWidth;
+                let ty = Math.random() * rpgWorldHeight;
+
+                // Don't place on buildings or water
+                const onBuilding = buildings.some(b =>
+                    tx > b.x - 30 && tx < b.x + b.width + 30 &&
+                    ty > b.y - 30 && ty < b.y + b.height + 30);
+                const onWater = waterAreas.some(w =>
+                    tx > w.x - 20 && tx < w.x + w.width + 20 &&
+                    ty > w.y - 20 && ty < w.y + w.height + 20);
+
+                if (!onBuilding && !onWater) {
+                    trees.push({ x: tx, y: ty, size: 15 + Math.random() * 15 });
+                }
+            }
+
+            // Create NPCs
+            const npcNames = ['Elder Oak', 'Merchant Finn', 'Guard Sam', 'Farmer Lily', 'Scholar Mae', 'Blacksmith Tom'];
+            const npcDialogues = [
+                ["Welcome to our village, traveler!", "This planet is peaceful... for now.", "Beware of the star's fate..."],
+                ["Looking to buy something?", "I have the finest goods in the galaxy!", "Come back anytime!"],
+                ["I keep this village safe.", "Nothing gets past me!", "Stay out of trouble."],
+                ["The harvest has been good this year.", "Would you like some fresh vegetables?", "Farming is honest work."],
+                ["Knowledge is the greatest treasure.", "I've read about many worlds.", "The library is always open!"],
+                ["Need a weapon forged?", "My steel is the strongest!", "Fire and hammer, that's my life."]
+            ];
+            const npcColors = ['#e0c080', '#f0a060', '#a0a0c0', '#90c090', '#c090c0', '#c08080'];
+
+            for (let i = 0; i < 6; i++) {
+                let nx, ny;
+                let attempts = 0;
+                do {
+                    nx = 150 + Math.random() * (rpgWorldWidth - 300);
+                    ny = 150 + Math.random() * (rpgWorldHeight - 300);
+                    attempts++;
+                } while (attempts < 50 && (
+                    buildings.some(b => nx > b.x && nx < b.x + b.width && ny > b.y && ny < b.y + b.height) ||
+                    waterAreas.some(w => nx > w.x && nx < w.x + w.width && ny > w.y && ny < w.y + w.height)
+                ));
+
+                npcs.push({
+                    x: nx, y: ny,
+                    name: npcNames[i],
+                    color: npcColors[i],
+                    dialogues: npcDialogues[i],
+                    dialogueIndex: 0,
+                    direction: ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)],
+                    moveTimer: 0
+                });
+            }
+        }
+
+        function completePlanet() {
+            currentPlanet.discovered = true;
+            universeData.discoveredPlanets++;
+
+            // Celebration particles
+            const particleX = isRPGPlanet ? rpgPlayer.x : planetPlayer.x;
+            const particleY = isRPGPlanet ? rpgPlayer.y : planetPlayer.y;
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x: particleX,
+                    y: particleY,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 50,
+                    color: currentPlanet.color
+                });
+            }
+
+            // Go back to star view
+            gameState = 'star';
+            player.vx = 0;
+            player.vy = 0;
+            isRPGPlanet = false;
+            insideBuilding = null;
+
+            // Check win
+            if (universeData.discoveredPlanets >= universeData.totalPlanets) {
+                setTimeout(() => {
+                    gameRunning = false;
+                    document.getElementById('winScreen').style.display = 'flex';
+                }, 500);
+            }
+        }
+
+        function interact() {
+            if (gameState === 'universe') {
+                // Check if near a galaxy
+                for (let galaxy of universeData.galaxies) {
+                    let dx = player.x - galaxy.x;
+                    let dy = player.y - galaxy.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 60) {
+                        currentGalaxy = galaxy;
+                        galaxy.visited = true;
+                        gameState = 'galaxy';
+                        player.x = 100;
+                        player.y = 300;
+                        player.vx = 0;
+                        player.vy = 0;
+                        return;
+                    }
+                }
+            } else if (gameState === 'galaxy') {
+                // Check if near a star
+                for (let star of currentGalaxy.stars) {
+                    let dx = player.x - star.x;
+                    let dy = player.y - star.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 50) {
+                        currentStar = star;
+                        star.visited = true;
+                        // Store original star color for formation reset
+                        if (!star.originalColor) {
+                            star.originalColor = star.color;
+                        }
+                        // Reset formation mode when entering new star
+                        formingMode = false;
+                        formationProgress = 1;
+                        formationDust = [];
+                        timeSnapshots = []; // Clear old snapshots
+                        gameState = 'star';
+                        player.x = 100;
+                        player.y = 300;
+                        player.vx = 0;
+                        player.vy = 0;
+                        return;
+                    }
+                }
+                // Go back to universe
+                gameState = 'universe';
+                player.x = currentGalaxy.x;
+                player.y = currentGalaxy.y;
+                player.vx = 0;
+                player.vy = 0;
+            } else if (gameState === 'star') {
+                // Moons are click-only, not SPACE key
+
+                // Check if near a planet
+                for (let planet of currentStar.planets) {
+                    if (planet.destroyed) continue; // Can't land on destroyed planets
+                    let px = canvas.width/2 + Math.cos(planet.angle) * planet.distance;
+                    let py = canvas.height/2 + Math.sin(planet.angle) * planet.distance;
+                    let dx = player.x - px;
+                    let dy = player.y - py;
+                    if (Math.sqrt(dx*dx + dy*dy) < planet.radius + 20) {
+                        currentPlanet = planet;
+                        currentMoon = null;
+                        onMoon = false;
+                        gameState = 'planet';
+                        enterPlanetLevel();
+                        return;
+                    }
+                }
+                // Go back to galaxy
+                gameState = 'galaxy';
+                player.x = currentStar.x;
+                player.y = currentStar.y;
+                player.vx = 0;
+                player.vy = 0;
+            } else if (gameState === 'planet') {
+                // Check if at goal
+                let dx = planetPlayer.x - goal.x;
+                let dy = planetPlayer.y - goal.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 40) {
+                    completePlanet();
+                }
+            }
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            // Save time snapshots periodically for rewind feature
+            if ((gameState === 'star' || gameState === 'planet') && currentStar) {
+                const now = Date.now();
+                if (now - lastSnapshotTime >= SNAPSHOT_INTERVAL) {
+                    saveTimeSnapshot();
+                    lastSnapshotTime = now;
+                }
+            }
+
+            // Update planet orbits when viewing a star system
+            if ((gameState === 'star' || gameState === 'planet') && currentStar) {
+                // Update future vision if active
+                if (futureVisionMode) {
+                    updateFutureVision();
+                }
+
+                // Planet formation animation - SLOW and DRAMATIC
+                if (formingMode) {
+                    formationProgress += 0.0002; // VERY slow formation
+
+                    // Update dust particles - spiral into planets
+                    for (let dust of formationDust) {
+                        const planet = dust.targetPlanet;
+                        const targetAngle = planet.angle;
+                        const targetDist = planet.distance;
+
+                        // Spiral towards the planet's position
+                        dust.angle += dust.speed;
+
+                        // Only start converging after initial dust phase
+                        if (formationProgress > 0.1) {
+                            dust.dist += (targetDist - dust.dist) * 0.005 * formationProgress;
+                            // Converge angle towards planet
+                            const angleDiff = targetAngle - dust.angle;
+                            dust.angle += angleDiff * 0.002 * formationProgress;
+                        }
+
+                        // Update position
+                        dust.x = canvas.width/2 + Math.cos(dust.angle) * dust.dist;
+                        dust.y = canvas.height/2 + Math.sin(dust.angle) * dust.dist;
+
+                        // Shrink dust as it's absorbed
+                        if (formationProgress > 0.5) {
+                            dust.size *= 0.999;
+                        }
+                    }
+
+                    // Remove tiny dust particles
+                    formationDust = formationDust.filter(d => d.size > 0.3);
+
+                    // Update planet forming radius (grow slowly)
+                    for (let planet of currentStar.planets) {
+                        if (planet.formingRadius !== undefined) {
+                            const targetRadius = planet.radius;
+                            if (formationProgress < 0.3) {
+                                planet.formingRadius = targetRadius * (formationProgress / 0.3) * 0.5;
+                            } else if (formationProgress < 0.7) {
+                                planet.formingRadius = targetRadius * (0.5 + ((formationProgress - 0.3) / 0.4) * 0.3);
+                            } else {
+                                planet.formingRadius = targetRadius * (0.8 + ((formationProgress - 0.7) / 0.3) * 0.2);
+                            }
+                        }
+
+                        // Cool down planets over time (hot -> warm -> original type)
+                        if (formationProgress > 0.7 && planet.temperature > 0) {
+                            planet.temperature -= 0.002;
+                            if (planet.temperature < 0) planet.temperature = 0;
+
+                            // Change color based on temperature
+                            if (planet.temperature > 0.7) {
+                                planet.type = 'lava';
+                                planet.color = '#ff4400';
+                            } else if (planet.temperature > 0.5) {
+                                planet.type = 'molten';
+                                planet.color = '#ff6600';
+                            } else if (planet.temperature > 0.3) {
+                                planet.type = 'volcanic';
+                                planet.color = '#aa4400';
+                            } else if (planet.temperature > 0.1) {
+                                planet.type = 'barren';
+                                planet.color = '#996644';
+                            } else {
+                                // Restore original type
+                                planet.type = planet.originalType;
+                                planet.color = planet.originalColor;
+                                planet.heating = false;
+                            }
+                        }
+
+                        // Update moons forming from rings
+                        if (planet.moons && formationProgress > 0.6) {
+                            for (let moon of planet.moons) {
+                                if (moon.forming) {
+                                    moon.formingRadius = moon.radius * ((formationProgress - 0.6) / 0.4);
+                                    if (formationProgress >= 1) {
+                                        moon.forming = false;
+                                        moon.formingRadius = moon.radius;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Update protoplanet collisions
+                    for (let proto of protoplanets) {
+                        if (!proto.collided) {
+                            proto.angle += proto.orbitSpeed;
+
+                            // Check if it's time to collide
+                            if (formationProgress >= proto.collisionTime) {
+                                proto.collided = true;
+                                // Create explosion particles
+                                const px = canvas.width/2 + Math.cos(proto.angle) * proto.distance;
+                                const py = canvas.height/2 + Math.sin(proto.angle) * proto.distance;
+                                for (let i = 0; i < 30; i++) {
+                                    particles.push({
+                                        x: px,
+                                        y: py,
+                                        vx: (Math.random() - 0.5) * 8,
+                                        vy: (Math.random() - 0.5) * 8,
+                                        life: 60,
+                                        color: Math.random() < 0.5 ? '#ff6600' : '#ffaa00'
+                                    });
+                                }
+                                // Make target planet briefly brighter
+                                proto.targetPlanet.collisionFlash = 30;
+                            }
+                        }
+                    }
+
+                    // Update ring systems
+                    for (let ring of planetRings) {
+                        const planet = ring.planet;
+                        const px = canvas.width/2 + Math.cos(planet.angle) * planet.distance;
+                        const py = canvas.height/2 + Math.sin(planet.angle) * planet.distance;
+
+                        // Rings fade in during middle phase, fade out as moons form
+                        if (formationProgress < 0.5) {
+                            ring.opacity = formationProgress * 2;
+                        } else if (formationProgress > 0.7) {
+                            ring.opacity = 1 - ((formationProgress - 0.7) / 0.3);
+                        } else {
+                            ring.opacity = 1;
+                        }
+
+                        // Update ring particle positions
+                        for (let p of ring.particles) {
+                            p.angle += p.speed;
+                        }
+                    }
+
+                    // Transition star color from young bright to normal
+                    if (formationProgress > 0.8) {
+                        const t = (formationProgress - 0.8) / 0.2;
+                        // Interpolate from bright yellow to original color
+                        currentStar.color = currentStar.originalColor || '#ffdd44';
+                    }
+
+                    // When formation complete, FREEZE - wait for W key to go to present
+                    if (formationProgress >= 1) {
+                        formationProgress = 1; // Cap at 1
+                        // Keep formingMode = true, stay frozen until W key
+                        // Ensure all planets are at full size
+                        for (let planet of currentStar.planets) {
+                            planet.formingRadius = planet.radius;
+                            planet.temperature = 0;
+                            planet.type = planet.originalType;
+                            planet.color = planet.originalColor;
+                            planet.heating = false;
+                            if (planet.moons) {
+                                for (let moon of planet.moons) {
+                                    moon.forming = false;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (let planet of currentStar.planets) {
+                    planet.angle += planet.orbitSpeed;
+                    // Update moon orbits
+                    if (planet.moons) {
+                        for (let moon of planet.moons) {
+                            moon.angle += moon.orbitSpeed;
+                        }
+                    }
+                }
+
+                // Red giant expansion
+                if (currentStar.isRedGiant) {
+                    currentStar.redGiantRadius += 0.5;
+                    currentStar.color = '#ff3300'; // Turn red
+
+                    // Heat progression: freezing -> cold -> mild -> warm -> scorching -> destroyed
+                    const heatProgression = {
+                        'ice': { next: 'tundra', color: '#b0c4de' },
+                        'frozen': { next: 'tundra', color: '#b0c4de' },
+                        'crystal': { next: 'rocky', color: '#808080' },
+                        'tundra': { next: 'grassland', color: '#7cba3d' },
+                        'rocky': { next: 'barren', color: '#a0826d' },
+                        'stormy': { next: 'arid', color: '#c4a35a' },
+                        'forest': { next: 'desert', color: '#d4a84b' },
+                        'ocean': { next: 'arid', color: '#c4a35a' },
+                        'tropical': { next: 'desert', color: '#d4a84b' },
+                        'grassland': { next: 'desert', color: '#d4a84b' },
+                        'desert': { next: 'volcanic', color: '#8b0000' },
+                        'arid': { next: 'molten', color: '#ff6600' },
+                        'barren': { next: 'lava', color: '#ff4400' },
+                        'gas_blue': { next: 'gas_orange', color: '#e8a848' },
+                        'gas_purple': { next: 'gas_orange', color: '#e8a848' },
+                        'gas_brown': { next: 'gas_orange', color: '#e8a848' },
+                        'gas_orange': { next: 'lava', color: '#ff4400' },
+                        'volcanic': { next: 'lava', color: '#ff4400' },
+                        'molten': { next: 'lava', color: '#ff4400' },
+                        'lava': { next: null, color: '#ff4400' }
+                    };
+
+                    // Check if planets are consumed or heated
+                    for (let i = currentStar.planets.length - 1; i >= 0; i--) {
+                        let planet = currentStar.planets[i];
+                        if (planet.destroyed) continue;
+
+                        const distanceToStar = planet.distance - currentStar.redGiantRadius;
+
+                        if (distanceToStar < 0) {
+                            // Planet consumed! Create explosion particles (only in star view)
+                            if (gameState === 'star') {
+                                let px = canvas.width/2 + Math.cos(planet.angle) * planet.distance;
+                                let py = canvas.height/2 + Math.sin(planet.angle) * planet.distance;
+                                for (let j = 0; j < 20; j++) {
+                                    particles.push({
+                                        x: px, y: py,
+                                        vx: (Math.random() - 0.5) * 8,
+                                        vy: (Math.random() - 0.5) * 8,
+                                        life: 40,
+                                        color: planet.color
+                                    });
+                                }
+                            }
+                            // Remove planet
+                            planet.destroyed = true;
+                            universeData.totalPlanets--;
+                        }
+                        // ALL planets heat up when red giant is active!
+                        else {
+                            planet.heating = true;
+                            planet.groundScorched = true; // Scorch all planets
+
+                            // Calculate heat level based on red giant size and distance
+                            // Closer planets heat more, but ALL planets heat
+                            const redGiantProgress = currentStar.redGiantRadius / currentStar.redGiantMaxRadius;
+                            const distanceFactor = Math.max(0, 1 - (planet.distance / 500));
+                            const heatLevel = Math.floor((redGiantProgress * 3) + (distanceFactor * 2));
+
+                            // Store original type if not already stored
+                            if (!planet.originalType) {
+                                planet.originalType = planet.type;
+                                planet.originalColor = planet.color;
+                            }
+
+                            // Apply heat transformations
+                            let currentType = planet.originalType;
+                            let currentColor = planet.originalColor;
+                            for (let h = 0; h < heatLevel; h++) {
+                                if (heatProgression[currentType] && heatProgression[currentType].next) {
+                                    currentType = heatProgression[currentType].next;
+                                    currentColor = heatProgression[currentType] ? heatProgression[currentType].color : currentColor;
+                                }
+                            }
+                            planet.type = currentType;
+                            planet.color = currentColor;
+                        }
+                    }
+
+                    // Stop expanding at max
+                    if (currentStar.redGiantRadius >= currentStar.redGiantMaxRadius) {
+                        currentStar.redGiantRadius = currentStar.redGiantMaxRadius;
+                    }
+                }
+            }
+
+            // Red giant effects while on planet
+            if (gameState === 'planet' && currentStar && currentStar.isRedGiant) {
+                // Check if the star has reached this planet's orbit
+                if (currentPlanet.distance < currentStar.redGiantRadius) {
+                    // Planet destroyed while on it! Game over for this planet
+                    currentPlanet.destroyed = true;
+                    universeData.totalPlanets--;
+                    gameState = 'star';
+                    player.vx = 0;
+                    player.vy = 0;
+                    // Explosion
+                    for (let i = 0; i < 50; i++) {
+                        particles.push({
+                            x: canvas.width/2, y: canvas.height/2,
+                            vx: (Math.random() - 0.5) * 15,
+                            vy: (Math.random() - 0.5) * 15,
+                            life: 60,
+                            color: '#ff4400'
+                        });
+                    }
+                }
+            }
+
+            if (gameState === 'planet') {
+                updatePlanetLevel();
+            } else {
+                // Ship controls
+                if (keys['ArrowUp']) {
+                    player.vx += Math.cos(player.angle - Math.PI/2) * 0.3;
+                    player.vy += Math.sin(player.angle - Math.PI/2) * 0.3;
+                }
+                if (keys['ArrowDown']) {
+                    player.vx *= 0.95;
+                    player.vy *= 0.95;
+                }
+                if (keys['ArrowLeft']) player.angle -= 0.08;
+                if (keys['ArrowRight']) player.angle += 0.08;
+
+                // Limit speed
+                let speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+                if (speed > 5) {
+                    player.vx = (player.vx / speed) * 5;
+                    player.vy = (player.vy / speed) * 5;
+                }
+
+                player.vx *= 0.99;
+                player.vy *= 0.99;
+                player.x += player.vx;
+                player.y += player.vy;
+
+                // Wrap
+                if (player.x < 0) player.x = canvas.width;
+                if (player.x > canvas.width) player.x = 0;
+                if (player.y < 0) player.y = canvas.height;
+                if (player.y > canvas.height) player.y = 0;
+
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            // Update UI
+            let locationText = 'Universe Map';
+            if (gameState === 'galaxy') locationText = currentGalaxy.name + ' Galaxy';
+            if (gameState === 'star') locationText = currentStar.name;
+            if (gameState === 'planet') {
+                if (onMoon && currentMoon) {
+                    locationText = currentMoon.name + ' (Moon of ' + currentPlanet.name + ') - Low Gravity!';
+                } else if (isRPGPlanet) {
+                    locationText = currentPlanet.name + ' - Village' + (insideBuilding ? ' - ' + insideBuilding.name : '');
+                } else {
+                    locationText = currentPlanet.name + ' - Reach the flag!';
+                }
+            }
+            document.getElementById('location').textContent = locationText;
+            document.getElementById('discovered').textContent = `Planets: ${universeData.discoveredPlanets}/${universeData.totalPlanets}`;
+        }
+
+        function updatePlanetLevel() {
+            if (isRPGPlanet) {
+                updateRPGWorld();
+                return;
+            }
+
+            const FLOOR1 = 500;
+            const FLOOR2 = 300;
+
+            // Movement
+            if (keys['ArrowLeft']) {
+                planetPlayer.vx = -5;
+            } else if (keys['ArrowRight']) {
+                planetPlayer.vx = 5;
+            } else {
+                planetPlayer.vx *= 0.8;
+            }
+
+            // Jump and Double Jump
+            if (keys['Space'] && planetPlayer.spaceReleased) {
+                if (planetPlayer.onGround) {
+                    planetPlayer.vy = -13;
+                    planetPlayer.onGround = false;
+                    planetPlayer.canDoubleJump = true;
+                    planetPlayer.spaceReleased = false;
+                    // Jump boost
+                    if (keys['ArrowRight']) planetPlayer.vx = 8;
+                    else if (keys['ArrowLeft']) planetPlayer.vx = -8;
+                } else if (planetPlayer.canDoubleJump) {
+                    planetPlayer.vy = -12;
+                    planetPlayer.canDoubleJump = false;
+                    planetPlayer.spaceReleased = false;
+                    if (keys['ArrowRight']) planetPlayer.vx = 8;
+                    else if (keys['ArrowLeft']) planetPlayer.vx = -8;
+                    // Double jump particles
+                    for (let i = 0; i < 8; i++) {
+                        particles.push({
+                            x: planetPlayer.x, y: planetPlayer.y + 20,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 4,
+                            life: 20,
+                            color: '#fff'
+                        });
+                    }
+                }
+            }
+            if (!keys['Space']) planetPlayer.spaceReleased = true;
+
+            // Gravity (lower on moons!)
+            const gravity = onMoon ? 0.25 : 0.6;
+            planetPlayer.vy += gravity;
+
+            // Move
+            planetPlayer.x += planetPlayer.vx;
+            planetPlayer.y += planetPlayer.vy;
+
+            // Floor collision
+            planetPlayer.onGround = false;
+
+            // Check floors
+            if (planetPlayer.y + 20 >= FLOOR1 && planetPlayer.vy >= 0) {
+                planetPlayer.y = FLOOR1 - 20;
+                planetPlayer.vy = 0;
+                planetPlayer.onGround = true;
+                planetPlayer.canDoubleJump = true;
+            }
+            if (planetPlayer.y + 20 >= FLOOR2 && planetPlayer.y + 20 <= FLOOR2 + 10 && planetPlayer.vy >= 0 && planetPlayer.y < FLOOR2) {
+                planetPlayer.y = FLOOR2 - 20;
+                planetPlayer.vy = 0;
+                planetPlayer.onGround = true;
+                planetPlayer.canDoubleJump = true;
+            }
+
+            // Platform collision
+            for (let plat of platforms) {
+                if (planetPlayer.vy >= 0 &&
+                    planetPlayer.x + 15 > plat.x && planetPlayer.x - 15 < plat.x + plat.width &&
+                    planetPlayer.y + 20 >= plat.y && planetPlayer.y + 20 <= plat.y + plat.height + planetPlayer.vy) {
+                    planetPlayer.y = plat.y - 20;
+                    planetPlayer.vy = 0;
+                    planetPlayer.onGround = true;
+                    planetPlayer.canDoubleJump = true;
+                }
+            }
+
+            // Moving platform collision
+            for (let obs of obstacles) {
+                if (obs.type === 'moving') {
+                    obs.x = obs.startX + Math.sin(Date.now() * 0.003) * obs.range;
+                    if (planetPlayer.vy >= 0 &&
+                        planetPlayer.x + 15 > obs.x && planetPlayer.x - 15 < obs.x + obs.width &&
+                        planetPlayer.y + 20 >= obs.y && planetPlayer.y + 20 <= obs.y + obs.height + 5) {
+                        planetPlayer.y = obs.y - 20;
+                        planetPlayer.vy = 0;
+                        planetPlayer.onGround = true;
+                        planetPlayer.canDoubleJump = true;
+                    }
+                }
+            }
+
+            // Update obstacles
+            for (let obs of obstacles) {
+                if (obs.type === 'bouncer') {
+                    obs.phase += 0.05;
+                    obs.y = obs.startY + Math.sin(obs.phase) * 40;
+                }
+                if (obs.type === 'laser') {
+                    obs.active = Math.floor(Date.now() / 600) % 2 === 0;
+                }
+            }
+
+            // Obstacle collision
+            for (let obs of obstacles) {
+                let hit = false;
+                const px = planetPlayer.x - 12;
+                const py = planetPlayer.y - 15;
+                const pw = 24;
+                const ph = 35;
+
+                if (obs.type === 'spike') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py + ph > obs.y - obs.height && py < obs.y) {
+                        hit = true;
+                    }
+                } else if (obs.type === 'bouncer') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                } else if (obs.type === 'laser' && obs.active) {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+
+                if (hit) {
+                    // Reset player
+                    planetPlayer.x = 100;
+                    planetPlayer.y = 300;
+                    planetPlayer.vx = 0;
+                    planetPlayer.vy = 0;
+                    cameraX = 0;
+                    for (let i = 0; i < 15; i++) {
+                        particles.push({
+                            x: planetPlayer.x, y: planetPlayer.y,
+                            vx: (Math.random() - 0.5) * 8,
+                            vy: (Math.random() - 0.5) * 8,
+                            life: 25,
+                            color: currentPlanet.color
+                        });
+                    }
+                    break;
+                }
+            }
+
+            // Collect coins
+            for (let coin of coins) {
+                if (!coin.collected) {
+                    let dx = planetPlayer.x - coin.x;
+                    let dy = planetPlayer.y - coin.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < 25) {
+                        coin.collected = true;
+                        for (let i = 0; i < 6; i++) {
+                            particles.push({
+                                x: coin.x, y: coin.y,
+                                vx: (Math.random() - 0.5) * 5,
+                                vy: (Math.random() - 0.5) * 5,
+                                life: 20,
+                                color: '#ffd700'
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Camera follow
+            cameraX += (planetPlayer.x - 200 - cameraX) * 0.1;
+            if (cameraX < 0) cameraX = 0;
+            if (cameraX > levelLength - canvas.width) cameraX = levelLength - canvas.width;
+
+            // Screen bounds
+            if (planetPlayer.x < cameraX + 20) planetPlayer.x = cameraX + 20;
+            if (planetPlayer.x > levelLength - 20) planetPlayer.x = levelLength - 20;
+
+            // Fall off - reset
+            if (planetPlayer.y > 600) {
+                planetPlayer.x = 100;
+                planetPlayer.y = 300;
+                planetPlayer.vy = 0;
+                cameraX = 0;
+            }
+
+            // Check goal
+            if (planetPlayer.x > goal.x - 30 && planetPlayer.x < goal.x + 30) {
+                completePlanet();
+            }
+        }
+
+        function updateRPGWorld() {
+            // Dialogue timer
+            if (dialogueTimer > 0) {
+                dialogueTimer--;
+                if (dialogueTimer <= 0) {
+                    dialogueText = '';
+                    currentNPC = null;
+                }
+            }
+
+            // Inside building movement
+            if (insideBuilding) {
+                let speed = rpgPlayer.speed;
+                if (keys['ArrowUp']) { rpgPlayer.y -= speed; rpgPlayer.direction = 'up'; }
+                if (keys['ArrowDown']) { rpgPlayer.y += speed; rpgPlayer.direction = 'down'; }
+                if (keys['ArrowLeft']) { rpgPlayer.x -= speed; rpgPlayer.direction = 'left'; }
+                if (keys['ArrowRight']) { rpgPlayer.x += speed; rpgPlayer.direction = 'right'; }
+
+                // Keep in building bounds
+                rpgPlayer.x = Math.max(30, Math.min(canvas.width - 30, rpgPlayer.x));
+                rpgPlayer.y = Math.max(130, Math.min(canvas.height - 30, rpgPlayer.y));
+                return;
+            }
+
+            // Player movement (top-down RPG style)
+            let moveX = 0, moveY = 0;
+            let speed = rpgPlayer.speed;
+
+            // Slow down in water
+            const inWater = waterAreas.some(w =>
+                rpgPlayer.x > w.x && rpgPlayer.x < w.x + w.width &&
+                rpgPlayer.y > w.y && rpgPlayer.y < w.y + w.height);
+            if (inWater) speed = rpgPlayer.speed * 0.5;
+
+            if (keys['ArrowUp']) { moveY = -speed; rpgPlayer.direction = 'up'; }
+            if (keys['ArrowDown']) { moveY = speed; rpgPlayer.direction = 'down'; }
+            if (keys['ArrowLeft']) { moveX = -speed; rpgPlayer.direction = 'left'; }
+            if (keys['ArrowRight']) { moveX = speed; rpgPlayer.direction = 'right'; }
+
+            // Apply movement
+            let newX = rpgPlayer.x + moveX;
+            let newY = rpgPlayer.y + moveY;
+
+            // World bounds
+            newX = Math.max(16, Math.min(rpgWorldWidth - 16, newX));
+            newY = Math.max(16, Math.min(rpgWorldHeight - 16, newY));
+
+            // Building collision (can't walk through walls, but can enter doors)
+            if (!insideBuilding) {
+                for (let b of buildings) {
+                    // Check if trying to enter door (bottom center of building)
+                    const doorX = b.x + b.width / 2;
+                    const doorY = b.y + b.height;
+                    const nearDoor = Math.abs(newX - doorX) < 25 && Math.abs(newY - doorY) < 20;
+
+                    if (!nearDoor) {
+                        // Collision with building walls
+                        if (newX + 12 > b.x && newX - 12 < b.x + b.width &&
+                            newY + 12 > b.y && newY - 12 < b.y + b.height) {
+                            // Push back
+                            if (moveX > 0 && rpgPlayer.x + 12 <= b.x) newX = b.x - 12;
+                            if (moveX < 0 && rpgPlayer.x - 12 >= b.x + b.width) newX = b.x + b.width + 12;
+                            if (moveY > 0 && rpgPlayer.y + 12 <= b.y) newY = b.y - 12;
+                            if (moveY < 0 && rpgPlayer.y - 12 >= b.y + b.height) newY = b.y + b.height + 12;
+                        }
+                    }
+                }
+
+                // Tree collision
+                for (let t of trees) {
+                    const dist = Math.sqrt((newX - t.x) ** 2 + (newY - t.y) ** 2);
+                    if (dist < 20) {
+                        newX = rpgPlayer.x;
+                        newY = rpgPlayer.y;
+                    }
+                }
+            }
+
+            rpgPlayer.x = newX;
+            rpgPlayer.y = newY;
+
+            // Camera follow
+            cameraX += (rpgPlayer.x - canvas.width / 2 - cameraX) * 0.1;
+            cameraY += (rpgPlayer.y - canvas.height / 2 - cameraY) * 0.1;
+            cameraX = Math.max(0, Math.min(rpgWorldWidth - canvas.width, cameraX));
+            cameraY = Math.max(0, Math.min(rpgWorldHeight - canvas.height, cameraY));
+
+            // NPC movement (wandering)
+            for (let npc of npcs) {
+                npc.moveTimer--;
+                if (npc.moveTimer <= 0) {
+                    npc.direction = ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)];
+                    npc.moveTimer = 60 + Math.random() * 120;
+                }
+
+                let nx = npc.x, ny = npc.y;
+                const npcSpeed = 0.5;
+                if (npc.direction === 'up') ny -= npcSpeed;
+                if (npc.direction === 'down') ny += npcSpeed;
+                if (npc.direction === 'left') nx -= npcSpeed;
+                if (npc.direction === 'right') nx += npcSpeed;
+
+                // Keep NPCs in bounds and out of water/buildings
+                const npcInWater = waterAreas.some(w => nx > w.x && nx < w.x + w.width && ny > w.y && ny < w.y + w.height);
+                const npcInBuilding = buildings.some(b => nx > b.x && nx < b.x + b.width && ny > b.y && ny < b.y + b.height);
+
+                if (!npcInWater && !npcInBuilding && nx > 50 && nx < rpgWorldWidth - 50 && ny > 50 && ny < rpgWorldHeight - 50) {
+                    npc.x = nx;
+                    npc.y = ny;
+                }
+            }
+
+            // RED GIANT DESTRUCTION
+            if (currentStar && currentStar.isRedGiant) {
+                const dangerLevel = Math.max(0, 1 - (currentPlanet.distance - currentStar.redGiantRadius) / 100);
+
+                // Burn trees (they catch fire and disappear)
+                if (dangerLevel > 0.2) {
+                    for (let i = trees.length - 1; i >= 0; i--) {
+                        let t = trees[i];
+                        if (!t.burning && Math.random() < dangerLevel * 0.02) {
+                            t.burning = true;
+                            t.burnTimer = 60;
+                        }
+                        if (t.burning) {
+                            t.burnTimer--;
+                            // Fire particles from tree
+                            if (Math.random() < 0.3) {
+                                particles.push({
+                                    x: t.x, y: t.y - 10,
+                                    vx: (Math.random() - 0.5) * 3,
+                                    vy: -2 - Math.random() * 2,
+                                    life: 25,
+                                    color: ['#ff4400', '#ff6600', '#ffaa00'][Math.floor(Math.random() * 3)]
+                                });
+                            }
+                            if (t.burnTimer <= 0) {
+                                trees.splice(i, 1); // Tree destroyed
+                            }
+                        }
+                    }
+                }
+
+                // Evaporate water
+                if (dangerLevel > 0.3) {
+                    for (let w of waterAreas) {
+                        if (!w.evaporating) w.evaporating = true;
+                        w.width = Math.max(0, w.width - 0.5);
+                        w.height = Math.max(0, w.height - 0.3);
+                        // Steam particles
+                        if (w.width > 10 && Math.random() < 0.2) {
+                            particles.push({
+                                x: w.x + Math.random() * w.width,
+                                y: w.y + Math.random() * w.height,
+                                vx: (Math.random() - 0.5) * 2,
+                                vy: -1 - Math.random() * 2,
+                                life: 30,
+                                color: '#cccccc'
+                            });
+                        }
+                    }
+                    // Remove dried up water
+                    waterAreas = waterAreas.filter(w => w.width > 5 && w.height > 5);
+                }
+
+                // NPCs panic and flee, then burn
+                if (dangerLevel > 0.4) {
+                    for (let i = npcs.length - 1; i >= 0; i--) {
+                        let npc = npcs[i];
+                        npc.panicking = true;
+                        // Run faster in random direction
+                        npc.x += (Math.random() - 0.5) * 4;
+                        npc.y += (Math.random() - 0.5) * 4;
+
+                        // NPCs burn at high danger
+                        if (dangerLevel > 0.7 && Math.random() < 0.01) {
+                            // NPC burned!
+                            for (let j = 0; j < 15; j++) {
+                                particles.push({
+                                    x: npc.x, y: npc.y,
+                                    vx: (Math.random() - 0.5) * 5,
+                                    vy: (Math.random() - 0.5) * 5,
+                                    life: 30,
+                                    color: npc.color
+                                });
+                            }
+                            npcs.splice(i, 1);
+                        }
+                    }
+                }
+
+                // Buildings catch fire and collapse
+                if (dangerLevel > 0.5) {
+                    for (let i = buildings.length - 1; i >= 0; i--) {
+                        let b = buildings[i];
+                        if (!b.burning && Math.random() < dangerLevel * 0.005) {
+                            b.burning = true;
+                            b.burnTimer = 180;
+                        }
+                        if (b.burning) {
+                            b.burnTimer--;
+                            // Fire particles from building
+                            if (Math.random() < 0.4) {
+                                particles.push({
+                                    x: b.x + Math.random() * b.width,
+                                    y: b.y + Math.random() * b.height * 0.5,
+                                    vx: (Math.random() - 0.5) * 3,
+                                    vy: -3 - Math.random() * 3,
+                                    life: 35,
+                                    color: ['#ff4400', '#ff6600', '#ff0000'][Math.floor(Math.random() * 3)]
+                                });
+                            }
+                            if (b.burnTimer <= 0) {
+                                // Building collapsed!
+                                for (let j = 0; j < 30; j++) {
+                                    particles.push({
+                                        x: b.x + Math.random() * b.width,
+                                        y: b.y + Math.random() * b.height,
+                                        vx: (Math.random() - 0.5) * 6,
+                                        vy: (Math.random() - 0.5) * 6,
+                                        life: 40,
+                                        color: b.color
+                                    });
+                                }
+                                // If player's house burns, they can't complete normally
+                                if (b === playerHouse) {
+                                    playerHouse = null;
+                                }
+                                buildings.splice(i, 1);
+                            }
+                        }
+                    }
+                }
+
+                // Ground scorches (tracked separately)
+                if (dangerLevel > 0.6) {
+                    currentPlanet.groundScorched = true;
+                }
+
+                // If inside a burning building, get kicked out
+                if (insideBuilding && insideBuilding.burning) {
+                    insideBuilding = null;
+                    rpgPlayer.x = 400;
+                    rpgPlayer.y = 400;
+                }
+            }
+        }
+
+        // Handle RPG interactions (Space key)
+        function handleRPGInteraction() {
+            if (!isRPGPlanet) return;
+
+            // If inside a building, exit
+            if (insideBuilding) {
+                insideBuilding = null;
+                return;
+            }
+
+            // Check for building entrance (can't enter burning buildings)
+            for (let b of buildings) {
+                if (b.burning) continue; // Can't enter burning building!
+                const doorX = b.x + b.width / 2;
+                const doorY = b.y + b.height;
+                if (Math.abs(rpgPlayer.x - doorX) < 30 && Math.abs(rpgPlayer.y - doorY) < 30) {
+                    insideBuilding = b;
+                    rpgPlayer.x = canvas.width / 2;
+                    rpgPlayer.y = canvas.height - 50;
+                    return;
+                }
+            }
+
+            // Check for NPC interaction
+            for (let npc of npcs) {
+                const dist = Math.sqrt((rpgPlayer.x - npc.x) ** 2 + (rpgPlayer.y - npc.y) ** 2);
+                if (dist < 50) {
+                    currentNPC = npc;
+                    dialogueText = npc.dialogues[npc.dialogueIndex];
+                    npc.dialogueIndex = (npc.dialogueIndex + 1) % npc.dialogues.length;
+                    dialogueTimer = 180; // 3 seconds
+                    return;
+                }
+            }
+
+            // Complete planet (talk to all NPCs or visit your house)
+            if (playerHouse) {
+                const doorX = playerHouse.x + playerHouse.width / 2;
+                const doorY = playerHouse.y + playerHouse.height;
+                if (Math.abs(rpgPlayer.x - doorX) < 30 && Math.abs(rpgPlayer.y - doorY) < 30) {
+                    completePlanet();
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#0a0a18';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background stars
+            for (let star of stars) {
+                star.twinkle += 0.05;
+                let alpha = 0.5 + Math.sin(star.twinkle) * 0.3;
+                ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (gameState === 'universe') {
+                drawUniverse();
+            } else if (gameState === 'galaxy') {
+                drawGalaxy();
+            } else if (gameState === 'star') {
+                drawStarSystem();
+            } else if (gameState === 'planet') {
+                drawPlanetLevel();
+            }
+
+            // Particles
+            for (let p of particles) {
+                ctx.globalAlpha = p.life / 40;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw ship (only in space views)
+            if (gameState !== 'planet') {
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                ctx.rotate(player.angle);
+                ctx.fillStyle = '#00ffff';
+                ctx.beginPath();
+                ctx.moveTo(0, -15);
+                ctx.lineTo(10, 12);
+                ctx.lineTo(0, 6);
+                ctx.lineTo(-10, 12);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Instructions
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            if (gameState === 'universe') {
+                ctx.fillText('Fly to a galaxy and press SPACE', canvas.width/2, canvas.height - 20);
+            } else if (gameState === 'galaxy') {
+                ctx.fillText('Fly to a star (SPACE) or press SPACE to go back', canvas.width/2, canvas.height - 20);
+            } else if (gameState === 'star') {
+                if (currentStar && currentStar.isWhiteDwarf) {
+                    ctx.fillStyle = '#aaddff';
+                    ctx.fillText('White Dwarf - Dust desert | T: Reset entire system', canvas.width/2, canvas.height - 20);
+                } else if (currentStar && currentStar.isRedGiant) {
+                    ctx.fillStyle = '#ff4400';
+                    ctx.fillText('RED GIANT! S: Supernova | T: Reset entire system', canvas.width/2, canvas.height - 20);
+                } else {
+                    ctx.fillText('SPACE: planet | CLICK: moon | R: Red Giant | T: Reset system', canvas.width/2, canvas.height - 20);
+                }
+            } else if (gameState === 'planet') {
+                ctx.fillText('Arrow keys to move, SPACE to jump, J to leave - Reach the flag!', canvas.width/2, canvas.height - 20);
+            }
+        }
+
+        function drawRPGWorld() {
+            if (insideBuilding) {
+                drawBuildingInterior();
+                return;
+            }
+
+            // Check if planet is dried from supernova
+            const isDriedDesert = currentPlanet.dried || (currentStar && currentStar.isWhiteDwarf);
+
+            // Ground color based on planet type
+            const groundColors = {
+                'forest': '#228b22',
+                'tropical': '#2d8b4a',
+                'grassland': '#7cba3d'
+            };
+            const groundColor = groundColors[currentPlanet.originalType || currentPlanet.type] || '#228b22';
+
+            // Draw background - dust desert if dried, scorched if red giant, otherwise grass
+            let actualGroundColor = groundColor;
+            if (isDriedDesert) {
+                actualGroundColor = '#c2a366'; // Sandy dust desert
+            } else if (currentPlanet.groundScorched) {
+                actualGroundColor = '#4a3520'; // Scorched brown
+            }
+            ctx.fillStyle = actualGroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw ground texture
+            if (isDriedDesert) {
+                // Dust desert - sand dunes and dust
+                ctx.fillStyle = '#a89050';
+                for (let i = 0; i < 150; i++) {
+                    const gx = (i * 47 - cameraX * 0.5) % canvas.width;
+                    const gy = (i * 31 - cameraY * 0.5) % canvas.height;
+                    ctx.fillRect(gx, gy, 4, 2); // Sand ripples
+                }
+                // Dust particles floating
+                ctx.fillStyle = '#d4c4a0';
+                for (let i = 0; i < 30; i++) {
+                    const dx = (i * 60 + Date.now() * 0.02) % canvas.width;
+                    const dy = 100 + Math.sin(Date.now() * 0.001 + i) * 50 + (i * 15) % 300;
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.arc(dx, dy, 2 + Math.random(), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                // Dried sky gradient
+                ctx.fillStyle = 'rgba(200, 180, 140, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, 150);
+            } else if (currentPlanet.groundScorched) {
+                ctx.fillStyle = '#2a2015';
+                for (let i = 0; i < 200; i++) {
+                    const gx = (i * 37 - cameraX * 0.5) % canvas.width;
+                    const gy = (i * 23 - cameraY * 0.5) % canvas.height;
+                    ctx.fillRect(gx, gy, 3, 2); // Ash piles
+                }
+            } else {
+                ctx.fillStyle = '#1a6b1a';
+                for (let i = 0; i < 200; i++) {
+                    const gx = (i * 37 - cameraX * 0.5) % canvas.width;
+                    const gy = (i * 23 - cameraY * 0.5) % canvas.height;
+                    ctx.fillRect(gx, gy, 2, 4);
+                }
+            }
+
+            // Draw water areas (or dried craters if desert)
+            for (let w of waterAreas) {
+                const wx = w.x - cameraX;
+                const wy = w.y - cameraY;
+
+                if (isDriedDesert) {
+                    // Dried up lake bed - cracked earth
+                    ctx.fillStyle = '#8b7355';
+                    ctx.beginPath();
+                    ctx.ellipse(wx + w.width/2, wy + w.height/2, w.width/2, w.height/2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Cracks
+                    ctx.strokeStyle = '#6b5344';
+                    ctx.lineWidth = 2;
+                    for (let c = 0; c < 5; c++) {
+                        ctx.beginPath();
+                        ctx.moveTo(wx + w.width/2, wy + w.height/2);
+                        ctx.lineTo(wx + w.width/2 + (Math.random() - 0.5) * w.width, wy + w.height/2 + (Math.random() - 0.5) * w.height);
+                        ctx.stroke();
+                    }
+                    continue;
+                }
+
+                // Water
+                ctx.fillStyle = '#4a90d9';
+                ctx.beginPath();
+                ctx.ellipse(wx + w.width/2, wy + w.height/2, w.width/2, w.height/2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Water shine
+                ctx.fillStyle = '#6ab4f2';
+                ctx.beginPath();
+                ctx.ellipse(wx + w.width/2 - 10, wy + w.height/2 - 10, w.width/4, w.height/4, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ripples
+                ctx.strokeStyle = '#ffffff40';
+                ctx.lineWidth = 1;
+                const rippleOffset = (Date.now() * 0.002) % 20;
+                ctx.beginPath();
+                ctx.ellipse(wx + w.width/2, wy + w.height/2, w.width/3 + rippleOffset, w.height/3 + rippleOffset, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Draw trees (behind buildings)
+            for (let t of trees) {
+                const tx = t.x - cameraX;
+                const ty = t.y - cameraY;
+
+                if (t.burning) {
+                    // Burning tree - charred trunk
+                    ctx.fillStyle = '#2a1a0a';
+                    ctx.fillRect(tx - 4, ty - 5, 8, 15);
+
+                    // Fire instead of foliage
+                    ctx.fillStyle = '#ff4400';
+                    ctx.beginPath();
+                    ctx.arc(tx, ty - 15, t.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.arc(tx, ty - 18, t.size * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.arc(tx, ty - 20, t.size * 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (isDriedDesert) {
+                    // Dead dried tree - bare branches
+                    ctx.fillStyle = '#6b5a4a';
+                    ctx.fillRect(tx - 3, ty - 5, 6, 18);
+
+                    // Dead branches
+                    ctx.strokeStyle = '#5a4a3a';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(tx, ty - 10);
+                    ctx.lineTo(tx - 12, ty - 25);
+                    ctx.moveTo(tx, ty - 10);
+                    ctx.lineTo(tx + 10, ty - 22);
+                    ctx.moveTo(tx, ty - 5);
+                    ctx.lineTo(tx - 8, ty - 15);
+                    ctx.stroke();
+                } else {
+                    // Normal tree trunk
+                    ctx.fillStyle = '#5d4037';
+                    ctx.fillRect(tx - 4, ty - 5, 8, 15);
+
+                    // Tree foliage
+                    ctx.fillStyle = '#2e7d32';
+                    ctx.beginPath();
+                    ctx.arc(tx, ty - 15, t.size, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Lighter highlight
+                    ctx.fillStyle = '#4caf50';
+                    ctx.beginPath();
+                    ctx.arc(tx - 3, ty - 18, t.size * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Draw buildings
+            for (let b of buildings) {
+                const bx = b.x - cameraX;
+                const by = b.y - cameraY;
+
+                // Building shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(bx + 5, by + 5, b.width, b.height);
+
+                // Building walls (darker if burning, faded if dried desert)
+                let wallColor = b.color;
+                if (b.burning) {
+                    wallColor = '#3a2a1a';
+                } else if (isDriedDesert) {
+                    wallColor = '#9a8a7a'; // Dusty/faded color
+                }
+                ctx.fillStyle = wallColor;
+                ctx.fillRect(bx, by, b.width, b.height);
+
+                // Roof (on fire if burning)
+                ctx.fillStyle = b.burning ? '#ff4400' : b.roofColor;
+                ctx.beginPath();
+                ctx.moveTo(bx - 10, by);
+                ctx.lineTo(bx + b.width / 2, by - 40);
+                ctx.lineTo(bx + b.width + 10, by);
+                ctx.closePath();
+                ctx.fill();
+
+                // Fire on roof if burning
+                if (b.burning) {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.moveTo(bx + 10, by);
+                    ctx.lineTo(bx + b.width / 2, by - 60);
+                    ctx.lineTo(bx + b.width - 10, by);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.moveTo(bx + 20, by);
+                    ctx.lineTo(bx + b.width / 2, by - 45);
+                    ctx.lineTo(bx + b.width - 20, by);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // Door
+                ctx.fillStyle = b.burning ? '#2a1a0a' : '#4a3728';
+                const doorX = bx + b.width / 2 - 15;
+                const doorY = by + b.height - 40;
+                ctx.fillRect(doorX, doorY, 30, 40);
+
+                // Door handle
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(doorX + 24, doorY + 22, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Windows (orange glow if burning)
+                ctx.fillStyle = b.burning ? '#ff6600' : '#87ceeb';
+                if (b.width > 80) {
+                    ctx.fillRect(bx + 15, by + 20, 20, 20);
+                    ctx.fillRect(bx + b.width - 35, by + 20, 20, 20);
+                }
+
+                // Building name
+                ctx.fillStyle = b.burning ? '#ff4400' : '#fff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(b.burning ? b.name + ' (BURNING!)' : b.name, bx + b.width / 2, by - 45);
+
+                // "Your House" indicator
+                if (b.isPlayerHouse) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.fillText('HOME', bx + b.width / 2, by - 58);
+                }
+            }
+
+            // Draw NPCs
+            for (let npc of npcs) {
+                const nx = npc.x - cameraX;
+                const ny = npc.y - cameraY;
+
+                // Shake if panicking
+                const shakeX = npc.panicking ? (Math.random() - 0.5) * 4 : 0;
+                const shakeY = npc.panicking ? (Math.random() - 0.5) * 4 : 0;
+
+                // NPC body
+                ctx.fillStyle = npc.color;
+                ctx.beginPath();
+                ctx.arc(nx + shakeX, ny - 10 + shakeY, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // NPC body (torso)
+                ctx.fillRect(nx - 8 + shakeX, ny + shakeY, 16, 20);
+
+                // NPC head
+                ctx.fillStyle = npc.panicking ? '#ffccaa' : '#ffdab9';
+                ctx.beginPath();
+                ctx.arc(nx + shakeX, ny - 20 + shakeY, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes (wide if panicking)
+                ctx.fillStyle = '#000';
+                if (npc.panicking) {
+                    // Wide panicked eyes
+                    ctx.beginPath();
+                    ctx.arc(nx - 3 + shakeX, ny - 22 + shakeY, 3, 0, Math.PI * 2);
+                    ctx.arc(nx + 3 + shakeX, ny - 22 + shakeY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Mouth open
+                    ctx.beginPath();
+                    ctx.arc(nx + shakeX, ny - 14 + shakeY, 4, 0, Math.PI);
+                    ctx.fill();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(nx - 3, ny - 22, 2, 0, Math.PI * 2);
+                    ctx.arc(nx + 3, ny - 22, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Name tag or panic text
+                ctx.fillStyle = npc.panicking ? '#ff4400' : '#fff';
+                ctx.font = npc.panicking ? 'bold 10px Arial' : '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(npc.panicking ? 'HELP!' : npc.name, nx, ny - 35);
+
+                // Interaction indicator (not if panicking)
+                if (!npc.panicking) {
+                    const dist = Math.sqrt((rpgPlayer.x - npc.x) ** 2 + (rpgPlayer.y - npc.y) ** 2);
+                    if (dist < 50) {
+                        ctx.fillStyle = '#ffd700';
+                        ctx.font = 'bold 14px Arial';
+                        ctx.fillText('[SPACE]', nx, ny - 48);
+                    }
+                }
+            }
+
+            // Draw player
+            const px = rpgPlayer.x - cameraX;
+            const py = rpgPlayer.y - cameraY;
+
+            // Player shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(px, py + 12, 10, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Player body
+            ctx.fillStyle = '#00aaff';
+            ctx.beginPath();
+            ctx.arc(px, py - 5, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(px - 8, py + 5, 16, 15);
+
+            // Player head
+            ctx.fillStyle = '#ffdab9';
+            ctx.beginPath();
+            ctx.arc(px, py - 15, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Player eyes (based on direction)
+            ctx.fillStyle = '#000';
+            if (rpgPlayer.direction === 'up') {
+                // Don't show eyes from behind
+            } else if (rpgPlayer.direction === 'down') {
+                ctx.beginPath();
+                ctx.arc(px - 3, py - 13, 2, 0, Math.PI * 2);
+                ctx.arc(px + 3, py - 13, 2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (rpgPlayer.direction === 'left') {
+                ctx.beginPath();
+                ctx.arc(px - 5, py - 14, 2, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(px + 5, py - 14, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Swimming effect if in water
+            const inWater = waterAreas.some(w =>
+                rpgPlayer.x > w.x && rpgPlayer.x < w.x + w.width &&
+                rpgPlayer.y > w.y && rpgPlayer.y < w.y + w.height);
+            if (inWater) {
+                ctx.fillStyle = '#4a90d9';
+                ctx.globalAlpha = 0.6;
+                ctx.fillRect(px - 15, py, 30, 20);
+                ctx.globalAlpha = 1;
+
+                // Splash particles
+                if (Math.random() < 0.1) {
+                    particles.push({
+                        x: rpgPlayer.x + (Math.random() - 0.5) * 20,
+                        y: rpgPlayer.y,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: -2,
+                        life: 20,
+                        color: '#87ceeb'
+                    });
+                }
+            }
+
+            // Dialogue box
+            if (dialogueText && currentNPC) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(50, canvas.height - 120, canvas.width - 100, 100);
+                ctx.strokeStyle = '#ffd700';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(50, canvas.height - 120, canvas.width - 100, 100);
+
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(currentNPC.name + ':', 70, canvas.height - 95);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px Arial';
+                ctx.fillText(dialogueText, 70, canvas.height - 70);
+
+                ctx.fillStyle = '#888';
+                ctx.font = '11px Arial';
+                ctx.fillText('Press SPACE to continue...', 70, canvas.height - 40);
+            }
+
+            // Instructions
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Arrow keys to move | SPACE to interact | J to leave | Enter YOUR HOUSE to complete', canvas.width/2, 20);
+
+            // Mini-map
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(canvas.width - 110, 30, 100, 75);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(canvas.width - 110, 30, 100, 75);
+
+            const mapScale = 100 / rpgWorldWidth;
+            // Player on map
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(canvas.width - 110 + rpgPlayer.x * mapScale, 30 + rpgPlayer.y * mapScale * 0.6, 3, 0, Math.PI * 2);
+            ctx.fill();
+            // Buildings on map
+            ctx.fillStyle = '#ff0';
+            for (let b of buildings) {
+                ctx.fillRect(canvas.width - 110 + b.x * mapScale, 30 + b.y * mapScale * 0.6, 4, 3);
+            }
+            // Water on map
+            ctx.fillStyle = '#4a90d9';
+            for (let w of waterAreas) {
+                ctx.fillRect(canvas.width - 110 + w.x * mapScale, 30 + w.y * mapScale * 0.6, w.width * mapScale, w.height * mapScale * 0.6);
+            }
+
+            // Red giant warning effects
+            if (currentStar && currentStar.isRedGiant) {
+                const dangerLevel = Math.max(0, 1 - (currentPlanet.distance - currentStar.redGiantRadius) / 100);
+                if (dangerLevel > 0) {
+                    // Red sky tint
+                    ctx.fillStyle = `rgba(255, 50, 0, ${dangerLevel * 0.5})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Giant sun in sky
+                    const sunSize = 50 + dangerLevel * 100;
+                    ctx.fillStyle = '#ff3300';
+                    ctx.beginPath();
+                    ctx.arc(canvas.width - 100, 80, sunSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.arc(canvas.width - 100, 80, sunSize * 0.7, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Warning text
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = 'bold 28px Arial';
+                    ctx.textAlign = 'center';
+                    const warningText = dangerLevel > 0.7 ? 'PLANET BURNING! EVACUATE!' : 'RED GIANT APPROACHING!';
+                    ctx.fillText(warningText, canvas.width/2, 60);
+
+                    // Pulsing border
+                    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.5;
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 8;
+                    ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+                    ctx.globalAlpha = 1;
+
+                    // Fire particles from edges
+                    if (Math.random() < dangerLevel * 0.5) {
+                        particles.push({
+                            x: Math.random() * rpgWorldWidth,
+                            y: Math.random() * rpgWorldHeight,
+                            vx: (Math.random() - 0.5) * 3,
+                            vy: -2 - Math.random() * 3,
+                            life: 30,
+                            color: ['#ff4400', '#ff6600', '#ffaa00'][Math.floor(Math.random() * 3)]
+                        });
+                    }
+
+                    // NPCs panic dialogue
+                    if (dangerLevel > 0.3 && !dialogueText) {
+                        for (let npc of npcs) {
+                            npc.panicDialogue = ["The sun! It's growing!", "We must evacuate!", "Run for your lives!", "The end is near!"][Math.floor(Math.random() * 4)];
+                        }
+                    }
+                }
+            }
+
+            // White dwarf dried planet effect - dust desert
+            if (isDriedDesert) {
+                // Info text
+                ctx.fillStyle = '#8b7355';
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('DUST DESERT - The supernova dried everything...', canvas.width/2, 50);
+
+                // Small dim white dwarf sun
+                ctx.fillStyle = '#aaddff';
+                ctx.beginPath();
+                ctx.arc(canvas.width - 80, 80, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(canvas.width - 80, 80, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawBuildingInterior() {
+            // Interior background
+            ctx.fillStyle = '#3d2817';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Floor
+            ctx.fillStyle = '#5d4037';
+            for (let x = 0; x < canvas.width; x += 40) {
+                for (let y = 100; y < canvas.height; y += 40) {
+                    ctx.fillRect(x + ((y/40) % 2) * 20, y, 38, 38);
+                }
+            }
+
+            // Walls
+            ctx.fillStyle = '#8d6e63';
+            ctx.fillRect(0, 0, canvas.width, 100);
+
+            // Draw furniture
+            if (insideBuilding.interior) {
+                for (let f of insideBuilding.interior.furniture) {
+                    ctx.fillStyle = f.color;
+                    ctx.fillRect(f.x * 3, f.y * 2 + 100, f.width * 2, f.height * 2);
+
+                    // Furniture details
+                    if (f.type === 'bed') {
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(f.x * 3 + 10, f.y * 2 + 105, f.width * 2 - 20, 20);
+                    } else if (f.type === 'chest') {
+                        ctx.fillStyle = '#8b4513';
+                        ctx.fillRect(f.x * 3 + 5, f.y * 2 + 100, f.width * 2 - 10, 10);
+                        ctx.fillStyle = '#000';
+                        ctx.fillRect(f.x * 3 + f.width, f.y * 2 + 110, 10, 10);
+                    }
+                }
+            }
+
+            // Door (exit)
+            ctx.fillStyle = '#4a3728';
+            ctx.fillRect(canvas.width/2 - 30, canvas.height - 60, 60, 60);
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(canvas.width/2 + 15, canvas.height - 30, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Player inside building
+            const px = rpgPlayer.x;
+            const py = rpgPlayer.y;
+
+            ctx.fillStyle = '#00aaff';
+            ctx.beginPath();
+            ctx.arc(px, py - 5, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(px - 8, py + 5, 16, 15);
+
+            ctx.fillStyle = '#ffdab9';
+            ctx.beginPath();
+            ctx.arc(px, py - 15, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(px - 3, py - 13, 2, 0, Math.PI * 2);
+            ctx.arc(px + 3, py - 13, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Building name
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(insideBuilding.name, canvas.width/2, 50);
+
+            // Instructions
+            ctx.font = '14px Arial';
+            ctx.fillText('Press SPACE to exit', canvas.width/2, canvas.height - 70);
+
+            if (insideBuilding.isPlayerHouse) {
+                ctx.fillStyle = '#ffd700';
+                ctx.fillText('Welcome home! Press SPACE at the door to complete exploration.', canvas.width/2, 80);
+            }
+
+            // Red giant warning inside building
+            if (currentStar && currentStar.isRedGiant) {
+                const dangerLevel = Math.max(0, 1 - (currentPlanet.distance - currentStar.redGiantRadius) / 100);
+                if (dangerLevel > 0) {
+                    // Red tint through windows
+                    ctx.fillStyle = `rgba(255, 50, 0, ${dangerLevel * 0.4})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Warning
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = 'bold 20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('GET OUTSIDE! RED GIANT APPROACHING!', canvas.width/2, 30);
+
+                    // Shaking effect
+                    if (dangerLevel > 0.5) {
+                        ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+                    }
+                }
+            }
+        }
+
+        function drawPlanetLevel() {
+            if (isRPGPlanet) {
+                drawRPGWorld();
+                return;
+            }
+
+            const FLOOR1 = 500;
+            const FLOOR2 = 300;
+
+            // Moon theme (used when on a moon)
+            const moonTheme = { sky1: '#000000', sky2: '#1a1a2e', ground: '#2a2a2a', accent: '#888888', particles: 'stars' };
+
+            // Planet type backgrounds
+            const planetThemes = {
+                lava: { sky1: '#ff6600', sky2: '#330000', ground: '#1a0000', accent: '#ff4400', particles: 'fire' },
+                volcanic: { sky1: '#660000', sky2: '#1a0000', ground: '#2d0000', accent: '#ff0000', particles: 'fire' },
+                molten: { sky1: '#ff8800', sky2: '#441100', ground: '#220000', accent: '#ffaa00', particles: 'fire' },
+                desert: { sky1: '#ffcc66', sky2: '#cc6600', ground: '#8b4513', accent: '#daa520', particles: 'dust' },
+                arid: { sky1: '#e6c87a', sky2: '#996633', ground: '#704214', accent: '#c4a35a', particles: 'dust' },
+                barren: { sky1: '#aa8866', sky2: '#554433', ground: '#3d2817', accent: '#8b7355', particles: 'rocks' },
+                forest: { sky1: '#87ceeb', sky2: '#228b22', ground: '#2d5016', accent: '#90ee90', particles: 'leaves' },
+                ocean: { sky1: '#00bfff', sky2: '#000080', ground: '#1e3a5f', accent: '#40e0d0', particles: 'bubbles' },
+                tropical: { sky1: '#87ceeb', sky2: '#006644', ground: '#1a4d1a', accent: '#00ff7f', particles: 'leaves' },
+                grassland: { sky1: '#add8e6', sky2: '#558833', ground: '#3d5c1f', accent: '#90ee90', particles: 'leaves' },
+                tundra: { sky1: '#b0c4de', sky2: '#4a5568', ground: '#3d4852', accent: '#a0aec0', particles: 'snow' },
+                rocky: { sky1: '#696969', sky2: '#2f2f2f', ground: '#1c1c1c', accent: '#808080', particles: 'rocks' },
+                stormy: { sky1: '#2f4f4f', sky2: '#1a1a2e', ground: '#1c1c1c', accent: '#4682b4', particles: 'rain' },
+                ice: { sky1: '#e0ffff', sky2: '#4682b4', ground: '#1e3a5f', accent: '#b0e0e6', particles: 'snow' },
+                frozen: { sky1: '#f0ffff', sky2: '#708090', ground: '#2f4f4f', accent: '#ffffff', particles: 'snow' },
+                crystal: { sky1: '#dda0dd', sky2: '#4b0082', ground: '#2e0854', accent: '#ee82ee', particles: 'sparkle' },
+                gas_orange: { sky1: '#ffcc88', sky2: '#885522', ground: '#553311', accent: '#ffaa44', particles: 'clouds' },
+                gas_blue: { sky1: '#88bbee', sky2: '#334466', ground: '#223344', accent: '#6699cc', particles: 'clouds' },
+                gas_purple: { sky1: '#bb99dd', sky2: '#443366', ground: '#332244', accent: '#9977bb', particles: 'clouds' },
+                gas_brown: { sky1: '#ccaa88', sky2: '#554433', ground: '#443322', accent: '#aa8866', particles: 'clouds' }
+            };
+
+            // Use moon theme if on a moon, otherwise planet theme
+            const theme = onMoon ? moonTheme : (planetThemes[currentPlanet.type] || planetThemes.rocky);
+
+            // Sky gradient based on planet type
+            let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, theme.sky1);
+            skyGrad.addColorStop(1, theme.sky2);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background decorations based on type
+            if (theme.particles === 'fire') {
+                // Lava pools in background
+                for (let i = 0; i < 8; i++) {
+                    const bx = ((i * 200) - cameraX * 0.2) % (canvas.width + 150) - 50;
+                    ctx.fillStyle = '#ff4400';
+                    ctx.beginPath();
+                    ctx.ellipse(bx, 550, 40 + i * 5, 15, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.ellipse(bx, 550, 20 + i * 2, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Floating embers
+                for (let i = 0; i < 15; i++) {
+                    const ex = ((i * 80 + Date.now() * 0.02) - cameraX * 0.1) % canvas.width;
+                    const ey = 100 + Math.sin(Date.now() * 0.003 + i) * 50 + i * 20;
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (theme.particles === 'snow') {
+                // Snowflakes
+                for (let i = 0; i < 30; i++) {
+                    const sx = ((i * 50 + Date.now() * 0.03) % canvas.width);
+                    const sy = ((i * 40 + Date.now() * 0.05) % canvas.height);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Ice formations in background
+                for (let i = 0; i < 5; i++) {
+                    const ix = ((i * 250) - cameraX * 0.15) % (canvas.width + 200) - 50;
+                    ctx.fillStyle = '#a0d8ef50';
+                    ctx.beginPath();
+                    ctx.moveTo(ix, 520);
+                    ctx.lineTo(ix + 30, 400 - i * 20);
+                    ctx.lineTo(ix + 60, 520);
+                    ctx.fill();
+                }
+            } else if (theme.particles === 'leaves') {
+                // Trees in background
+                for (let i = 0; i < 8; i++) {
+                    const tx = ((i * 180) - cameraX * 0.25) % (canvas.width + 150) - 50;
+                    ctx.fillStyle = '#4a2c0a';
+                    ctx.fillRect(tx + 15, 420, 20, 80);
+                    ctx.fillStyle = '#228b22';
+                    ctx.beginPath();
+                    ctx.arc(tx + 25, 380, 40 + i * 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (theme.particles === 'bubbles') {
+                // Underwater bubbles
+                for (let i = 0; i < 20; i++) {
+                    const bx = ((i * 60) % canvas.width);
+                    const by = canvas.height - ((Date.now() * 0.05 + i * 50) % canvas.height);
+                    ctx.strokeStyle = '#ffffff40';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(bx, by, 5 + (i % 5), 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            } else if (theme.particles === 'dust') {
+                // Sand dunes
+                for (let i = 0; i < 6; i++) {
+                    const dx = ((i * 300) - cameraX * 0.2) % (canvas.width + 250) - 100;
+                    ctx.fillStyle = '#c4a04080';
+                    ctx.beginPath();
+                    ctx.arc(dx + 100, 530, 80 + i * 10, Math.PI, 0);
+                    ctx.fill();
+                }
+            } else if (theme.particles === 'rain') {
+                // Rain drops
+                ctx.strokeStyle = '#6688aa';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 50; i++) {
+                    const rx = (i * 30 + Date.now() * 0.1) % canvas.width;
+                    const ry = (i * 25 + Date.now() * 0.3) % canvas.height;
+                    ctx.beginPath();
+                    ctx.moveTo(rx, ry);
+                    ctx.lineTo(rx - 5, ry + 15);
+                    ctx.stroke();
+                }
+                // Storm clouds
+                ctx.fillStyle = '#33445580';
+                for (let i = 0; i < 5; i++) {
+                    const cx = ((i * 200) - cameraX * 0.1) % (canvas.width + 150) - 50;
+                    ctx.beginPath();
+                    ctx.arc(cx, 60, 50, 0, Math.PI * 2);
+                    ctx.arc(cx + 40, 70, 40, 0, Math.PI * 2);
+                    ctx.arc(cx - 30, 75, 35, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (theme.particles === 'sparkle') {
+                // Crystal sparkles
+                for (let i = 0; i < 25; i++) {
+                    const sx = (i * 50 + Math.sin(Date.now() * 0.002 + i) * 20) % canvas.width;
+                    const sy = 50 + (i * 40) % 400;
+                    const sparkle = Math.sin(Date.now() * 0.01 + i) * 0.5 + 0.5;
+                    ctx.fillStyle = `rgba(255, 200, 255, ${sparkle})`;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Crystal formations
+                ctx.fillStyle = '#9966cc50';
+                for (let i = 0; i < 6; i++) {
+                    const cx = ((i * 180) - cameraX * 0.2) % (canvas.width + 150) - 50;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, 520);
+                    ctx.lineTo(cx + 15, 420 - i * 15);
+                    ctx.lineTo(cx + 30, 520);
+                    ctx.fill();
+                    ctx.fillStyle = '#cc88ff30';
+                    ctx.beginPath();
+                    ctx.moveTo(cx + 40, 520);
+                    ctx.lineTo(cx + 50, 450 - i * 10);
+                    ctx.lineTo(cx + 60, 520);
+                    ctx.fill();
+                }
+            } else if (theme.particles === 'clouds') {
+                // Gas giant swirling clouds
+                for (let i = 0; i < 8; i++) {
+                    const cx = ((i * 180 + Date.now() * 0.02) - cameraX * 0.1) % (canvas.width + 200) - 100;
+                    const cy = 80 + Math.sin(i * 2 + Date.now() * 0.001) * 40 + i * 30;
+                    ctx.fillStyle = theme.accent + '60';
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy, 80 + i * 10, 25, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = theme.accent + '40';
+                    ctx.beginPath();
+                    ctx.ellipse(cx + 40, cy + 10, 50, 15, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Horizontal bands in background
+                for (let i = 0; i < 6; i++) {
+                    ctx.fillStyle = theme.accent + '20';
+                    ctx.fillRect(0, 50 + i * 80, canvas.width, 30);
+                }
+            } else if (theme.particles === 'stars') {
+                // Moon surface - stars in black sky (no atmosphere)
+                for (let i = 0; i < 50; i++) {
+                    const sx = (i * 47) % canvas.width;
+                    const sy = (i * 31) % 300;
+                    const twinkle = Math.sin(Date.now() * 0.003 + i) * 0.3 + 0.7;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${twinkle})`;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 1 + (i % 3) * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Parent planet in the sky
+                if (currentPlanet) {
+                    const planetInSky = 650 - cameraX * 0.05;
+                    ctx.fillStyle = currentPlanet.color;
+                    ctx.beginPath();
+                    ctx.arc(planetInSky, 100, 60, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Planet shine
+                    ctx.fillStyle = '#ffffff30';
+                    ctx.beginPath();
+                    ctx.arc(planetInSky - 15, 85, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Craters on ground
+                for (let i = 0; i < 8; i++) {
+                    const cx = ((i * 200) - cameraX * 0.3) % (canvas.width + 150) - 50;
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.beginPath();
+                    ctx.ellipse(cx, 540, 30 + i * 5, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                // Floating dust particles (low gravity)
+                for (let i = 0; i < 15; i++) {
+                    const dx = ((i * 80 + Date.now() * 0.01) - cameraX * 0.2) % canvas.width;
+                    const dy = 400 + Math.sin(Date.now() * 0.002 + i * 2) * 50;
+                    ctx.fillStyle = '#666666';
+                    ctx.beginPath();
+                    ctx.arc(dx, dy, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                // Generic rocks
+                for (let i = 0; i < 10; i++) {
+                    const rx = ((i * 150) - cameraX * 0.3) % (canvas.width + 100) - 50;
+                    ctx.fillStyle = theme.accent + '40';
+                    ctx.beginPath();
+                    ctx.arc(rx, 80 + Math.sin(i) * 30, 15 + i * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Floor 2 (upper)
+            ctx.fillStyle = theme.ground;
+            ctx.fillRect(0, FLOOR2, canvas.width, 8);
+            ctx.fillStyle = theme.accent + '80';
+            ctx.fillRect(0, FLOOR2, canvas.width, 3);
+
+            // Floor 1 (ground)
+            ctx.fillStyle = theme.ground;
+            ctx.fillRect(0, FLOOR1, canvas.width, 100);
+            ctx.fillStyle = theme.accent + '80';
+            ctx.fillRect(0, FLOOR1, canvas.width, 4);
+
+            // Add texture to ground based on type
+            if (currentPlanet.type === 'lava' || currentPlanet.type === 'volcanic') {
+                // Lava cracks
+                ctx.strokeStyle = '#ff440050';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 20; i++) {
+                    const lx = (i * 80 - cameraX * 0.5) % canvas.width;
+                    ctx.beginPath();
+                    ctx.moveTo(lx, FLOOR1 + 10);
+                    ctx.lineTo(lx + 20, FLOOR1 + 30);
+                    ctx.lineTo(lx + 10, FLOOR1 + 50);
+                    ctx.stroke();
+                }
+            } else if (currentPlanet.type === 'ice' || currentPlanet.type === 'frozen' || currentPlanet.type === 'tundra') {
+                // Ice shine
+                ctx.fillStyle = '#ffffff20';
+                for (let i = 0; i < 15; i++) {
+                    const ix = (i * 100 - cameraX * 0.3) % canvas.width;
+                    ctx.fillRect(ix, FLOOR1 + 5, 40, 3);
+                }
+            } else if (currentPlanet.type === 'forest') {
+                // Grass
+                ctx.fillStyle = '#32cd3280';
+                for (let i = 0; i < 40; i++) {
+                    const gx = (i * 35 - cameraX * 0.5) % canvas.width;
+                    ctx.fillRect(gx, FLOOR1 - 5, 3, 8);
+                }
+            }
+
+            // Platforms
+            for (let plat of platforms) {
+                const sx = plat.x - cameraX;
+                if (sx < -150 || sx > canvas.width + 50) continue;
+                ctx.fillStyle = '#555';
+                ctx.fillRect(sx, plat.y, plat.width, plat.height);
+                ctx.fillStyle = '#777';
+                ctx.fillRect(sx, plat.y, plat.width, 4);
+            }
+
+            // Obstacles
+            for (let obs of obstacles) {
+                const sx = obs.x - cameraX;
+                if (sx < -100 || sx > canvas.width + 100) continue;
+
+                if (obs.type === 'spike') {
+                    ctx.fillStyle = '#ff4444';
+                    ctx.beginPath();
+                    ctx.moveTo(sx + obs.width/2, obs.y - obs.height);
+                    ctx.lineTo(sx + obs.width, obs.y);
+                    ctx.lineTo(sx, obs.y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                else if (obs.type === 'moving') {
+                    const mx = obs.x - cameraX;
+                    ctx.fillStyle = '#666';
+                    ctx.fillRect(mx, obs.y, obs.width, obs.height);
+                    ctx.fillStyle = '#ff0';
+                    for (let i = 0; i < 4; i++) {
+                        ctx.fillRect(mx + 5 + i * 20, obs.y + 3, 10, obs.height - 6);
+                    }
+                }
+                else if (obs.type === 'bouncer') {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(sx + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Angry face
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(sx + 8, obs.y + 8, 5, 5);
+                    ctx.fillRect(sx + 17, obs.y + 8, 5, 5);
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(sx + obs.width/2, obs.y + 22, 6, 0, Math.PI);
+                    ctx.stroke();
+                }
+                else if (obs.type === 'laser') {
+                    // Emitters
+                    ctx.fillStyle = '#444';
+                    ctx.fillRect(sx - 8, obs.y - 8, 12, 24);
+                    ctx.fillRect(sx + obs.width - 4, obs.y - 8, 12, 24);
+                    // Beam
+                    if (obs.active) {
+                        ctx.fillStyle = '#ff0000';
+                        ctx.shadowColor = '#ff0000';
+                        ctx.shadowBlur = 15;
+                        ctx.fillRect(sx, obs.y, obs.width, obs.height);
+                        ctx.shadowBlur = 0;
+                    }
+                    ctx.fillStyle = obs.active ? '#f00' : '#600';
+                    ctx.beginPath();
+                    ctx.arc(sx - 2, obs.y + 4, 4, 0, Math.PI * 2);
+                    ctx.arc(sx + obs.width + 2, obs.y + 4, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Coins
+            for (let coin of coins) {
+                if (coin.collected) continue;
+                const sx = coin.x - cameraX;
+                if (sx < -20 || sx > canvas.width + 20) continue;
+                ctx.fillStyle = '#ffd700';
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(sx, coin.y, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#b8860b';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('$', sx, coin.y + 4);
+            }
+
+            // Goal flag
+            const gx = goal.x - cameraX;
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(gx - 5, goal.y - 100, 10, 100);
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.moveTo(gx + 5, goal.y - 100);
+            ctx.lineTo(gx + 55, goal.y - 75);
+            ctx.lineTo(gx + 5, goal.y - 50);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#ffd700';
+            ctx.font = '16px Arial';
+            ctx.fillText('★', gx + 25, goal.y - 70);
+
+            // Player
+            const px = planetPlayer.x - cameraX;
+            ctx.fillStyle = '#00aaff';
+            ctx.fillRect(px - 15, planetPlayer.y - 20, 30, 40);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(px - 15, planetPlayer.y - 20, 30, 40);
+            // Face
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(px - 8, planetPlayer.y - 12, 6, 6);
+            ctx.fillRect(px + 2, planetPlayer.y - 12, 6, 6);
+            ctx.strokeStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(px, planetPlayer.y + 2, 7, 0, Math.PI);
+            ctx.stroke();
+            // Hat
+            ctx.fillStyle = '#ff4444';
+            ctx.fillRect(px - 17, planetPlayer.y - 26, 34, 8);
+
+            // Progress bar
+            const progress = planetPlayer.x / levelLength;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(canvas.width - 160, 10, 150, 12);
+            ctx.fillStyle = '#0f0';
+            ctx.fillRect(canvas.width - 160, 10, 150 * progress, 12);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(canvas.width - 160, 10, 150, 12);
+
+            // Planet name
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(currentPlanet.name, 10, 25);
+
+            // Controls hint
+            ctx.fillStyle = '#666';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Arrows: Move | Space: Jump (x2) | J: Leave', canvas.width/2, canvas.height - 10);
+
+            // Red giant warning overlay
+            if (currentStar && currentStar.isRedGiant) {
+                const dangerLevel = Math.max(0, 1 - (currentPlanet.distance - currentStar.redGiantRadius) / 100);
+                if (dangerLevel > 0) {
+                    // Red overlay getting more intense
+                    ctx.fillStyle = `rgba(255, 0, 0, ${dangerLevel * 0.4})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Warning text
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = 'bold 24px Arial';
+                    ctx.textAlign = 'center';
+                    const warningText = dangerLevel > 0.7 ? 'EVACUATE NOW!' : 'RED GIANT APPROACHING!';
+                    ctx.fillText(warningText, canvas.width/2, 80);
+
+                    // Pulsing warning
+                    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.5;
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 5;
+                    ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+                    ctx.globalAlpha = 1;
+
+                    // Heat particles rising from ground
+                    if (Math.random() < dangerLevel) {
+                        particles.push({
+                            x: Math.random() * canvas.width + cameraX,
+                            y: 500,
+                            vx: (Math.random() - 0.5) * 2,
+                            vy: -3 - Math.random() * 3,
+                            life: 30,
+                            color: '#ff6600'
+                        });
+                    }
+                }
+            }
+
+            // White dwarf dried planet overlay
+            if (currentStar && currentStar.isWhiteDwarf && currentPlanet.dried) {
+                // Desaturated/grey overlay
+                ctx.fillStyle = 'rgba(150, 130, 100, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Info text
+                ctx.fillStyle = '#aa9988';
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Planet dried out after supernova...', canvas.width/2, 80);
+
+                // Dust particles
+                if (Math.random() < 0.3) {
+                    particles.push({
+                        x: Math.random() * canvas.width + cameraX,
+                        y: 480,
+                        vx: (Math.random() - 0.5) * 3,
+                        vy: -1 - Math.random() * 2,
+                        life: 25,
+                        color: '#aa9977'
+                    });
+                }
+            }
+        }
+
+        function drawUniverse() {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Universe Map', canvas.width/2, 40);
+
+            for (let galaxy of universeData.galaxies) {
+                // Glow
+                let grad = ctx.createRadialGradient(galaxy.x, galaxy.y, 0, galaxy.x, galaxy.y, 50);
+                grad.addColorStop(0, galaxy.color);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(galaxy.x, galaxy.y, 50, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Galaxy spiral
+                ctx.strokeStyle = galaxy.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for (let i = 0; i < 50; i++) {
+                    let angle = i * 0.2;
+                    let r = 5 + i * 0.6;
+                    let x = galaxy.x + Math.cos(angle) * r;
+                    let y = galaxy.y + Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                // Name
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.fillText(galaxy.name, galaxy.x, galaxy.y + 55);
+
+                if (galaxy.visited) {
+                    ctx.fillStyle = '#0f0';
+                    ctx.fillText('✓', galaxy.x + 40, galaxy.y - 30);
+                }
+            }
+        }
+
+        function drawGalaxy() {
+            ctx.fillStyle = currentGalaxy.color;
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(currentGalaxy.name + ' Galaxy', canvas.width/2, 40);
+
+            for (let star of currentGalaxy.stars) {
+                // Glow
+                let grad = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, 40);
+                grad.addColorStop(0, star.color);
+                grad.addColorStop(0.5, star.color + '44');
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, 40, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Star
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, 25, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Name
+                ctx.fillStyle = '#fff';
+                ctx.font = '11px Arial';
+                ctx.fillText(star.name, star.x, star.y + 45);
+
+                // Progress
+                let discovered = star.planets.filter(p => p.discovered).length;
+                ctx.fillStyle = '#aaa';
+                ctx.fillText(`${discovered}/3 planets`, star.x, star.y + 58);
+            }
+        }
+
+        function drawStarSystem() {
+            // Future vision cinematic overlay
+            if (futureVisionMode) {
+                // Draw cinematic black bars (letterbox effect)
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, canvas.width, 60);
+                ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+
+                // Glowing border effect
+                ctx.strokeStyle = '#ffaa00';
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#ffaa00';
+                ctx.shadowBlur = 15;
+                ctx.strokeRect(5, 65, canvas.width - 10, canvas.height - 130);
+                ctx.shadowBlur = 0;
+
+                // "FUTURE VISION" header
+                ctx.fillStyle = '#ffaa00';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('👁️ FUTURE VISION 👁️', canvas.width/2, 35);
+
+                // Time speed indicator
+                ctx.fillStyle = '#00ffff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('⏩ 10 Million Years / Second', canvas.width - 20, 35);
+
+                // Progress bar and timeline - hide when paused (going back in time)
+                if (!futurePaused) {
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(100, 50, canvas.width - 200, 8);
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.fillRect(100, 50, (canvas.width - 200) * futureProgress, 8);
+
+                    // Timeline labels
+                    ctx.font = '10px Arial';
+                    ctx.fillStyle = '#888';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('NOW', 100, 48);
+                    ctx.textAlign = 'center';
+                    ctx.fillText('1B YRS', 100 + (canvas.width - 200) * 0.15, 48);
+                    ctx.fillText('RED GIANT', 100 + (canvas.width - 200) * 0.35, 48);
+                    ctx.fillText('SUPERNOVA', 100 + (canvas.width - 200) * 0.52, 48);
+                    ctx.fillText('WHITE DWARF', 100 + (canvas.width - 200) * 0.7, 48);
+                    ctx.textAlign = 'right';
+                    ctx.fillText('100B YRS', canvas.width - 100, 48);
+                }
+
+                // Current event message at bottom
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(futureMessage, canvas.width/2, canvas.height - 35);
+
+                // Controls at bottom
+                ctx.fillStyle = '#888';
+                ctx.font = '14px Arial';
+                if (futurePaused) {
+                    ctx.fillText('SPACE: Resume | ENTER: Play From Here | F: Exit', canvas.width/2, canvas.height - 8);
+                } else {
+                    ctx.fillText('SPACE: Pause | F: Exit Vision', canvas.width/2, canvas.height - 8);
+                }
+            }
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            let starLabel = currentStar.name;
+            if (futureVisionMode) {
+                starLabel = currentStar.name + ' - ' + (futurePhase === 0 ? 'STABLE' : futurePhase === 1 ? 'AGING' : futurePhase === 2 ? 'RED GIANT' : futurePhase === 3 ? 'SUPERNOVA' : futurePhase === 4 ? 'WHITE DWARF' : 'BLACK DWARF');
+            } else if (currentStar.isRedGiant) starLabel += ' - RED GIANT!';
+            else if (currentStar.isWhiteDwarf) starLabel += ' - WHITE DWARF';
+            ctx.fillText(starLabel, canvas.width/2, futureVisionMode ? 85 : 40);
+
+            // Central star
+            let cx = canvas.width / 2;
+            let cy = canvas.height / 2;
+
+            let starRadius = currentStar.isRedGiant ? currentStar.redGiantRadius : (currentStar.isWhiteDwarf ? 15 : 35);
+            let glowRadius = currentStar.isRedGiant ? currentStar.redGiantRadius + 30 : (currentStar.isWhiteDwarf ? 40 : 60);
+
+            let grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
+            if (currentStar.isWhiteDwarf) {
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.5, '#aaddff88');
+                grad.addColorStop(1, 'transparent');
+            } else {
+                grad.addColorStop(0, currentStar.color);
+                grad.addColorStop(0.7, currentStar.isRedGiant ? '#ff000088' : currentStar.color + '44');
+                grad.addColorStop(1, 'transparent');
+            }
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = currentStar.color;
+            ctx.beginPath();
+            ctx.arc(cx, cy, starRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Red giant pulsing effect
+            if (currentStar.isRedGiant) {
+                ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.005) * 0.2;
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.arc(cx, cy, starRadius + 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // White dwarf shimmer effect
+            if (currentStar.isWhiteDwarf) {
+                ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.008) * 0.3;
+                ctx.fillStyle = '#aaddff';
+                ctx.beginPath();
+                ctx.arc(cx, cy, starRadius + 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+
+            // Draw formation effects (no dust disk - just protoplanets)
+            if (formingMode) {
+                // Draw protoplanets (before they collide)
+                for (let proto of protoplanets) {
+                    if (!proto.collided) {
+                        const px = cx + Math.cos(proto.angle) * proto.distance;
+                        const py = cy + Math.sin(proto.angle) * proto.distance;
+
+                        // Glowing hot protoplanet
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 15;
+                        ctx.fillStyle = proto.color;
+                        ctx.beginPath();
+                        ctx.arc(px, py, proto.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                }
+
+                // Draw ring systems
+                for (let ring of planetRings) {
+                    if (ring.opacity > 0.05) {
+                        const planet = ring.planet;
+                        const planetX = cx + Math.cos(planet.angle) * planet.distance;
+                        const planetY = cy + Math.sin(planet.angle) * planet.distance;
+
+                        ctx.globalAlpha = ring.opacity * 0.7;
+                        for (let p of ring.particles) {
+                            const rx = planetX + Math.cos(p.angle) * p.dist;
+                            const ry = planetY + Math.sin(p.angle) * p.dist * 0.3; // Flatten for ring perspective
+                            ctx.fillStyle = ring.color;
+                            ctx.beginPath();
+                            ctx.arc(rx, ry, p.size, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.globalAlpha = 1;
+                    }
+                }
+
+                // Find current event message
+                let currentEventMsg = '';
+                for (let event of formationEvents) {
+                    if (formationProgress >= event.time && event.type === 'text') {
+                        currentEventMsg = event.message;
+                    }
+                }
+
+                // Formation text with dramatic message
+                ctx.fillStyle = '#ff8844';
+                ctx.font = 'bold 22px Arial';
+                ctx.textAlign = 'center';
+
+                if (formationProgress >= 1) {
+                    // Formation complete - waiting for W key
+                    ctx.fillStyle = '#00ffaa';
+                    ctx.fillText('PLANETS FORMED - READY', canvas.width/2, 70);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 18px Arial';
+                    ctx.fillText('Press W to go to Present', canvas.width/2, 95);
+                } else {
+                    ctx.fillText(currentEventMsg, canvas.width/2, 70);
+                    ctx.fillStyle = '#88ffff';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.fillText(Math.floor(formationProgress * 100) + '% Complete', canvas.width/2, 95);
+                }
+            }
+
+            // Planets
+            for (let planet of currentStar.planets) {
+                // Skip destroyed planets
+                if (planet.destroyed) continue;
+
+                let px = cx + Math.cos(planet.angle) * planet.distance;
+                let py = cy + Math.sin(planet.angle) * planet.distance;
+
+                // During formation, scale planets based on formingRadius
+                let displayRadius = planet.radius;
+                if (formingMode) {
+                    displayRadius = planet.formingRadius || planet.radius * formationProgress;
+
+                    // Collision flash effect
+                    if (planet.collisionFlash && planet.collisionFlash > 0) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.globalAlpha = planet.collisionFlash / 30;
+                        ctx.beginPath();
+                        ctx.arc(px, py, displayRadius + 20, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                        planet.collisionFlash--;
+                    }
+
+                    // Heat glow effect for hot forming planets
+                    if (planet.temperature && planet.temperature > 0.3) {
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 20 * planet.temperature;
+                    }
+
+                    // Add sparkle/accretion effect during formation
+                    if (Math.random() < 0.15 && formationProgress > 0.1 && formationProgress < 0.8) {
+                        ctx.fillStyle = Math.random() < 0.5 ? '#ffaa00' : '#ff6600';
+                        ctx.globalAlpha = 0.8;
+                        const sparkDist = displayRadius + 5 + Math.random() * 15;
+                        const sparkAngle = Math.random() * Math.PI * 2;
+                        ctx.beginPath();
+                        ctx.arc(px + Math.cos(sparkAngle) * sparkDist, py + Math.sin(sparkAngle) * sparkDist, 1 + Math.random() * 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                }
+
+                // Orbit (ALL red when red giant is active) - hide when going back in time
+                if (!futurePaused) {
+                    if (currentStar.isRedGiant) {
+                        // Closer planets have brighter red orbits
+                        const closeness = planet.distance < currentStar.redGiantRadius + 100 ? 1 : 0.6;
+                        ctx.strokeStyle = closeness === 1 ? '#ff2200' : '#ff6644';
+                        ctx.lineWidth = 2;
+                    } else {
+                        ctx.strokeStyle = '#333';
+                        ctx.lineWidth = 1;
+                    }
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, planet.distance, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Planet glow based on temperature
+                const hotTypes = ['lava', 'volcanic', 'molten'];
+                const warmTypes = ['desert', 'arid', 'barren'];
+                const freezingTypes = ['ice', 'frozen', 'crystal'];
+
+                if (hotTypes.includes(planet.type)) {
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 12;
+                } else if (warmTypes.includes(planet.type)) {
+                    ctx.shadowColor = '#ffaa00';
+                    ctx.shadowBlur = 8;
+                } else if (freezingTypes.includes(planet.type)) {
+                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowBlur = 10;
+                } else if (planet.type === 'crystal') {
+                    ctx.shadowColor = '#ff00ff';
+                    ctx.shadowBlur = 12;
+                }
+
+                // Planet
+                ctx.fillStyle = planet.discovered ? '#444' : planet.color;
+                ctx.beginPath();
+                ctx.arc(px, py, displayRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+
+                // Skip detail rendering during formation if too small
+                if (formingMode && formationProgress < 0.5) continue;
+
+                // Planet texture overlay
+                if (!planet.discovered) {
+                    // Gas giant bands
+                    if (planet.isGasGiant) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(px, py, planet.radius, 0, Math.PI * 2);
+                        ctx.clip();
+
+                        // Draw horizontal bands
+                        const bandColors = {
+                            gas_orange: ['#cc8833', '#ffcc66', '#aa6622', '#e8a848'],
+                            gas_blue: ['#4477aa', '#6699cc', '#335588', '#5588cc'],
+                            gas_purple: ['#664488', '#9977bb', '#553377', '#8866aa'],
+                            gas_brown: ['#885533', '#bb9966', '#664422', '#aa7744']
+                        };
+                        const bands = bandColors[planet.type] || bandColors.gas_orange;
+                        const bandHeight = planet.radius * 2 / 5;
+                        for (let b = 0; b < 5; b++) {
+                            ctx.fillStyle = bands[b % bands.length];
+                            ctx.globalAlpha = 0.5;
+                            ctx.fillRect(px - planet.radius, py - planet.radius + b * bandHeight, planet.radius * 2, bandHeight);
+                        }
+                        ctx.globalAlpha = 1;
+                        ctx.restore();
+                    } else {
+                        ctx.globalAlpha = 0.3;
+                        if (planet.type === 'ocean') {
+                            ctx.fillStyle = '#00008b';
+                            ctx.beginPath();
+                            ctx.arc(px - 3, py - 2, planet.radius * 0.4, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else if (planet.type === 'forest') {
+                            ctx.fillStyle = '#006400';
+                            ctx.beginPath();
+                            ctx.arc(px + 2, py + 2, planet.radius * 0.5, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else if (planet.type === 'ice' || planet.type === 'frozen') {
+                            ctx.fillStyle = '#fff';
+                            ctx.beginPath();
+                            ctx.arc(px, py - planet.radius * 0.5, planet.radius * 0.4, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.globalAlpha = 1;
+                    }
+                }
+
+                // Draw permanent planet rings (like Saturn)
+                if (planet.hasRings && planet.rings && !formingMode) {
+                    const rings = planet.rings;
+                    const tilt = rings.tilt;
+
+                    // Draw ring as an ellipse
+                    ctx.save();
+                    ctx.translate(px, py);
+
+                    // Draw ring gradient (back half first, behind planet)
+                    ctx.globalAlpha = 0.7;
+
+                    // Back half of rings (behind planet)
+                    const gradient = ctx.createLinearGradient(-rings.outerRadius, 0, rings.outerRadius, 0);
+                    gradient.addColorStop(0, rings.colorOuter);
+                    gradient.addColorStop(0.3, rings.colorInner);
+                    gradient.addColorStop(0.7, rings.colorInner);
+                    gradient.addColorStop(1, rings.colorOuter);
+
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, rings.outerRadius, rings.outerRadius * tilt, 0, Math.PI, Math.PI * 2);
+                    ctx.ellipse(0, 0, rings.innerRadius, rings.innerRadius * tilt, 0, Math.PI * 2, Math.PI, true);
+                    ctx.fill();
+
+                    // Draw the planet on top (redraw)
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = planet.discovered ? '#444' : planet.color;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, displayRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Front half of rings (in front of planet)
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, rings.outerRadius, rings.outerRadius * tilt, 0, 0, Math.PI);
+                    ctx.ellipse(0, 0, rings.innerRadius, rings.innerRadius * tilt, 0, Math.PI, 0, true);
+                    ctx.fill();
+
+                    // Ring particles for extra detail
+                    ctx.globalAlpha = 0.6;
+                    for (let p of rings.particles) {
+                        const rx = Math.cos(p.angle) * p.dist;
+                        const ry = Math.sin(p.angle) * p.dist * tilt;
+                        ctx.fillStyle = `rgba(200, 180, 140, ${p.brightness})`;
+                        ctx.beginPath();
+                        ctx.arc(rx, ry, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.globalAlpha = 1;
+                    ctx.restore();
+                }
+
+                // Draw moons
+                if (planet.moons && planet.moons.length > 0) {
+                    for (let moon of planet.moons) {
+                        // During formation, moons form from rings later
+                        let moonDisplayRadius = moon.radius;
+                        if (formingMode && moon.forming) {
+                            moonDisplayRadius = moon.formingRadius || 0;
+                            if (moonDisplayRadius < 0.5) continue; // Too small to draw
+                        }
+
+                        const mx = px + Math.cos(moon.angle) * moon.distance;
+                        const my = py + Math.sin(moon.angle) * moon.distance;
+
+                        // Moon orbit line (faint)
+                        ctx.strokeStyle = '#ffffff20';
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.arc(px, py, moon.distance, 0, Math.PI * 2);
+                        ctx.stroke();
+
+                        // Moon - during formation, moons are also hot
+                        if (formingMode && moon.forming && formationProgress < 0.85) {
+                            ctx.fillStyle = '#ff6644'; // Hot moon
+                            ctx.shadowColor = '#ff4400';
+                            ctx.shadowBlur = 8;
+                        } else {
+                            ctx.fillStyle = moon.color;
+                        }
+                        ctx.beginPath();
+                        ctx.arc(mx, my, moonDisplayRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+
+                        // Moon shadow/crater (only when not forming)
+                        if (!formingMode || !moon.forming) {
+                            ctx.fillStyle = '#00000030';
+                            ctx.beginPath();
+                            ctx.arc(mx + moon.radius * 0.2, my + moon.radius * 0.2, moon.radius * 0.4, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+
+                if (planet.discovered) {
+                    ctx.fillStyle = '#0f0';
+                    ctx.font = '14px Arial';
+                    ctx.fillText('✓', px, py + 5);
+                }
+
+                // Planet name label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(planet.name, px, py - displayRadius - 12);
+
+                // Moon count indicator
+                if (planet.moons && planet.moons.length > 0) {
+                    ctx.fillStyle = '#aaaaaa';
+                    ctx.font = '8px Arial';
+                    ctx.fillText(planet.moons.length + ' moon' + (planet.moons.length > 1 ? 's' : ''), px, py + planet.radius + 22);
+                }
+
+                // Temperature indicator
+                ctx.font = '9px Arial';
+                ctx.textAlign = 'center';
+                const coldTypes = ['tundra', 'rocky', 'stormy'];
+
+                // Show heating warning on ALL planets when red giant is active
+                if (currentStar.isRedGiant) {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.fillText('BURNING!', px, py - planet.radius - 8);
+                    // Fire effect around planet (more intense for closer planets)
+                    const intensity = planet.distance < currentStar.redGiantRadius + 100 ? 1 : 0.5;
+                    ctx.globalAlpha = (0.3 + Math.sin(Date.now() * 0.01) * 0.2) * intensity;
+                    ctx.strokeStyle = '#ff4400';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(px, py, planet.radius + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+
+                // Show dried status after supernova
+                if (currentStar.isWhiteDwarf && planet.dried) {
+                    ctx.fillStyle = '#aa9977';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.fillText('DRIED', px, py - planet.radius - 8);
+                }
+
+                // Life planet indicator
+                if (planet.hasLife && !planet.destroyed) {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.font = 'bold 11px Arial';
+                    const lifeLabels = ['🦠 MICROBES', '🌿 PLANTS', '🦎 ANIMALS', '🏛️ CIVILIZATION', '🚀 SPACE AGE'];
+                    const lifeLabel = planet.lifeStage >= 0 ? lifeLabels[planet.lifeStage] || '🌍 LIFE' : '🌍 LIFE';
+                    ctx.fillText(lifeLabel, px, py + planet.radius + 22);
+                    // Pulsing glow for life planet
+                    ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.003) * 0.2;
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(px, py, displayRadius + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+
+                ctx.font = 'bold 10px Arial';
+                if (planet.isGasGiant) {
+                    ctx.fillStyle = '#ffcc66';
+                    ctx.fillText('GAS GIANT', px, py + planet.radius + 10);
+                } else if (hotTypes.includes(planet.type)) {
+                    ctx.fillStyle = '#ff4400';
+                    ctx.fillText('SCORCHING', px, py + planet.radius + 10);
+                } else if (warmTypes.includes(planet.type)) {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.fillText('WARM', px, py + planet.radius + 10);
+                } else if (coldTypes.includes(planet.type)) {
+                    ctx.fillStyle = '#aaaaff';
+                    ctx.fillText('COLD', px, py + planet.radius + 10);
+                } else if (freezingTypes.includes(planet.type)) {
+                    ctx.fillStyle = '#00ffff';
+                    ctx.fillText('FREEZING', px, py + planet.radius + 10);
+                } else {
+                    ctx.fillStyle = '#88ff88';
+                    ctx.fillText('MILD', px, py + planet.radius + 10);
+                }
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+            createUniverse();
+            gameState = 'universe';
+            currentGalaxy = null;
+            currentStar = null;
+            player = { x: 400, y: 300, angle: 0, vx: 0, vy: 0 };
+            particles = [];
+            gameRunning = true;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>

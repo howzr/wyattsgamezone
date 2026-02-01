@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snow Boarder - Endless Mountain Run</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        .game-container {
+            text-align: center;
+            position: relative;
+        }
+        .hud {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            color: #fff;
+            font-size: 1.2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+            text-align: left;
+        }
+        .hud div {
+            margin: 5px 0;
+        }
+        .distance { color: #4ecca3; }
+        .warning {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff4444;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff0000;
+            z-index: 10;
+            animation: pulse 0.5s infinite;
+            display: none;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .chase-timer {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffaa00;
+            font-size: 1.2rem;
+            z-index: 10;
+            display: none;
+        }
+        canvas {
+            border: 3px solid #4ecca3;
+            box-shadow: 0 0 30px rgba(78, 204, 163, 0.3);
+            border-radius: 10px;
+        }
+        .instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            font-size: 0.9rem;
+            z-index: 10;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #e74c3c;
+            display: none;
+            z-index: 20;
+        }
+        .game-over h2 {
+            color: #e74c3c;
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        .game-over p {
+            color: #fff;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        .game-over .cause {
+            color: #ff6b6b;
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #4ecca3;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            color: #1a1a2e;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #3db892;
+            transform: scale(1.05);
+        }
+        .start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #4ecca3;
+            z-index: 20;
+            text-align: center;
+        }
+        .start-screen h1 {
+            color: #4ecca3;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        .start-screen p {
+            color: #ccc;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .start-screen .rules {
+            color: #ff6b6b;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 100, 100, 0.1);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="hud">
+            <div class="distance">Distance: <span id="distance">0</span>m</div>
+            <div>Best: <span id="best">0</span>m</div>
+        </div>
+        <div class="warning" id="warning">SNOWMOBILE CHASING!</div>
+        <div class="chase-timer" id="chaseTimer">Escape in: <span id="escapeTime">10</span>s</div>
+
+        <canvas id="gameCanvas" width="600" height="700"></canvas>
+
+        <p class="instructions">Arrow Keys / A-D / Swipe to move left and right</p>
+
+        <div class="start-screen" id="startScreen">
+            <h1>Snow Boarder</h1>
+            <p>Race down the endless mountain!</p>
+            <p>Dodge trees, rocks, and ice!</p>
+            <div class="rules">
+                <p>If you hit an obstacle, a SNOWMOBILE will chase you!</p>
+                <p>Survive 10 seconds to escape it.</p>
+                <p>Hit another obstacle while being chased = GAME OVER!</p>
+            </div>
+            <button onclick="startGame()">Start Boarding!</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h2>Wipeout!</h2>
+            <p>Distance: <span id="finalDistance">0</span>m</p>
+            <p class="cause" id="cause"></p>
+            <button onclick="startGame()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameRunning = false;
+        let distance = 0;
+        let bestDistance = parseInt(localStorage.getItem('snowBoarderBest')) || 0;
+        let speed = 5;
+        let playerX = canvas.width / 2;
+        let playerLane = 0; // -1 left, 0 center, 1 right
+        let targetX = canvas.width / 2;
+
+        // Chase mechanic
+        let beingChased = false;
+        let chaseTimer = 0;
+        let snowmobileY = canvas.height + 100;
+        let snowmobileTargetY = canvas.height - 150;
+
+        // Obstacles
+        let obstacles = [];
+        let snowflakes = [];
+
+        // Animation
+        let boarderFrame = 0;
+        let frameCount = 0;
+
+        // Controls
+        let moveLeft = false;
+        let moveRight = false;
+
+        document.getElementById('best').textContent = bestDistance;
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('warning').style.display = 'none';
+            document.getElementById('chaseTimer').style.display = 'none';
+
+            gameRunning = true;
+            distance = 0;
+            speed = 5;
+            playerX = canvas.width / 2;
+            targetX = canvas.width / 2;
+            beingChased = false;
+            chaseTimer = 0;
+            snowmobileY = canvas.height + 100;
+            obstacles = [];
+            snowflakes = [];
+
+            // Create initial snowflakes
+            for (let i = 0; i < 50; i++) {
+                snowflakes.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 3 + 1,
+                    speed: Math.random() * 2 + 1
+                });
+            }
+
+            gameLoop();
+        }
+
+        function spawnObstacle() {
+            const types = ['tree', 'rock', 'ice', 'tree', 'tree']; // More trees
+            const type = types[Math.floor(Math.random() * types.length)];
+
+            // Spawn in lanes
+            const laneWidth = canvas.width / 5;
+            const lane = Math.floor(Math.random() * 5);
+            const x = laneWidth * lane + laneWidth / 2;
+
+            obstacles.push({
+                x: x,
+                y: -50,
+                type: type,
+                width: type === 'tree' ? 40 : (type === 'rock' ? 50 : 60),
+                height: type === 'tree' ? 60 : (type === 'rock' ? 40 : 30)
+            });
+        }
+
+        function drawSnowboarder(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(0, 35, 25, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Snowboard
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.ellipse(0, 30, 30, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Board design
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.ellipse(-15, 30, 5, 2, 0, 0, Math.PI * 2);
+            ctx.ellipse(15, 30, 5, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.ellipse(0, 5, 12, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head with helmet
+            ctx.fillStyle = '#f39c12';
+            ctx.beginPath();
+            ctx.arc(0, -18, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Goggles
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(-10, -22, 20, 8);
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(-8, -20, 6, 4);
+            ctx.fillRect(2, -20, 6, 4);
+
+            // Arms (animated)
+            const armAngle = Math.sin(frameCount * 0.1) * 0.2;
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(-10, 0);
+            ctx.lineTo(-25 - armAngle * 10, 10);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(10, 0);
+            ctx.lineTo(25 + armAngle * 10, 10);
+            ctx.stroke();
+
+            // Gloves
+            ctx.fillStyle = '#2c3e50';
+            ctx.beginPath();
+            ctx.arc(-25 - armAngle * 10, 10, 5, 0, Math.PI * 2);
+            ctx.arc(25 + armAngle * 10, 10, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawTree(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(0, 55, 20, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Trunk
+            ctx.fillStyle = '#5d4037';
+            ctx.fillRect(-5, 30, 10, 25);
+
+            // Snow-covered pine tree layers
+            for (let i = 0; i < 3; i++) {
+                const layerY = 25 - i * 18;
+                const layerWidth = 35 - i * 8;
+
+                // Green part
+                ctx.fillStyle = '#1b5e20';
+                ctx.beginPath();
+                ctx.moveTo(0, layerY - 20);
+                ctx.lineTo(-layerWidth, layerY);
+                ctx.lineTo(layerWidth, layerY);
+                ctx.closePath();
+                ctx.fill();
+
+                // Snow on top
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.moveTo(0, layerY - 20);
+                ctx.lineTo(-layerWidth * 0.6, layerY - 8);
+                ctx.lineTo(layerWidth * 0.6, layerY - 8);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawRock(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.ellipse(0, 35, 25, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Rock body
+            ctx.fillStyle = '#607d8b';
+            ctx.beginPath();
+            ctx.moveTo(-25, 30);
+            ctx.lineTo(-20, 5);
+            ctx.lineTo(-5, -10);
+            ctx.lineTo(15, -5);
+            ctx.lineTo(25, 15);
+            ctx.lineTo(20, 30);
+            ctx.closePath();
+            ctx.fill();
+
+            // Rock highlights
+            ctx.fillStyle = '#78909c';
+            ctx.beginPath();
+            ctx.moveTo(-15, 25);
+            ctx.lineTo(-10, 5);
+            ctx.lineTo(5, 0);
+            ctx.lineTo(10, 20);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow on rock
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.ellipse(0, -5, 15, 5, -0.2, 0, Math.PI);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawIce(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Ice patch
+            ctx.fillStyle = 'rgba(100, 200, 255, 0.6)';
+            ctx.beginPath();
+            ctx.ellipse(0, 15, 30, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ice shine
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.ellipse(-10, 10, 10, 5, -0.3, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Ice crystals
+            ctx.fillStyle = 'rgba(200, 240, 255, 0.8)';
+            for (let i = 0; i < 3; i++) {
+                const cx = (i - 1) * 15;
+                const cy = 15 + Math.sin(i) * 5;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 8);
+                ctx.lineTo(cx + 4, cy);
+                ctx.lineTo(cx, cy + 8);
+                ctx.lineTo(cx - 4, cy);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawSnowmobile(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Headlight glow
+            ctx.fillStyle = 'rgba(255, 255, 100, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(-20, -60);
+            ctx.lineTo(-40, -120);
+            ctx.lineTo(40, -120);
+            ctx.lineTo(20, -60);
+            ctx.closePath();
+            ctx.fill();
+
+            // Track
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.ellipse(0, 30, 40, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Track treads
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            for (let i = -35; i < 35; i += 8) {
+                ctx.beginPath();
+                ctx.moveTo(i, 20);
+                ctx.lineTo(i, 40);
+                ctx.stroke();
+            }
+
+            // Body
+            ctx.fillStyle = '#c0392b';
+            ctx.beginPath();
+            ctx.moveTo(-35, 25);
+            ctx.lineTo(-40, 0);
+            ctx.lineTo(-30, -30);
+            ctx.lineTo(30, -30);
+            ctx.lineTo(40, 0);
+            ctx.lineTo(35, 25);
+            ctx.closePath();
+            ctx.fill();
+
+            // Windshield
+            ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
+            ctx.beginPath();
+            ctx.moveTo(-20, -30);
+            ctx.lineTo(-15, -55);
+            ctx.lineTo(15, -55);
+            ctx.lineTo(20, -30);
+            ctx.closePath();
+            ctx.fill();
+
+            // Headlights
+            ctx.fillStyle = '#ffeb3b';
+            ctx.beginPath();
+            ctx.arc(-15, -30, 6, 0, Math.PI * 2);
+            ctx.arc(15, -30, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Driver
+            ctx.fillStyle = '#2c3e50';
+            ctx.beginPath();
+            ctx.arc(0, -15, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Driver helmet visor
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(0, -15, 10, Math.PI * 0.8, Math.PI * 2.2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawMountainBackground() {
+            // Sky gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, '#1a237e');
+            skyGrad.addColorStop(0.5, '#3949ab');
+            skyGrad.addColorStop(1, '#7986cb');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Distant mountains
+            ctx.fillStyle = '#5c6bc0';
+            ctx.beginPath();
+            ctx.moveTo(0, 200);
+            ctx.lineTo(100, 100);
+            ctx.lineTo(200, 180);
+            ctx.lineTo(300, 80);
+            ctx.lineTo(400, 150);
+            ctx.lineTo(500, 90);
+            ctx.lineTo(600, 170);
+            ctx.lineTo(600, 200);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow on mountains
+            ctx.fillStyle = '#e8eaf6';
+            ctx.beginPath();
+            ctx.moveTo(100, 100);
+            ctx.lineTo(80, 130);
+            ctx.lineTo(120, 130);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(300, 80);
+            ctx.lineTo(275, 120);
+            ctx.lineTo(325, 120);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(500, 90);
+            ctx.lineTo(475, 130);
+            ctx.lineTo(525, 130);
+            ctx.closePath();
+            ctx.fill();
+
+            // Snow ground
+            const snowGrad = ctx.createLinearGradient(0, 200, 0, canvas.height);
+            snowGrad.addColorStop(0, '#e3f2fd');
+            snowGrad.addColorStop(1, '#bbdefb');
+            ctx.fillStyle = snowGrad;
+            ctx.fillRect(0, 200, canvas.width, canvas.height - 200);
+
+            // Snow track marks (moving with speed)
+            ctx.strokeStyle = 'rgba(144, 202, 249, 0.5)';
+            ctx.lineWidth = 3;
+            const trackOffset = (frameCount * speed) % 100;
+            for (let y = 200 + trackOffset; y < canvas.height; y += 100) {
+                // Left track
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2 - 20, y);
+                ctx.lineTo(canvas.width / 2 - 20, y + 50);
+                ctx.stroke();
+                // Right track
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2 + 20, y);
+                ctx.lineTo(canvas.width / 2 + 20, y + 50);
+                ctx.stroke();
+            }
+        }
+
+        function updateSnowflakes() {
+            for (const flake of snowflakes) {
+                flake.y += flake.speed + speed * 0.5;
+                flake.x += Math.sin(frameCount * 0.02 + flake.y * 0.01) * 0.5;
+
+                if (flake.y > canvas.height) {
+                    flake.y = -10;
+                    flake.x = Math.random() * canvas.width;
+                }
+            }
+        }
+
+        function drawSnowflakes() {
+            ctx.fillStyle = '#fff';
+            for (const flake of snowflakes) {
+                ctx.globalAlpha = 0.7;
+                ctx.beginPath();
+                ctx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function checkCollision(playerX, playerY, obstacle) {
+            const playerWidth = 30;
+            const playerHeight = 40;
+
+            // Simple box collision
+            return (
+                playerX - playerWidth / 2 < obstacle.x + obstacle.width / 2 &&
+                playerX + playerWidth / 2 > obstacle.x - obstacle.width / 2 &&
+                playerY - playerHeight / 2 < obstacle.y + obstacle.height / 2 &&
+                playerY + playerHeight / 2 > obstacle.y - obstacle.height / 2
+            );
+        }
+
+        function gameOver(cause) {
+            gameRunning = false;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalDistance').textContent = Math.floor(distance);
+            document.getElementById('cause').textContent = cause;
+            document.getElementById('warning').style.display = 'none';
+            document.getElementById('chaseTimer').style.display = 'none';
+
+            if (distance > bestDistance) {
+                bestDistance = Math.floor(distance);
+                localStorage.setItem('snowBoarderBest', bestDistance);
+                document.getElementById('best').textContent = bestDistance;
+            }
+        }
+
+        function update() {
+            frameCount++;
+            distance += speed * 0.1;
+
+            // Increase speed over time
+            speed = 5 + distance * 0.005;
+            if (speed > 15) speed = 15;
+
+            // Player movement
+            const moveSpeed = 8;
+            if (moveLeft) {
+                targetX -= moveSpeed;
+            }
+            if (moveRight) {
+                targetX += moveSpeed;
+            }
+
+            // Keep player in bounds
+            targetX = Math.max(40, Math.min(canvas.width - 40, targetX));
+
+            // Smooth movement
+            playerX += (targetX - playerX) * 0.15;
+
+            // Spawn obstacles
+            if (frameCount % Math.max(20, 50 - Math.floor(speed)) === 0) {
+                spawnObstacle();
+            }
+
+            // Update obstacles
+            const playerY = canvas.height - 100;
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].y += speed;
+
+                // Check collision
+                if (checkCollision(playerX, playerY, obstacles[i])) {
+                    obstacles.splice(i, 1);
+
+                    if (beingChased) {
+                        // Hit obstacle while being chased - game over!
+                        gameOver("The snowmobile caught you!");
+                        return;
+                    } else {
+                        // Start chase
+                        beingChased = true;
+                        chaseTimer = 10;
+                        snowmobileY = canvas.height + 100;
+                        document.getElementById('warning').style.display = 'block';
+                        document.getElementById('chaseTimer').style.display = 'block';
+                    }
+                    continue;
+                }
+
+                // Remove off-screen obstacles
+                if (obstacles[i].y > canvas.height + 100) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Chase mechanic
+            if (beingChased) {
+                // Snowmobile approaches
+                snowmobileY += (snowmobileTargetY - snowmobileY) * 0.05;
+
+                // Count down timer
+                if (frameCount % 60 === 0) {
+                    chaseTimer--;
+                    document.getElementById('escapeTime').textContent = chaseTimer;
+
+                    if (chaseTimer <= 0) {
+                        // Escaped!
+                        beingChased = false;
+                        document.getElementById('warning').style.display = 'none';
+                        document.getElementById('chaseTimer').style.display = 'none';
+                    }
+                }
+            } else {
+                // Snowmobile falls back
+                snowmobileY += 5;
+                if (snowmobileY > canvas.height + 200) {
+                    snowmobileY = canvas.height + 200;
+                }
+            }
+
+            // Update snowflakes
+            updateSnowflakes();
+
+            // Update UI
+            document.getElementById('distance').textContent = Math.floor(distance);
+        }
+
+        function draw() {
+            drawMountainBackground();
+
+            // Draw obstacles (sorted by Y for proper depth)
+            obstacles.sort((a, b) => a.y - b.y);
+            for (const obs of obstacles) {
+                if (obs.type === 'tree') {
+                    drawTree(obs.x, obs.y);
+                } else if (obs.type === 'rock') {
+                    drawRock(obs.x, obs.y);
+                } else if (obs.type === 'ice') {
+                    drawIce(obs.x, obs.y);
+                }
+            }
+
+            // Draw snowmobile if chasing
+            if (beingChased || snowmobileY < canvas.height + 150) {
+                drawSnowmobile(playerX, snowmobileY);
+            }
+
+            // Draw player
+            drawSnowboarder(playerX, canvas.height - 100);
+
+            // Draw snowflakes on top
+            drawSnowflakes();
+
+            // Chase vignette effect
+            if (beingChased) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            update();
+            draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+
+            switch(e.key) {
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    moveLeft = true;
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    moveRight = true;
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    moveLeft = false;
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    moveRight = false;
+                    break;
+            }
+        });
+
+        // Touch controls
+        let touchStartX = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!gameRunning) return;
+
+            const touchX = e.touches[0].clientX;
+            const deltaX = touchX - touchStartX;
+
+            if (deltaX < -20) {
+                moveLeft = true;
+                moveRight = false;
+            } else if (deltaX > 20) {
+                moveRight = true;
+                moveLeft = false;
+            } else {
+                moveLeft = false;
+                moveRight = false;
+            }
+
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', () => {
+            moveLeft = false;
+            moveRight = false;
+        });
+
+        // Initial draw
+        drawMountainBackground();
+        for (let i = 0; i < 50; i++) {
+            snowflakes.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 3 + 1,
+                speed: Math.random() * 2 + 1
+            });
+        }
+        drawSnowflakes();
+        drawSnowboarder(canvas.width / 2, canvas.height - 100);
+    </script>
+</body>
+</html>

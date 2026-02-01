@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wild West Rider</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: #2a1810;
+            overflow: hidden;
+        }
+
+        /* Character Selection Screen */
+        #character-select {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #f4a460 50%, #8B4513 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #character-select h1 {
+            font-size: 4em;
+            color: #8B4513;
+            text-shadow: 3px 3px 0 #DAA520, -1px -1px 0 #000;
+            margin-bottom: 20px;
+            font-family: 'Georgia', serif;
+        }
+
+        #character-select h2 {
+            font-size: 2em;
+            color: #654321;
+            margin-bottom: 40px;
+        }
+
+        .character-options {
+            display: flex;
+            gap: 60px;
+        }
+
+        .character-card {
+            background: #f5deb3;
+            border: 8px solid #8B4513;
+            border-radius: 20px;
+            padding: 30px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-align: center;
+            width: 250px;
+        }
+
+        .character-card:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .character-card .emoji {
+            font-size: 80px;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .character-card h3 {
+            font-size: 1.8em;
+            color: #8B4513;
+            margin-bottom: 10px;
+        }
+
+        .character-card p {
+            color: #654321;
+            font-size: 1em;
+        }
+
+        .cowboy-card {
+            background: linear-gradient(to bottom, #f5deb3, #daa520);
+        }
+
+        .bandit-card {
+            background: linear-gradient(to bottom, #2f2f2f, #1a1a1a);
+        }
+
+        .bandit-card h3, .bandit-card p {
+            color: #ff4444;
+        }
+
+        /* Game Container */
+        #game-container {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Game World */
+        #game-world {
+            width: 2000px;
+            height: 1500px;
+            position: absolute;
+            background: #c2b280;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* Ground texture */
+        #game-world::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 30%, #a89060 2px, transparent 2px),
+                radial-gradient(circle at 80% 70%, #a89060 2px, transparent 2px),
+                radial-gradient(circle at 50% 50%, #b8a070 3px, transparent 3px);
+            background-size: 100px 100px;
+            pointer-events: none;
+        }
+
+        /* Buildings */
+        .building {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .building-body {
+            background: #8B4513;
+            border: 4px solid #5c3010;
+            position: relative;
+        }
+
+        .building-roof {
+            width: 0;
+            height: 0;
+            border-left: 60px solid transparent;
+            border-right: 60px solid transparent;
+            border-bottom: 40px solid #654321;
+        }
+
+        .building-sign {
+            position: absolute;
+            bottom: -30px;
+            background: #deb887;
+            padding: 5px 15px;
+            border: 3px solid #8B4513;
+            font-weight: bold;
+            color: #5c3010;
+            white-space: nowrap;
+        }
+
+        /* Saloon */
+        #saloon {
+            left: 300px;
+            top: 200px;
+        }
+
+        #saloon .building-body {
+            width: 180px;
+            height: 120px;
+            background: linear-gradient(to bottom, #a0522d, #8B4513);
+        }
+
+        #saloon .building-body::before {
+            content: '🍺';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+        }
+
+        #saloon .swing-doors {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 50px;
+            background: #654321;
+            border: 3px solid #5c3010;
+        }
+
+        /* Sheriff Office */
+        #sheriff {
+            left: 600px;
+            top: 200px;
+        }
+
+        #sheriff .building-body {
+            width: 150px;
+            height: 100px;
+            background: linear-gradient(to bottom, #cd853f, #8B4513);
+        }
+
+        #sheriff .building-body::before {
+            content: '⭐';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 50px;
+        }
+
+        /* Bank */
+        #bank {
+            left: 900px;
+            top: 200px;
+        }
+
+        #bank .building-body {
+            width: 200px;
+            height: 130px;
+            background: linear-gradient(to bottom, #d4af37, #b8860b);
+        }
+
+        #bank .building-body::before {
+            content: '💰';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 50px;
+        }
+
+        #bank .columns {
+            position: absolute;
+            bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+        }
+
+        #bank .column {
+            width: 20px;
+            height: 60px;
+            background: #f5f5dc;
+            border: 2px solid #d4af37;
+        }
+
+        /* General Store */
+        #store {
+            left: 300px;
+            top: 500px;
+        }
+
+        #store .building-body {
+            width: 160px;
+            height: 110px;
+            background: linear-gradient(to bottom, #a0522d, #8B4513);
+        }
+
+        #store .building-body::before {
+            content: '🛒';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+        }
+
+        /* Stable */
+        #stable {
+            left: 600px;
+            top: 500px;
+        }
+
+        #stable .building-body {
+            width: 200px;
+            height: 100px;
+            background: linear-gradient(to bottom, #8b0000, #5c0000);
+        }
+
+        #stable .building-body::before {
+            content: '🐴';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 50px;
+        }
+
+        /* Hotel */
+        #hotel {
+            left: 900px;
+            top: 500px;
+        }
+
+        #hotel .building-body {
+            width: 180px;
+            height: 150px;
+            background: linear-gradient(to bottom, #deb887, #d2691e);
+        }
+
+        #hotel .building-body::before {
+            content: '🛏️';
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 50px;
+        }
+
+        #hotel .windows {
+            position: absolute;
+            top: 80px;
+            display: flex;
+            gap: 20px;
+            left: 20px;
+        }
+
+        #hotel .window {
+            width: 30px;
+            height: 40px;
+            background: #87CEEB;
+            border: 3px solid #8B4513;
+        }
+
+        /* Hideout (for bandits) */
+        #hideout {
+            left: 1500px;
+            top: 300px;
+        }
+
+        #hideout .building-body {
+            width: 180px;
+            height: 100px;
+            background: linear-gradient(to bottom, #2f2f2f, #1a1a1a);
+            border-color: #444;
+        }
+
+        #hideout .building-body::before {
+            content: '💀';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 50px;
+        }
+
+        /* Roads */
+        .road {
+            position: absolute;
+            background: #a08060;
+            border: 2px dashed #8B4513;
+        }
+
+        .road-h {
+            height: 80px;
+        }
+
+        .road-v {
+            width: 80px;
+        }
+
+        #main-road {
+            left: 200px;
+            top: 380px;
+            width: 1400px;
+        }
+
+        #side-road {
+            left: 550px;
+            top: 100px;
+            height: 600px;
+        }
+
+        /* Decorations */
+        .cactus {
+            position: absolute;
+            font-size: 60px;
+        }
+
+        .tumbleweed {
+            position: absolute;
+            font-size: 40px;
+            animation: roll 8s linear infinite;
+        }
+
+        @keyframes roll {
+            0% { transform: translateX(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateX(500px) rotate(720deg); opacity: 0; }
+        }
+
+        .wagon {
+            position: absolute;
+            font-size: 50px;
+        }
+
+        .barrel {
+            position: absolute;
+            font-size: 35px;
+        }
+
+        /* Player */
+        #player {
+            position: absolute;
+            font-size: 60px;
+            z-index: 100;
+            transition: left 0.1s, top 0.1s;
+            filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.5));
+        }
+
+        #player.facing-left {
+            transform: scaleX(-1);
+        }
+
+        .player-dust {
+            position: absolute;
+            font-size: 20px;
+            opacity: 0;
+            animation: dust 0.5s ease-out;
+        }
+
+        @keyframes dust {
+            0% { opacity: 0.8; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2) translateY(-20px); }
+        }
+
+        /* Mini Map */
+        #mini-map {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: #f5deb3;
+            border: 4px solid #8B4513;
+            border-radius: 10px;
+            z-index: 500;
+            overflow: hidden;
+        }
+
+        #mini-map-title {
+            background: #8B4513;
+            color: #f5deb3;
+            text-align: center;
+            padding: 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        #mini-map-content {
+            position: relative;
+            width: 100%;
+            height: calc(100% - 22px);
+        }
+
+        .map-building {
+            position: absolute;
+            background: #8B4513;
+            border: 1px solid #5c3010;
+        }
+
+        .map-road {
+            position: absolute;
+            background: #a08060;
+        }
+
+        #map-player {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ff0000;
+            border-radius: 50%;
+            z-index: 10;
+            box-shadow: 0 0 5px #ff0000;
+        }
+
+        .map-label {
+            position: absolute;
+            font-size: 6px;
+            color: #5c3010;
+            white-space: nowrap;
+        }
+
+        /* HUD */
+        #hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(139, 69, 19, 0.9);
+            padding: 15px 25px;
+            border-radius: 10px;
+            border: 4px solid #daa520;
+            color: #f5deb3;
+            z-index: 500;
+        }
+
+        #hud h3 {
+            margin-bottom: 10px;
+            color: #daa520;
+        }
+
+        #hud .stat {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        #role-icon {
+            font-size: 30px;
+            margin-right: 10px;
+        }
+
+        /* Interaction prompt */
+        #interaction-prompt {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: #daa520;
+            padding: 15px 30px;
+            border-radius: 10px;
+            border: 3px solid #daa520;
+            font-size: 18px;
+            z-index: 500;
+            display: none;
+        }
+
+        /* Message Box */
+        #message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #f5deb3;
+            border: 6px solid #8B4513;
+            border-radius: 15px;
+            padding: 30px;
+            z-index: 600;
+            display: none;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        #message-box h3 {
+            color: #8B4513;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        #message-box p {
+            color: #654321;
+            margin-bottom: 20px;
+        }
+
+        #message-box button {
+            background: #8B4513;
+            color: #f5deb3;
+            border: none;
+            padding: 10px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #message-box button:hover {
+            background: #654321;
+        }
+
+        /* Controls help */
+        #controls-help {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(139, 69, 19, 0.9);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 3px solid #daa520;
+            color: #f5deb3;
+            font-size: 12px;
+            z-index: 500;
+        }
+
+        /* NPCs */
+        .npc {
+            position: absolute;
+            font-size: 50px;
+            z-index: 50;
+        }
+
+        .npc-label {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <!-- Character Selection -->
+    <div id="character-select">
+        <h1>Wild West Rider</h1>
+        <h2>Choose Your Path</h2>
+        <div class="character-options">
+            <div class="character-card cowboy-card" onclick="selectCharacter('cowboy')">
+                <span class="emoji">🤠</span>
+                <h3>Cowboy</h3>
+                <p>Uphold the law, protect the town, and be a hero of the West!</p>
+            </div>
+            <div class="character-card bandit-card" onclick="selectCharacter('bandit')">
+                <span class="emoji">🦹</span>
+                <h3>Bandit</h3>
+                <p>Live outside the law, rob the bank, and become infamous!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container">
+        <div id="game-world">
+            <!-- Roads -->
+            <div class="road road-h" id="main-road"></div>
+            <div class="road road-v" id="side-road"></div>
+
+            <!-- Buildings -->
+            <div class="building" id="saloon">
+                <div class="building-roof" style="border-left-width:100px;border-right-width:100px;border-bottom-width:50px;"></div>
+                <div class="building-body">
+                    <div class="swing-doors"></div>
+                    <div class="building-sign">SALOON</div>
+                </div>
+            </div>
+
+            <div class="building" id="sheriff">
+                <div class="building-roof" style="border-left-width:85px;border-right-width:85px;border-bottom-width:45px;"></div>
+                <div class="building-body">
+                    <div class="building-sign">SHERIFF</div>
+                </div>
+            </div>
+
+            <div class="building" id="bank">
+                <div class="building-roof" style="border-left-width:110px;border-right-width:110px;border-bottom-width:50px;"></div>
+                <div class="building-body">
+                    <div class="columns">
+                        <div class="column"></div>
+                        <div class="column"></div>
+                        <div class="column"></div>
+                        <div class="column"></div>
+                    </div>
+                    <div class="building-sign">BANK</div>
+                </div>
+            </div>
+
+            <div class="building" id="store">
+                <div class="building-roof" style="border-left-width:90px;border-right-width:90px;border-bottom-width:45px;"></div>
+                <div class="building-body">
+                    <div class="building-sign">GENERAL STORE</div>
+                </div>
+            </div>
+
+            <div class="building" id="stable">
+                <div class="building-roof" style="border-left-width:110px;border-right-width:110px;border-bottom-width:50px;border-bottom-color:#5c0000;"></div>
+                <div class="building-body">
+                    <div class="building-sign">STABLE</div>
+                </div>
+            </div>
+
+            <div class="building" id="hotel">
+                <div class="building-roof" style="border-left-width:100px;border-right-width:100px;border-bottom-width:50px;border-bottom-color:#a0522d;"></div>
+                <div class="building-body">
+                    <div class="windows">
+                        <div class="window"></div>
+                        <div class="window"></div>
+                        <div class="window"></div>
+                    </div>
+                    <div class="building-sign">HOTEL</div>
+                </div>
+            </div>
+
+            <div class="building" id="hideout">
+                <div class="building-roof" style="border-left-width:100px;border-right-width:100px;border-bottom-width:45px;border-bottom-color:#333;"></div>
+                <div class="building-body">
+                    <div class="building-sign" style="background:#333;color:#ff4444;border-color:#555;">HIDEOUT</div>
+                </div>
+            </div>
+
+            <!-- Decorations -->
+            <div class="cactus" style="left:100px;top:150px;">🌵</div>
+            <div class="cactus" style="left:1300px;top:100px;">🌵</div>
+            <div class="cactus" style="left:1400px;top:600px;">🌵</div>
+            <div class="cactus" style="left:150px;top:700px;">🌵</div>
+            <div class="cactus" style="left:1700px;top:200px;">🌵</div>
+            <div class="cactus" style="left:1600px;top:500px;">🌵</div>
+
+            <div class="wagon" style="left:1200px;top:400px;">🛻</div>
+            <div class="barrel" style="left:480px;top:300px;">🛢️</div>
+            <div class="barrel" style="left:510px;top:320px;">🛢️</div>
+            <div class="barrel" style="left:800px;top:600px;">🛢️</div>
+
+            <div class="tumbleweed" style="left:100px;top:450px;">🌀</div>
+            <div class="tumbleweed" style="left:500px;top:750px;animation-delay:3s;">🌀</div>
+
+            <!-- NPCs -->
+            <div class="npc" id="npc-sheriff" style="left:680px;top:340px;">
+                <span class="npc-label">Sheriff Bill</span>
+                👮
+            </div>
+            <div class="npc" id="npc-bartender" style="left:350px;top:340px;">
+                <span class="npc-label">Bartender</span>
+                🧔
+            </div>
+            <div class="npc" id="npc-banker" style="left:980px;top:340px;">
+                <span class="npc-label">Banker</span>
+                🤵
+            </div>
+
+            <!-- Player -->
+            <div id="player">🏇</div>
+        </div>
+
+        <!-- Mini Map -->
+        <div id="mini-map">
+            <div id="mini-map-title">TOWN MAP</div>
+            <div id="mini-map-content">
+                <!-- Map roads -->
+                <div class="map-road" style="left:20px;top:50px;width:140px;height:8px;"></div>
+                <div class="map-road" style="left:55px;top:15px;width:8px;height:80px;"></div>
+
+                <!-- Map buildings -->
+                <div class="map-building" style="left:30px;top:20px;width:18px;height:12px;" title="Saloon"></div>
+                <div class="map-building" style="left:60px;top:20px;width:15px;height:10px;" title="Sheriff"></div>
+                <div class="map-building" style="left:90px;top:20px;width:20px;height:13px;" title="Bank"></div>
+                <div class="map-building" style="left:30px;top:65px;width:16px;height:11px;" title="Store"></div>
+                <div class="map-building" style="left:60px;top:65px;width:20px;height:10px;" title="Stable"></div>
+                <div class="map-building" style="left:90px;top:65px;width:18px;height:15px;" title="Hotel"></div>
+                <div class="map-building" style="left:150px;top:40px;width:18px;height:10px;background:#333;" title="Hideout"></div>
+
+                <!-- Labels -->
+                <div class="map-label" style="left:30px;top:34px;">Saloon</div>
+                <div class="map-label" style="left:60px;top:32px;">Sheriff</div>
+                <div class="map-label" style="left:92px;top:34px;">Bank</div>
+                <div class="map-label" style="left:30px;top:78px;">Store</div>
+                <div class="map-label" style="left:60px;top:76px;">Stable</div>
+                <div class="map-label" style="left:92px;top:82px;">Hotel</div>
+                <div class="map-label" style="left:148px;top:52px;color:#ff4444;">Hideout</div>
+
+                <!-- Player marker -->
+                <div id="map-player"></div>
+            </div>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud">
+            <h3><span id="role-icon">🤠</span><span id="role-name">Cowboy</span></h3>
+            <div class="stat">Gold: <span id="gold">50</span> 💰</div>
+            <div class="stat">Reputation: <span id="reputation">0</span></div>
+            <div class="stat">Location: <span id="location">Town Square</span></div>
+        </div>
+
+        <!-- Interaction Prompt -->
+        <div id="interaction-prompt">Press SPACE to interact</div>
+
+        <!-- Controls Help -->
+        <div id="controls-help">
+            <strong>Controls:</strong> Arrow Keys / WASD to move | SPACE to interact
+        </div>
+
+        <!-- Message Box -->
+        <div id="message-box">
+            <h3 id="msg-title">Welcome!</h3>
+            <p id="msg-text">Welcome to the Wild West!</p>
+            <button onclick="closeMessage()">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let gameState = {
+            role: 'cowboy',
+            gold: 50,
+            reputation: 0,
+            x: 700,
+            y: 420,
+            speed: 8,
+            facing: 'right',
+            currentLocation: 'Town Square',
+            nearBuilding: null,
+            bankRobbed: false,
+            bountiesCompleted: 0
+        };
+
+        // Key states
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+
+        // DOM Elements
+        const characterSelect = document.getElementById('character-select');
+        const gameContainer = document.getElementById('game-container');
+        const gameWorld = document.getElementById('game-world');
+        const player = document.getElementById('player');
+        const mapPlayer = document.getElementById('map-player');
+        const interactionPrompt = document.getElementById('interaction-prompt');
+
+        // Building locations for collision and interaction
+        const buildings = {
+            saloon: { x: 300, y: 200, width: 180, height: 160, name: 'Saloon' },
+            sheriff: { x: 600, y: 200, width: 150, height: 145, name: 'Sheriff Office' },
+            bank: { x: 900, y: 200, width: 200, height: 180, name: 'Bank' },
+            store: { x: 300, y: 500, width: 160, height: 155, name: 'General Store' },
+            stable: { x: 600, y: 500, width: 200, height: 150, name: 'Stable' },
+            hotel: { x: 900, y: 500, width: 180, height: 200, name: 'Hotel' },
+            hideout: { x: 1500, y: 300, width: 180, height: 145, name: 'Hideout' }
+        };
+
+        // Select character and start game
+        function selectCharacter(role) {
+            gameState.role = role;
+
+            if (role === 'bandit') {
+                gameState.gold = 20;
+                gameState.reputation = -10;
+                document.getElementById('role-icon').textContent = '🦹';
+                document.getElementById('role-name').textContent = 'Bandit';
+                player.textContent = '🏇';
+            } else {
+                document.getElementById('role-icon').textContent = '🤠';
+                document.getElementById('role-name').textContent = 'Cowboy';
+            }
+
+            characterSelect.style.display = 'none';
+            gameContainer.style.display = 'block';
+
+            updateHUD();
+            updateCamera();
+
+            setTimeout(() => {
+                if (role === 'cowboy') {
+                    showMessage('Welcome, Cowboy!', 'Protect the town, help citizens, and earn gold by completing bounties at the Sheriff office!');
+                } else {
+                    showMessage('Welcome, Bandit!', 'Live outside the law! Rob the bank, visit the hideout, and become the most wanted outlaw in the West!');
+                }
+            }, 500);
+        }
+
+        // Handle keyboard input
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'arrowup':
+                case 'w':
+                    keys.up = true;
+                    break;
+                case 'arrowdown':
+                case 's':
+                    keys.down = true;
+                    break;
+                case 'arrowleft':
+                case 'a':
+                    keys.left = true;
+                    break;
+                case 'arrowright':
+                case 'd':
+                    keys.right = true;
+                    break;
+                case ' ':
+                    interact();
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'arrowup':
+                case 'w':
+                    keys.up = false;
+                    break;
+                case 'arrowdown':
+                case 's':
+                    keys.down = false;
+                    break;
+                case 'arrowleft':
+                case 'a':
+                    keys.left = false;
+                    break;
+                case 'arrowright':
+                case 'd':
+                    keys.right = false;
+                    break;
+            }
+        });
+
+        // Game loop
+        function gameLoop() {
+            movePlayer();
+            checkNearBuilding();
+            updateMiniMap();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Move player
+        function movePlayer() {
+            let newX = gameState.x;
+            let newY = gameState.y;
+
+            if (keys.up) newY -= gameState.speed;
+            if (keys.down) newY += gameState.speed;
+            if (keys.left) {
+                newX -= gameState.speed;
+                gameState.facing = 'left';
+                player.classList.add('facing-left');
+            }
+            if (keys.right) {
+                newX += gameState.speed;
+                gameState.facing = 'right';
+                player.classList.remove('facing-left');
+            }
+
+            // World boundaries
+            newX = Math.max(50, Math.min(1900, newX));
+            newY = Math.max(50, Math.min(1400, newY));
+
+            // Check building collisions
+            let canMove = true;
+            for (let key in buildings) {
+                const b = buildings[key];
+                if (newX > b.x - 30 && newX < b.x + b.width + 30 &&
+                    newY > b.y - 30 && newY < b.y + b.height + 30) {
+                    // Allow movement along edges
+                    if (gameState.x > b.x - 30 && gameState.x < b.x + b.width + 30) {
+                        newY = gameState.y;
+                    }
+                    if (gameState.y > b.y - 30 && gameState.y < b.y + b.height + 30) {
+                        newX = gameState.x;
+                    }
+                }
+            }
+
+            gameState.x = newX;
+            gameState.y = newY;
+
+            player.style.left = gameState.x + 'px';
+            player.style.top = gameState.y + 'px';
+
+            updateCamera();
+        }
+
+        // Update camera to follow player
+        function updateCamera() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let offsetX = viewportWidth / 2 - gameState.x;
+            let offsetY = viewportHeight / 2 - gameState.y;
+
+            // Clamp camera
+            offsetX = Math.min(0, Math.max(-(2000 - viewportWidth), offsetX));
+            offsetY = Math.min(0, Math.max(-(1500 - viewportHeight), offsetY));
+
+            gameWorld.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+        }
+
+        // Check if near a building
+        function checkNearBuilding() {
+            let nearAny = false;
+
+            for (let key in buildings) {
+                const b = buildings[key];
+                const distance = Math.sqrt(
+                    Math.pow(gameState.x - (b.x + b.width/2), 2) +
+                    Math.pow(gameState.y - (b.y + b.height), 2)
+                );
+
+                if (distance < 100) {
+                    nearAny = true;
+                    gameState.nearBuilding = key;
+                    gameState.currentLocation = b.name;
+                    document.getElementById('location').textContent = b.name;
+                    break;
+                }
+            }
+
+            if (!nearAny) {
+                gameState.nearBuilding = null;
+                gameState.currentLocation = 'Town Square';
+                document.getElementById('location').textContent = 'Town Square';
+            }
+
+            interactionPrompt.style.display = nearAny ? 'block' : 'none';
+        }
+
+        // Update mini map
+        function updateMiniMap() {
+            // Scale: game world is 2000x1500, map is 200x128 (minus title)
+            const scaleX = 180 / 2000;
+            const scaleY = 100 / 1500;
+
+            mapPlayer.style.left = (gameState.x * scaleX + 10) + 'px';
+            mapPlayer.style.top = (gameState.y * scaleY + 5) + 'px';
+        }
+
+        // Interact with buildings
+        function interact() {
+            if (!gameState.nearBuilding) return;
+
+            switch(gameState.nearBuilding) {
+                case 'saloon':
+                    if (gameState.gold >= 5) {
+                        gameState.gold -= 5;
+                        showMessage('Saloon', 'You bought a drink and heard some gossip about outlaws nearby. (-5 gold)');
+                    } else {
+                        showMessage('Saloon', 'You don\'t have enough gold for a drink! Need 5 gold.');
+                    }
+                    break;
+
+                case 'sheriff':
+                    if (gameState.role === 'cowboy') {
+                        gameState.gold += 25;
+                        gameState.reputation += 10;
+                        gameState.bountiesCompleted++;
+                        showMessage('Sheriff Office', 'You completed a bounty! +25 gold, +10 reputation. Keep up the good work, partner!');
+                    } else {
+                        if (gameState.reputation < -20) {
+                            showMessage('Sheriff Office', 'The Sheriff recognizes you! "Get out of my town, outlaw!" Your wanted level is too high!');
+                        } else {
+                            showMessage('Sheriff Office', 'The Sheriff eyes you suspiciously... "I\'m watching you, stranger."');
+                        }
+                    }
+                    break;
+
+                case 'bank':
+                    if (gameState.role === 'bandit') {
+                        if (!gameState.bankRobbed) {
+                            gameState.gold += 100;
+                            gameState.reputation -= 30;
+                            gameState.bankRobbed = true;
+                            showMessage('BANK ROBBERY!', 'You robbed the bank! +100 gold, but you\'re now a wanted outlaw! (-30 reputation)');
+                        } else {
+                            showMessage('Bank', 'The bank is on high alert after your robbery. Come back another day!');
+                        }
+                    } else {
+                        gameState.gold += 10;
+                        showMessage('Bank', 'You deposited your savings and earned interest. +10 gold');
+                    }
+                    break;
+
+                case 'store':
+                    if (gameState.gold >= 20) {
+                        gameState.gold -= 20;
+                        gameState.speed = 10;
+                        showMessage('General Store', 'You bought faster boots! Your horse now runs faster. (-20 gold)');
+                    } else {
+                        showMessage('General Store', 'Browse the goods: Faster boots (20 gold). Come back when you have enough!');
+                    }
+                    break;
+
+                case 'stable':
+                    showMessage('Stable', 'Your horse is well fed and rested. Ready for adventure!');
+                    break;
+
+                case 'hotel':
+                    if (gameState.gold >= 10) {
+                        gameState.gold -= 10;
+                        showMessage('Hotel', 'You rested at the hotel. Your horse is refreshed! (-10 gold)');
+                    } else {
+                        showMessage('Hotel', 'A room costs 10 gold. Come back when you can afford it!');
+                    }
+                    break;
+
+                case 'hideout':
+                    if (gameState.role === 'bandit') {
+                        gameState.gold += 15;
+                        showMessage('Bandit Hideout', 'You met with your gang and split some loot. +15 gold. "Stick together, outlaws!"');
+                    } else {
+                        showMessage('Suspicious Location', 'This place looks dangerous... Maybe the Sheriff should know about this.');
+                        gameState.reputation += 5;
+                    }
+                    break;
+            }
+
+            updateHUD();
+        }
+
+        // Update HUD
+        function updateHUD() {
+            document.getElementById('gold').textContent = gameState.gold;
+            document.getElementById('reputation').textContent = gameState.reputation;
+        }
+
+        // Show message
+        function showMessage(title, text) {
+            document.getElementById('msg-title').textContent = title;
+            document.getElementById('msg-text').textContent = text;
+            document.getElementById('message-box').style.display = 'block';
+        }
+
+        // Close message
+        function closeMessage() {
+            document.getElementById('message-box').style.display = 'none';
+        }
+
+        // Start game loop
+        gameLoop();
+
+        // Handle window resize
+        window.addEventListener('resize', updateCamera);
+    </script>
+</body>
+</html>

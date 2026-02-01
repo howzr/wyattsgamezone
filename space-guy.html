@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Guy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(100, 100, 255, 0.5);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+        #progress {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #fff;
+            font-size: 12px;
+            text-align: right;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+        #startScreen, #winScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 20, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 52px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #ffd700, #00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 {
+            font-size: 42px;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+        p {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+        .highlight {
+            color: #00ffff;
+        }
+        .gold {
+            color: #ffd700;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #ff6b6b, #ffd700);
+            color: #000;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        .controls {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #888;
+        }
+        .stats {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        <div id="ui">
+            <div id="location"></div>
+            <div id="objective"></div>
+        </div>
+        <div id="progress">
+            <div id="galaxyProgress"></div>
+            <div id="starProgress"></div>
+            <div id="planetProgress"></div>
+        </div>
+
+        <div id="startScreen">
+            <h1>SPACE GUY</h1>
+            <p>Explore the entire universe!</p>
+            <div class="stats">
+                <p><span class="gold">6 Galaxies</span> to discover</p>
+                <p><span class="highlight">12 Stars</span> to visit</p>
+                <p><span class="gold">24 Planets</span> to explore</p>
+            </div>
+            <div class="controls">
+                <p>Arrow Keys - Fly your ship</p>
+                <p>Space - Land on planet / Complete level</p>
+                <p>J - Leave planet</p>
+            </div>
+            <button onclick="startGame()">Begin Journey</button>
+        </div>
+
+        <div id="winScreen" style="display: none;">
+            <h2>UNIVERSE COMPLETE!</h2>
+            <p>You explored all 6 galaxies, 12 stars, and 24 planets!</p>
+            <p>You are the ultimate Space Guy!</p>
+            <button onclick="startGame()">Explore Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Universe structure
+        const galaxyNames = ['Andromeda', 'Milky Way', 'Triangulum', 'Whirlpool', 'Sombrero', 'Pinwheel'];
+        const galaxyColors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a55eea', '#fd79a8', '#00ff7f'];
+
+        const starNames = [
+            ['Alpha', 'Beta'],
+            ['Sol', 'Proxima'],
+            ['Nova', 'Vega'],
+            ['Rigel', 'Sirius'],
+            ['Polaris', 'Antares'],
+            ['Betelgeuse', 'Arcturus']
+        ];
+
+        const planetNames = [
+            [['Zorax', 'Theta'], ['Krypton', 'Xenon']],
+            [['Earth', 'Mars'], ['Kepler', 'Gliese']],
+            [['Nebula', 'Cosmos'], ['Astro', 'Lunar']],
+            [['Phantom', 'Shadow'], ['Eclipse', 'Twilight']],
+            [['Ruby', 'Sapphire'], ['Emerald', 'Diamond']],
+            [['Genesis', 'Exodus'], ['Omega', 'Ultima']]
+        ];
+
+        // Game state
+        let currentGalaxy = 0;
+        let currentStar = 0;
+        let currentView = 'galaxy'; // 'galaxy', 'star', 'planet'
+
+        var galaxies = [];
+        let gameRunning = false;
+
+        // Player
+        let player = {
+            x: 100,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            angle: 0,
+            speed: 0.3,
+            maxSpeed: 5,
+            landed: false,
+            landedPlanet: null
+        };
+
+        // Planet level state
+        let onPlanetSurface = false;
+        let planetPlayer = { x: 400, y: 500, vx: 0, vy: 0, onGround: false };
+        let planetPlatforms = [];
+        let planetGoal = { x: 0, y: 0 };
+        let planetCompleted = false;
+
+        let particles = [];
+        let stars = [];
+        let message = '';
+        let messageTimer = 0;
+
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+
+            if (e.code === 'Space' && gameRunning) {
+                handleInteraction();
+            }
+
+            if (e.code === 'KeyJ' && gameRunning) {
+                if (onPlanetSurface) {
+                    // Leave planet surface
+                    onPlanetSurface = false;
+                    player.landed = false;
+                    player.landedPlanet = null;
+                } else if (player.landed) {
+                    player.landed = false;
+                    player.landedPlanet = null;
+                    player.vy = -3;
+                }
+            }
+
+            if (e.code === 'Escape' && gameRunning) {
+                if (currentView === 'star') {
+                    currentView = 'galaxy';
+                    resetPlayerPosition();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function initUniverse() {
+            galaxies = [];
+
+            for (let g = 0; g < 6; g++) {
+                let galaxy = {
+                    name: galaxyNames[g],
+                    color: galaxyColors[g],
+                    completed: false,
+                    stars: []
+                };
+
+                for (let s = 0; s < 2; s++) {
+                    let star = {
+                        name: starNames[g][s],
+                        x: 250 + s * 400,
+                        y: 200 + (s % 2) * 200,
+                        radius: 40,
+                        color: s === 0 ? '#ffdd44' : '#ffaa33',
+                        completed: false,
+                        planets: []
+                    };
+
+                    for (let p = 0; p < 2; p++) {
+                        let angle = (p / 2) * Math.PI * 2 + Math.PI / 4;
+                        let distance = 120 + p * 60;
+                        star.planets.push({
+                            name: planetNames[g][s][p],
+                            orbitAngle: angle,
+                            orbitSpeed: 0.005 + p * 0.002,
+                            orbitDistance: distance,
+                            radius: 20 + Math.random() * 15,
+                            color: getRandomPlanetColor(),
+                            completed: false,
+                            x: 0,
+                            y: 0
+                        });
+                    }
+
+                    galaxy.stars.push(star);
+                }
+
+                galaxies.push(galaxy);
+            }
+
+            // Generate background stars
+            stars = [];
+            for (let i = 0; i < 150; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    brightness: Math.random()
+                });
+            }
+        }
+
+        function getRandomPlanetColor() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a55eea', '#fd79a8', '#00ff7f', '#74b9ff', '#ff9f43', '#00cec9'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function handleInteraction() {
+            if (onPlanetSurface) {
+                // Check if at goal
+                let dx = planetPlayer.x - planetGoal.x;
+                let dy = planetPlayer.y - planetGoal.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 40) {
+                    completePlanet();
+                }
+                return;
+            }
+
+            if (currentView === 'galaxy') {
+                // Check if near a star to enter
+                let galaxy = galaxies[currentGalaxy];
+                for (let i = 0; i < galaxy.stars.length; i++) {
+                    let star = galaxy.stars[i];
+                    let dx = player.x - star.x;
+                    let dy = player.y - star.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist < star.radius + 50) {
+                        currentStar = i;
+                        currentView = 'star';
+                        resetPlayerPosition();
+                        return;
+                    }
+                }
+            } else if (currentView === 'star') {
+                let star = galaxies[currentGalaxy].stars[currentStar];
+
+                // Check if near a planet to land
+                for (let i = 0; i < star.planets.length; i++) {
+                    let planet = star.planets[i];
+                    let dx = player.x - planet.x;
+                    let dy = player.y - planet.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist < planet.radius + 30 && !planet.completed) {
+                        player.landed = true;
+                        player.landedPlanet = i;
+                        player.vx = 0;
+                        player.vy = 0;
+
+                        // Enter planet level
+                        enterPlanetLevel(planet);
+                        return;
+                    }
+                }
+            }
+        }
+
+        function enterPlanetLevel(planet) {
+            onPlanetSurface = true;
+            planetCompleted = false;
+
+            // Reset planet player
+            planetPlayer = { x: 100, y: 400, vx: 0, vy: 0, onGround: false };
+
+            // Generate platforms
+            planetPlatforms = [
+                { x: 0, y: 550, width: 900, height: 50 }, // Ground
+            ];
+
+            // Add random platforms
+            for (let i = 0; i < 8; i++) {
+                planetPlatforms.push({
+                    x: 100 + Math.random() * 600,
+                    y: 150 + Math.random() * 350,
+                    width: 80 + Math.random() * 100,
+                    height: 20
+                });
+            }
+
+            // Goal flag at top right
+            planetGoal = { x: 800, y: 100 };
+
+            // Add platform under goal
+            planetPlatforms.push({ x: 750, y: 130, width: 100, height: 20 });
+        }
+
+        function completePlanet() {
+            let star = galaxies[currentGalaxy].stars[currentStar];
+            let planet = star.planets[player.landedPlanet];
+
+            planet.completed = true;
+            planetCompleted = true;
+
+            message = `${planet.name} Complete!`;
+            messageTimer = 120;
+
+            // Celebration particles
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: planetPlayer.x,
+                    y: planetPlayer.y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 60,
+                    color: planet.color
+                });
+            }
+
+            // Check if star is complete
+            let starComplete = star.planets.every(p => p.completed);
+            if (starComplete) {
+                star.completed = true;
+                setTimeout(() => {
+                    message = `${star.name} Star Complete!`;
+                    messageTimer = 120;
+                }, 500);
+
+                // Check if galaxy is complete
+                let galaxy = galaxies[currentGalaxy];
+                let galaxyComplete = galaxy.stars.every(s => s.completed);
+                if (galaxyComplete) {
+                    galaxy.completed = true;
+                    setTimeout(() => {
+                        message = `${galaxy.name} Galaxy Complete!`;
+                        messageTimer = 180;
+                    }, 1000);
+
+                    // Check if universe is complete
+                    let universeComplete = galaxies.every(g => g.completed);
+                    if (universeComplete) {
+                        setTimeout(() => {
+                            winGame();
+                        }, 2000);
+                    } else {
+                        // Move to next galaxy
+                        setTimeout(() => {
+                            currentGalaxy++;
+                            currentView = 'galaxy';
+                            onPlanetSurface = false;
+                            player.landed = false;
+                            resetPlayerPosition();
+                        }, 1500);
+                    }
+                } else {
+                    // Return to galaxy view to pick next star
+                    setTimeout(() => {
+                        currentView = 'galaxy';
+                        onPlanetSurface = false;
+                        player.landed = false;
+                        resetPlayerPosition();
+                    }, 1000);
+                }
+            } else {
+                // Return to star view
+                setTimeout(() => {
+                    onPlanetSurface = false;
+                    player.landed = false;
+                    resetPlayerPosition();
+                }, 1000);
+            }
+        }
+
+        function resetPlayerPosition() {
+            player.x = 100;
+            player.y = 300;
+            player.vx = 0;
+            player.vy = 0;
+            player.angle = 0;
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            if (messageTimer > 0) messageTimer--;
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            if (onPlanetSurface) {
+                updatePlanetLevel();
+            } else {
+                updateSpaceNavigation();
+            }
+
+            updateUI();
+        }
+
+        function updatePlanetLevel() {
+            // Horizontal movement
+            if (keys['ArrowLeft']) {
+                planetPlayer.vx = -5;
+            } else if (keys['ArrowRight']) {
+                planetPlayer.vx = 5;
+            } else {
+                planetPlayer.vx *= 0.8;
+            }
+
+            // Jump
+            if (keys['Space'] && planetPlayer.onGround) {
+                planetPlayer.vy = -15;
+                planetPlayer.onGround = false;
+            }
+
+            // Gravity
+            planetPlayer.vy += 0.6;
+
+            // Move
+            planetPlayer.x += planetPlayer.vx;
+            planetPlayer.y += planetPlayer.vy;
+
+            // Platform collision
+            planetPlayer.onGround = false;
+            for (let plat of planetPlatforms) {
+                if (planetPlayer.vy >= 0 &&
+                    planetPlayer.x > plat.x - 15 &&
+                    planetPlayer.x < plat.x + plat.width + 15 &&
+                    planetPlayer.y + 20 >= plat.y &&
+                    planetPlayer.y + 20 <= plat.y + plat.height + planetPlayer.vy) {
+
+                    planetPlayer.y = plat.y - 20;
+                    planetPlayer.vy = 0;
+                    planetPlayer.onGround = true;
+                }
+            }
+
+            // Screen bounds
+            if (planetPlayer.x < 15) planetPlayer.x = 15;
+            if (planetPlayer.x > canvas.width - 15) planetPlayer.x = canvas.width - 15;
+            if (planetPlayer.y > canvas.height) {
+                planetPlayer.y = 400;
+                planetPlayer.x = 100;
+                planetPlayer.vy = 0;
+            }
+        }
+
+        function updateSpaceNavigation() {
+            if (player.landed) return;
+
+            // Ship controls
+            if (keys['ArrowUp']) {
+                player.vx += Math.cos(player.angle - Math.PI/2) * player.speed;
+                player.vy += Math.sin(player.angle - Math.PI/2) * player.speed;
+
+                if (Math.random() < 0.5) {
+                    particles.push({
+                        x: player.x - Math.cos(player.angle - Math.PI/2) * 15,
+                        y: player.y - Math.sin(player.angle - Math.PI/2) * 15,
+                        vx: -Math.cos(player.angle - Math.PI/2) * 3 + (Math.random() - 0.5) * 2,
+                        vy: -Math.sin(player.angle - Math.PI/2) * 3 + (Math.random() - 0.5) * 2,
+                        life: 20,
+                        color: '#ff6600'
+                    });
+                }
+            }
+            if (keys['ArrowDown']) {
+                player.vx -= Math.cos(player.angle - Math.PI/2) * player.speed * 0.5;
+                player.vy -= Math.sin(player.angle - Math.PI/2) * player.speed * 0.5;
+            }
+            if (keys['ArrowLeft']) {
+                player.angle -= 0.08;
+            }
+            if (keys['ArrowRight']) {
+                player.angle += 0.08;
+            }
+
+            // Limit speed
+            let speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+            if (speed > player.maxSpeed) {
+                player.vx = (player.vx / speed) * player.maxSpeed;
+                player.vy = (player.vy / speed) * player.maxSpeed;
+            }
+
+            player.vx *= 0.99;
+            player.vy *= 0.99;
+
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Wrap around
+            if (player.x < -20) player.x = canvas.width + 20;
+            if (player.x > canvas.width + 20) player.x = -20;
+            if (player.y < -20) player.y = canvas.height + 20;
+            if (player.y > canvas.height + 20) player.y = -20;
+
+            // Update planet orbits in star view
+            if (currentView === 'star') {
+                let star = galaxies[currentGalaxy].stars[currentStar];
+                for (let planet of star.planets) {
+                    planet.orbitAngle += planet.orbitSpeed;
+                    planet.x = star.x + Math.cos(planet.orbitAngle) * planet.orbitDistance;
+                    planet.y = star.y + Math.sin(planet.orbitAngle) * planet.orbitDistance;
+                }
+            }
+        }
+
+        function updateUI() {
+            let galaxy = galaxies[currentGalaxy];
+
+            if (onPlanetSurface) {
+                let star = galaxy.stars[currentStar];
+                let planet = star.planets[player.landedPlanet];
+                document.getElementById('location').textContent = `Planet ${planet.name}`;
+                document.getElementById('objective').textContent = 'Reach the flag! (J to leave)';
+            } else if (currentView === 'galaxy') {
+                document.getElementById('location').textContent = `${galaxy.name} Galaxy`;
+                document.getElementById('objective').textContent = 'Fly to a star and press SPACE';
+            } else {
+                let star = galaxy.stars[currentStar];
+                document.getElementById('location').textContent = `${star.name} Star System`;
+                document.getElementById('objective').textContent = 'Fly to a planet and press SPACE (ESC to go back)';
+            }
+
+            // Progress
+            let completedGalaxies = galaxies.filter(g => g.completed).length;
+            let completedStars = galaxies.reduce((sum, g) => sum + g.stars.filter(s => s.completed).length, 0);
+            let completedPlanets = galaxies.reduce((sum, g) => sum + g.stars.reduce((s2, st) => s2 + st.planets.filter(p => p.completed).length, 0), 0);
+
+            document.getElementById('galaxyProgress').textContent = `Galaxies: ${completedGalaxies}/6`;
+            document.getElementById('starProgress').textContent = `Stars: ${completedStars}/12`;
+            document.getElementById('planetProgress').textContent = `Planets: ${completedPlanets}/24`;
+        }
+
+        function draw() {
+            // Background
+            ctx.fillStyle = '#0a0a15';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Stars
+            for (let star of stars) {
+                let twinkle = 0.5 + Math.sin(Date.now() / 500 + star.brightness * 10) * 0.5;
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness * twinkle})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (onPlanetSurface) {
+                drawPlanetLevel();
+            } else if (currentView === 'galaxy') {
+                drawGalaxyView();
+            } else {
+                drawStarView();
+            }
+
+            // Particles
+            for (let p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 60;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Message
+            if (messageTimer > 0 && message) {
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 28px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(message, canvas.width / 2, 80);
+            }
+        }
+
+        function drawGalaxyView() {
+            let galaxy = galaxies[currentGalaxy];
+
+            // Galaxy title
+            ctx.fillStyle = galaxy.color;
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${galaxy.name} Galaxy`, canvas.width / 2, 40);
+
+            // Draw stars
+            for (let i = 0; i < galaxy.stars.length; i++) {
+                let star = galaxy.stars[i];
+
+                // Star glow
+                let gradient = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.radius * 2);
+                gradient.addColorStop(0, star.color);
+                gradient.addColorStop(0.5, star.color + '44');
+                gradient.addColorStop(1, 'transparent');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Star
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Star name
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px Arial';
+                ctx.fillText(star.name, star.x, star.y + star.radius + 20);
+
+                // Completed check
+                if (star.completed) {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.font = '20px Arial';
+                    ctx.fillText('✓', star.x, star.y);
+                }
+            }
+
+            // Draw ship
+            drawShip();
+        }
+
+        function drawStarView() {
+            let galaxy = galaxies[currentGalaxy];
+            let star = galaxy.stars[currentStar];
+
+            // Star in center
+            let centerX = canvas.width / 2;
+            let centerY = canvas.height / 2;
+
+            // Star glow
+            let gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 100);
+            gradient.addColorStop(0, star.color);
+            gradient.addColorStop(0.5, star.color + '44');
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 100, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Star
+            ctx.fillStyle = star.color;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Star name
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${star.name} System`, canvas.width / 2, 40);
+
+            // Update and draw planets
+            for (let i = 0; i < star.planets.length; i++) {
+                let planet = star.planets[i];
+
+                // Update position
+                planet.x = centerX + Math.cos(planet.orbitAngle) * planet.orbitDistance;
+                planet.y = centerY + Math.sin(planet.orbitAngle) * planet.orbitDistance;
+
+                // Orbit line
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, planet.orbitDistance, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Planet
+                ctx.fillStyle = planet.completed ? '#444' : planet.color;
+                ctx.beginPath();
+                ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Planet name
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.fillText(planet.name, planet.x, planet.y + planet.radius + 15);
+
+                // Completed check
+                if (planet.completed) {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.font = '16px Arial';
+                    ctx.fillText('✓', planet.x, planet.y + 5);
+                }
+            }
+
+            // Draw ship
+            drawShip();
+        }
+
+        function drawPlanetLevel() {
+            let galaxy = galaxies[currentGalaxy];
+            let star = galaxy.stars[currentStar];
+            let planet = star.planets[player.landedPlanet];
+
+            // Planet sky gradient
+            let skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGradient.addColorStop(0, planet.color + '44');
+            skyGradient.addColorStop(1, '#1a1a2e');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Platforms
+            for (let plat of planetPlatforms) {
+                ctx.fillStyle = '#555';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                ctx.fillStyle = '#777';
+                ctx.fillRect(plat.x, plat.y, plat.width, 5);
+            }
+
+            // Goal flag
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(planetGoal.x, planetGoal.y, 8, 50);
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.moveTo(planetGoal.x + 8, planetGoal.y);
+            ctx.lineTo(planetGoal.x + 40, planetGoal.y + 15);
+            ctx.lineTo(planetGoal.x + 8, planetGoal.y + 30);
+            ctx.fill();
+
+            // Player on planet
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.arc(planetPlayer.x, planetPlayer.y, 15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Helmet visor
+            ctx.fillStyle = '#0088ff';
+            ctx.beginPath();
+            ctx.arc(planetPlayer.x, planetPlayer.y - 3, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Planet name
+            ctx.fillStyle = planet.color;
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Planet ${planet.name}`, canvas.width / 2, 40);
+        }
+
+        function drawShip() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(12, 15);
+            ctx.lineTo(0, 8);
+            ctx.lineTo(-12, 15);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#0088ff';
+            ctx.beginPath();
+            ctx.arc(0, -5, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+
+            initUniverse();
+            currentGalaxy = 0;
+            currentStar = 0;
+            currentView = 'galaxy';
+            onPlanetSurface = false;
+            resetPlayerPosition();
+            particles = [];
+            message = '';
+            messageTimer = 0;
+
+            gameRunning = true;
+        }
+
+        function winGame() {
+            gameRunning = false;
+            document.getElementById('winScreen').style.display = 'flex';
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>

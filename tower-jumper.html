@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Jumper - Spy Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a15 0%, #1a1a2e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 200, 255, 0.3);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ffcc;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #floorDisplay {
+            font-size: 22px;
+            color: #ffd700;
+        }
+        #startScreen, #gameOver, #victoryScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(10, 10, 20, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00ffcc, #0088ff, #00ffcc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 4px;
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ff4444;
+        }
+        .victory h2 {
+            color: #00ffcc;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #00aaff, #00ffcc);
+            color: #000;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 200, 0.5);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #888;
+        }
+        .story {
+            font-size: 14px;
+            color: #00aacc;
+            margin-bottom: 20px;
+            font-style: italic;
+            max-width: 450px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div id="floorDisplay">FLOOR 1</div>
+            <div id="healthDisplay">HEALTH: 3</div>
+            <div id="ammoDisplay">AMMO: 30</div>
+            <div id="scoreDisplay">SCORE: 0</div>
+            <div id="bossHealth" style="display: none;">DR. VENOM: 100%</div>
+        </div>
+
+        <div id="startScreen">
+            <h1>SPY ASSAULT</h1>
+            <p class="story">Agent Shadow, Dr. Venom is hiding on the second floor of Venom Tower.</p>
+            <p class="story">Clear floor 1, find the exit door, and take him down!</p>
+            <div class="controls">
+                <p>Arrow Keys / WASD - Move & Aim</p>
+                <p>Space - Jump</p>
+                <p>X / Left Click - Shoot</p>
+            </div>
+            <button onclick="startGame()">Begin Mission</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>Mission Failed</h2>
+            <p id="finalScore"></p>
+            <p id="finalFloor"></p>
+            <button onclick="startGame()">Retry Mission</button>
+            <button onclick="backToMenu()">Abort</button>
+        </div>
+
+        <div id="victoryScreen" style="display: none;" class="victory">
+            <h2>Mission Complete</h2>
+            <p>Dr. Venom has been neutralized!</p>
+            <p id="victoryScore"></p>
+            <button onclick="startGame()">New Mission</button>
+            <button onclick="backToMenu()">Debrief</button>
+        </div>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Level configuration
+        const LEVEL_WIDTH = 3000;
+        const GROUND_Y = 520;
+        const TOTAL_FLOORS = 2;
+
+        // Game state
+        let player = {
+            x: 100,
+            y: GROUND_Y - 50,
+            width: 30,
+            height: 50,
+            vx: 0,
+            vy: 0,
+            speed: 4,
+            jumpPower: -14,
+            gravity: 0.6,
+            onGround: false,
+            health: 3,
+            maxHealth: 3,
+            ammo: 30,
+            invincible: 0,
+            facing: 1,
+            aimAngle: 0,
+            shootCooldown: 0,
+            crouching: false
+        };
+
+        let platforms = [];
+        let enemies = [];
+        let bullets = [];
+        let enemyBullets = [];
+        let particles = [];
+        let pickups = [];
+        let decorations = [];
+        let cameraX = 0;
+        let gameRunning = false;
+        let score = 0;
+        let currentFloor = 1;
+        let boss = null;
+        let bossActive = false;
+        let levelComplete = false;
+        let exitDoor = null;
+        let loot = [];
+
+        const keys = {};
+        let mouseDown = false;
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyX'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        canvas.addEventListener('mousedown', () => mouseDown = true);
+        canvas.addEventListener('mouseup', () => mouseDown = false);
+
+        function generateLevel() {
+            platforms = [];
+            enemies = [];
+            pickups = [];
+            decorations = [];
+
+            const isBossFloor = currentFloor === TOTAL_FLOORS;
+
+            // Ground/floor
+            platforms.push({
+                x: 0, y: GROUND_Y, width: LEVEL_WIDTH, height: 80, isGround: true
+            });
+
+            // Ceiling
+            platforms.push({
+                x: 0, y: 0, width: LEVEL_WIDTH, height: 30, isCeiling: true
+            });
+
+            // Generate room sections
+            let roomX = 0;
+            let roomCount = 0;
+            while (roomX < LEVEL_WIDTH - 400) {
+                const roomWidth = 400 + Math.random() * 300;
+
+                // Room decorations
+                // Windows (looking outside)
+                if (Math.random() > 0.3) {
+                    decorations.push({
+                        type: 'window',
+                        x: roomX + 100 + Math.random() * 100,
+                        y: 150,
+                        width: 80,
+                        height: 120
+                    });
+                }
+
+                // Potted plants
+                if (Math.random() > 0.5) {
+                    decorations.push({
+                        type: 'plant',
+                        x: roomX + 50 + Math.random() * 100,
+                        y: GROUND_Y - 60
+                    });
+                }
+
+                // Posters/paintings on wall
+                if (Math.random() > 0.4) {
+                    decorations.push({
+                        type: 'poster',
+                        x: roomX + 200 + Math.random() * 100,
+                        y: 180 + Math.random() * 50
+                    });
+                }
+
+                // Water cooler
+                if (Math.random() > 0.7) {
+                    decorations.push({
+                        type: 'watercooler',
+                        x: roomX + 150 + Math.random() * 100,
+                        y: GROUND_Y - 70
+                    });
+                }
+
+                // Bookshelf (background)
+                if (Math.random() > 0.6) {
+                    decorations.push({
+                        type: 'bookshelf',
+                        x: roomX + 250 + Math.random() * 100,
+                        y: GROUND_Y - 120
+                    });
+                }
+
+                // Balcony (actual platform)
+                if (Math.random() > 0.5) {
+                    const balconyX = roomX + 100 + Math.random() * 150;
+                    const balconyY = GROUND_Y - 180 - Math.random() * 40;
+                    platforms.push({
+                        x: balconyX - 100,
+                        y: balconyY,
+                        width: 200,
+                        height: 20,
+                        isBalcony: true
+                    });
+                }
+
+                // Vent/pipe on ceiling
+                if (Math.random() > 0.5) {
+                    decorations.push({
+                        type: 'vent',
+                        x: roomX + 50 + Math.random() * (roomWidth - 100),
+                        y: 40
+                    });
+                }
+
+                // Light fixtures
+                decorations.push({
+                    type: 'light',
+                    x: roomX + roomWidth / 2,
+                    y: 35
+                });
+
+                // Enemies in room (more on higher floors)
+                const enemyCount = Math.min(1 + Math.floor(currentFloor / 2) + Math.floor(Math.random() * 2), 3);
+                for (let i = 0; i < enemyCount && roomX > 200; i++) {
+                    const type = Math.random();
+                    let enemy;
+
+                    if (type < 0.5) {
+                        enemy = {
+                            x: roomX + 80 + Math.random() * (roomWidth - 160),
+                            y: GROUND_Y - 45,
+                            width: 30, height: 45,
+                            vx: (Math.random() > 0.5 ? 1 : -1) * (1 + currentFloor * 0.2),
+                            type: 'guard',
+                            health: 1 + Math.floor(currentFloor / 2),
+                            shootTimer: 60 + Math.random() * 60,
+                            patrolLeft: roomX + 50,
+                            patrolRight: roomX + roomWidth - 50,
+                            facing: 1
+                        };
+                    } else if (type < 0.75) {
+                        enemy = {
+                            x: roomX + 80 + Math.random() * (roomWidth - 160),
+                            y: GROUND_Y - 45,
+                            width: 30, height: 45,
+                            vx: 0,
+                            type: 'sniper',
+                            health: 1,
+                            shootTimer: 90 + Math.random() * 60,
+                            facing: -1
+                        };
+                    } else {
+                        enemy = {
+                            x: roomX + 80 + Math.random() * (roomWidth - 160),
+                            y: GROUND_Y - 55,
+                            width: 40, height: 55,
+                            vx: (Math.random() > 0.5 ? 1 : -1) * 0.8,
+                            type: 'heavy',
+                            health: 3 + currentFloor,
+                            shootTimer: 100,
+                            patrolLeft: roomX + 50,
+                            patrolRight: roomX + roomWidth - 50,
+                            facing: 1
+                        };
+                    }
+                    enemies.push(enemy);
+                }
+
+                roomX += roomWidth;
+                roomCount++;
+            }
+
+            // Pickups
+            for (let x = 400; x < LEVEL_WIDTH - 400; x += 350 + Math.random() * 200) {
+                pickups.push({
+                    x: x, y: GROUND_Y - 30,
+                    width: 25, height: 25,
+                    type: Math.random() > 0.4 ? 'ammo' : 'health'
+                });
+            }
+
+            // Exit door at the end
+            exitDoor = {
+                x: LEVEL_WIDTH - 150,
+                y: GROUND_Y - 150,
+                width: 80,
+                height: 150,
+                isOpen: false,
+                doorPosition: 0, // 0 = closed, 1 = fully open
+                state: 'locked' // locked, unlocking, open
+            };
+
+            // Boss on final floor
+            if (isBossFloor) {
+                boss = {
+                    x: LEVEL_WIDTH - 400,
+                    y: GROUND_Y - 80,
+                    width: 60,
+                    height: 80,
+                    vx: 0,
+                    health: 25,
+                    maxHealth: 25,
+                    phase: 1,
+                    attackTimer: 0,
+                    invincible: 0,
+                    facing: -1,
+                    active: false
+                };
+                exitDoor = null; // No exit on boss floor
+            } else {
+                boss = null;
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('victoryScreen').style.display = 'none';
+
+            player.x = 100;
+            player.y = GROUND_Y - 50;
+            player.vx = 0;
+            player.vy = 0;
+            player.health = 3;
+            player.ammo = 30;
+            player.invincible = 0;
+            player.facing = 1;
+            player.shootCooldown = 0;
+
+            cameraX = 0;
+            score = 0;
+            currentFloor = 1;
+            bossActive = false;
+            levelComplete = false;
+            bullets = [];
+            enemyBullets = [];
+            particles = [];
+            loot = [];
+
+            generateLevel();
+            gameRunning = true;
+
+            document.getElementById('bossHealth').style.display = 'none';
+            updateUI();
+        }
+
+        function nextFloor() {
+            currentFloor++;
+
+            // Reset for new floor
+            player.x = 100;
+            player.y = GROUND_Y - 50;
+            player.vx = 0;
+            player.vy = 0;
+            cameraX = 0;
+            bullets = [];
+            enemyBullets = [];
+            particles = [];
+            loot = [];
+            levelComplete = false;
+
+            generateLevel();
+
+            gameRunning = true;
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('floorDisplay').textContent = `FLOOR ${currentFloor}`;
+            document.getElementById('healthDisplay').textContent = `HEALTH: ${player.health}`;
+            document.getElementById('ammoDisplay').textContent = `AMMO: ${player.ammo}`;
+            document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            // Player can always move now
+            const canMove = true;
+
+            // Player input
+            player.crouching = canMove && (keys['ArrowDown'] || keys['KeyS']);
+
+            if (canMove) {
+                if (keys['ArrowLeft'] || keys['KeyA']) {
+                    player.vx = -player.speed * (player.crouching ? 0.5 : 1);
+                    player.facing = -1;
+                } else if (keys['ArrowRight'] || keys['KeyD']) {
+                    player.vx = player.speed * (player.crouching ? 0.5 : 1);
+                    player.facing = 1;
+                } else {
+                    player.vx *= 0.7;
+                }
+
+                // Aiming
+                if (keys['ArrowUp'] || keys['KeyW']) {
+                    player.aimAngle = player.crouching ? 0 : -Math.PI / 4;
+                } else {
+                    player.aimAngle = 0;
+                }
+
+                // Jump
+                if (keys['Space'] && player.onGround && !player.crouching) {
+                    player.vy = player.jumpPower;
+                    player.onGround = false;
+                }
+
+                // Shoot
+                if ((keys['KeyX'] || mouseDown) && player.shootCooldown <= 0 && player.ammo > 0) {
+                    shoot();
+                    player.shootCooldown = 8;
+                    player.ammo--;
+                }
+            }
+            if (player.shootCooldown > 0) player.shootCooldown--;
+
+            // Apply gravity
+            player.vy += player.gravity;
+            player.y += player.vy;
+            player.x += player.vx;
+
+            // Keep player in bounds
+            if (player.x < 30) player.x = 30;
+            if (player.x > LEVEL_WIDTH - 30) player.x = LEVEL_WIDTH - 30;
+
+            // Platform collision
+            player.onGround = false;
+            const playerHeight = player.crouching ? player.height * 0.6 : player.height;
+
+            for (const plat of platforms) {
+                if (plat.isCeiling) continue;
+
+                // Top collision (landing)
+                if (player.vy >= 0 &&
+                    player.x + player.width / 2 > plat.x &&
+                    player.x - player.width / 2 < plat.x + plat.width &&
+                    player.y + playerHeight / 2 > plat.y &&
+                    player.y + playerHeight / 2 < plat.y + plat.height + player.vy + 5) {
+                    player.y = plat.y - playerHeight / 2;
+                    player.vy = 0;
+                    player.onGround = true;
+                }
+
+                // Side collision for walls
+                if (plat.isWall || plat.isCabinet) {
+                    if (player.x + player.width / 2 > plat.x &&
+                        player.x - player.width / 2 < plat.x + plat.width &&
+                        player.y + playerHeight / 2 > plat.y + 5 &&
+                        player.y - playerHeight / 2 < plat.y + plat.height - 5) {
+                        if (player.vx > 0 && player.x < plat.x + plat.width / 2) {
+                            player.x = plat.x - player.width / 2;
+                        } else if (player.vx < 0 && player.x > plat.x + plat.width / 2) {
+                            player.x = plat.x + plat.width + player.width / 2;
+                        }
+                    }
+                }
+            }
+
+            // Update camera
+            const targetCameraX = player.x - canvas.width / 3;
+            cameraX += (targetCameraX - cameraX) * 0.08;
+            cameraX = Math.max(0, Math.min(LEVEL_WIDTH - canvas.width, cameraX));
+
+            // Update invincibility
+            if (player.invincible > 0) player.invincible--;
+
+            // Check exit door
+            if (exitDoor) {
+                // Unlock door when all enemies defeated
+                if (exitDoor.state === 'locked' && enemies.length === 0) {
+                    exitDoor.state = 'unlocking';
+                }
+
+                if (exitDoor.state === 'unlocking') {
+                    exitDoor.doorPosition += 0.02;
+                    if (exitDoor.doorPosition >= 1) {
+                        exitDoor.doorPosition = 1;
+                        exitDoor.state = 'open';
+                        exitDoor.isOpen = true;
+                    }
+                }
+
+                // Check if player enters the door
+                if (exitDoor.state === 'open') {
+                    if (player.x > exitDoor.x + 10 && player.x < exitDoor.x + exitDoor.width - 10 &&
+                        player.y > exitDoor.y && player.y < exitDoor.y + exitDoor.height) {
+                        // Player entered the door - go to next floor
+                        gameRunning = false;
+                        nextFloor();
+                        return;
+                    }
+                }
+            }
+
+            // Update loot
+            for (let i = loot.length - 1; i >= 0; i--) {
+                const l = loot[i];
+                // Apply gravity to loot
+                l.vy += 0.5;
+                l.y += l.vy;
+
+                // Land on ground
+                if (l.y > GROUND_Y - 15) {
+                    l.y = GROUND_Y - 15;
+                    l.vy = 0;
+                }
+
+                // Check player pickup
+                if (Math.abs(player.x - l.x) < 30 && Math.abs(player.y - l.y) < 40) {
+                    if (l.type === 'ammo') {
+                        player.ammo = Math.min(99, player.ammo + 10);
+                    } else if (l.type === 'health') {
+                        player.health = Math.min(player.maxHealth, player.health + 1);
+                    } else if (l.type === 'coin') {
+                        score += 50;
+                    }
+                    createPickupEffect(l.x, l.y, l.type);
+                    loot.splice(i, 1);
+                }
+            }
+
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+
+                // Check wall hits
+                let hitWall = false;
+                for (const plat of platforms) {
+                    if ((plat.isWall || plat.isCabinet || plat.isDesk) &&
+                        b.x > plat.x && b.x < plat.x + plat.width &&
+                        b.y > plat.y && b.y < plat.y + plat.height) {
+                        hitWall = true;
+                        createHitSpark(b.x, b.y);
+                        break;
+                    }
+                }
+                if (hitWall) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check enemy hits
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const e = enemies[j];
+                    if (checkCollision(b, e)) {
+                        e.health--;
+                        createHitSpark(b.x, b.y);
+                        bullets.splice(i, 1);
+
+                        if (e.health <= 0) {
+                            createDeathEffect(e.x, e.y, e.type);
+                            score += e.type === 'heavy' ? 200 : e.type === 'sniper' ? 150 : 100;
+                            // Drop loot
+                            dropLoot(e.x, e.y, e.type);
+                            enemies.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+
+                // Check boss hit
+                if (boss && boss.active && !levelComplete) {
+                    if (b.x > boss.x - boss.width / 2 && b.x < boss.x + boss.width / 2 &&
+                        b.y > boss.y - boss.height / 2 && b.y < boss.y + boss.height / 2) {
+                        if (boss.invincible <= 0) {
+                            boss.health--;
+                            boss.invincible = 10;
+                            createHitSpark(b.x, b.y);
+
+                            if (boss.health <= 12 && boss.phase === 1) {
+                                boss.phase = 2;
+                            }
+
+                            if (boss.health <= 0) {
+                                createBossDeathEffect(boss.x, boss.y);
+                                score += 2000;
+                                levelComplete = true;
+                                setTimeout(victory, 2000);
+                            }
+                        }
+                        bullets.splice(i, 1);
+                        continue;
+                    }
+                }
+
+                // Remove off-screen bullets
+                if (b.x < cameraX - 50 || b.x > cameraX + canvas.width + 50 ||
+                    b.y < 0 || b.y > canvas.height) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Update enemy bullets
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                const b = enemyBullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+
+                // Check wall/obstacle hits
+                let hitWall = false;
+                for (const plat of platforms) {
+                    if ((plat.isWall || plat.isCabinet || plat.isDesk) &&
+                        b.x > plat.x && b.x < plat.x + plat.width &&
+                        b.y > plat.y && b.y < plat.y + plat.height) {
+                        hitWall = true;
+                        createHitSpark(b.x, b.y);
+                        break;
+                    }
+                }
+                if (hitWall) {
+                    enemyBullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check player hit
+                if (player.invincible === 0 && checkCollision(b, player)) {
+                    playerHit();
+                    enemyBullets.splice(i, 1);
+                    continue;
+                }
+
+                // Remove off-screen
+                if (b.x < cameraX - 50 || b.x > cameraX + canvas.width + 50) {
+                    enemyBullets.splice(i, 1);
+                }
+            }
+
+            // Update enemies
+            for (const enemy of enemies) {
+                if (enemy.x < cameraX - 100 || enemy.x > cameraX + canvas.width + 100) continue;
+
+                if (enemy.type !== 'sniper') {
+                    enemy.x += enemy.vx;
+                    if (enemy.patrolLeft && enemy.x < enemy.patrolLeft) {
+                        enemy.x = enemy.patrolLeft;
+                        enemy.vx *= -1;
+                    }
+                    if (enemy.patrolRight && enemy.x > enemy.patrolRight) {
+                        enemy.x = enemy.patrolRight;
+                        enemy.vx *= -1;
+                    }
+                }
+
+                enemy.facing = player.x < enemy.x ? -1 : 1;
+
+                enemy.shootTimer--;
+                if (enemy.shootTimer <= 0 && Math.abs(enemy.x - player.x) < 400) {
+                    enemyShoot(enemy);
+                    enemy.shootTimer = enemy.type === 'sniper' ? 100 : enemy.type === 'heavy' ? 70 : 80;
+                }
+
+                if (player.invincible === 0 && checkCollision(player, enemy)) {
+                    playerHit();
+                }
+            }
+
+            // Update boss
+            if (boss && player.x > LEVEL_WIDTH - 600 && !levelComplete) {
+                if (!boss.active) {
+                    boss.active = true;
+                    bossActive = true;
+                    document.getElementById('bossHealth').style.display = 'block';
+                }
+
+                if (boss.invincible > 0) boss.invincible--;
+
+                boss.attackTimer++;
+
+                if (boss.phase === 1) {
+                    if (boss.attackTimer % 50 === 0) {
+                        bossShoot();
+                    }
+                    boss.x += Math.sin(boss.attackTimer / 30) * 2;
+                } else {
+                    if (boss.attackTimer % 25 === 0) {
+                        bossShoot();
+                    }
+                    if (boss.attackTimer % 80 === 0) {
+                        bossSpreadShot();
+                    }
+                    boss.x += Math.sin(boss.attackTimer / 20) * 3;
+                }
+
+                boss.x = Math.max(LEVEL_WIDTH - 500, Math.min(LEVEL_WIDTH - 100, boss.x));
+                boss.facing = player.x < boss.x ? -1 : 1;
+
+                document.getElementById('bossHealth').textContent =
+                    `DR. VENOM: ${Math.round(boss.health / boss.maxHealth * 100)}%`;
+
+                if (player.invincible === 0 && checkCollision(player, boss)) {
+                    playerHit();
+                }
+            }
+
+            // Update pickups
+            for (let i = pickups.length - 1; i >= 0; i--) {
+                const p = pickups[i];
+                if (checkCollision(player, p)) {
+                    if (p.type === 'ammo') {
+                        player.ammo = Math.min(99, player.ammo + 15);
+                    } else {
+                        player.health = Math.min(player.maxHealth, player.health + 1);
+                    }
+                    createPickupEffect(p.x, p.y, p.type);
+                    pickups.splice(i, 1);
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.gravity) p.vy += 0.3;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            updateUI();
+        }
+
+        function shoot() {
+            const angle = player.aimAngle + (player.facing === -1 ? Math.PI : 0);
+            const speed = 15;
+
+            bullets.push({
+                x: player.x + player.facing * 20,
+                y: player.y - (player.crouching ? 5 : 15) + Math.sin(player.aimAngle) * 10,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                width: 8,
+                height: 4
+            });
+
+            createMuzzleFlash(
+                player.x + player.facing * 25,
+                player.y - (player.crouching ? 5 : 15)
+            );
+        }
+
+        function enemyShoot(enemy) {
+            const dx = player.x - enemy.x;
+            const dy = player.y - enemy.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const speed = enemy.type === 'sniper' ? 10 : 6;
+
+            enemyBullets.push({
+                x: enemy.x + enemy.facing * 15,
+                y: enemy.y - 10,
+                vx: (dx / dist) * speed,
+                vy: (dy / dist) * speed,
+                width: 6,
+                height: 6
+            });
+        }
+
+        function bossShoot() {
+            const dx = player.x - boss.x;
+            const dy = player.y - boss.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            enemyBullets.push({
+                x: boss.x + boss.facing * 30,
+                y: boss.y - 20,
+                vx: (dx / dist) * 9,
+                vy: (dy / dist) * 9,
+                width: 12,
+                height: 12,
+                isBoss: true
+            });
+        }
+
+        function bossSpreadShot() {
+            for (let i = -2; i <= 2; i++) {
+                const angle = Math.atan2(player.y - boss.y, player.x - boss.x) + i * 0.25;
+                enemyBullets.push({
+                    x: boss.x,
+                    y: boss.y,
+                    vx: Math.cos(angle) * 7,
+                    vy: Math.sin(angle) * 7,
+                    width: 10,
+                    height: 10,
+                    isBoss: true
+                });
+            }
+        }
+
+        function playerHit() {
+            player.health--;
+            player.invincible = 90;
+            player.vx = -player.facing * 5;
+            player.vy = -5;
+
+            createHitSpark(player.x, player.y);
+
+            if (player.health <= 0) {
+                endGame();
+            }
+        }
+
+        function checkCollision(a, b) {
+            const aLeft = a.x - a.width / 2;
+            const aRight = a.x + a.width / 2;
+            const aTop = a.y - a.height / 2;
+            const aBottom = a.y + a.height / 2;
+
+            const bLeft = b.x - b.width / 2;
+            const bRight = b.x + b.width / 2;
+            const bTop = b.y - b.height / 2;
+            const bBottom = b.y + b.height / 2;
+
+            return aLeft < bRight && aRight > bLeft && aTop < bBottom && aBottom > bTop;
+        }
+
+        function createMuzzleFlash(x, y) {
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: player.facing * (3 + Math.random() * 3),
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 5,
+                    size: 3 + Math.random() * 4,
+                    color: '#ffff00'
+                });
+            }
+        }
+
+        function createHitSpark(x, y) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 15,
+                    size: 2 + Math.random() * 3,
+                    color: '#ffaa00'
+                });
+            }
+        }
+
+        function createDeathEffect(x, y, type) {
+            const color = type === 'heavy' ? '#666' : type === 'sniper' ? '#446' : '#633';
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: -Math.random() * 8,
+                    life: 30,
+                    size: 4 + Math.random() * 6,
+                    color: color,
+                    gravity: true
+                });
+            }
+        }
+
+        function createBossDeathEffect(x, y) {
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 60,
+                    y: y + (Math.random() - 0.5) * 60,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15,
+                    life: 60,
+                    size: 6 + Math.random() * 10,
+                    color: Math.random() > 0.5 ? '#ff0000' : '#ffaa00',
+                    gravity: true
+                });
+            }
+        }
+
+        function createPickupEffect(x, y, type) {
+            const color = type === 'ammo' ? '#00ffcc' : type === 'health' ? '#ff6666' : '#ffdd00';
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: -Math.random() * 4,
+                    life: 20,
+                    size: 3 + Math.random() * 3,
+                    color: color
+                });
+            }
+        }
+
+        function dropLoot(x, y, enemyType) {
+            // Determine number of drops based on enemy type
+            const dropCount = enemyType === 'heavy' ? 3 : enemyType === 'sniper' ? 2 : 1;
+
+            for (let i = 0; i < dropCount; i++) {
+                const rand = Math.random();
+                let type;
+                if (rand < 0.4) {
+                    type = 'coin';
+                } else if (rand < 0.7) {
+                    type = 'ammo';
+                } else {
+                    type = 'health';
+                }
+
+                loot.push({
+                    x: x + (Math.random() - 0.5) * 30,
+                    y: y,
+                    vy: -5 - Math.random() * 5,
+                    type: type,
+                    width: 20,
+                    height: 20
+                });
+            }
+        }
+
+        function draw() {
+            ctx.save();
+
+            // Background - indoor office/facility
+            drawBackground();
+
+            // Apply camera
+            ctx.translate(-cameraX, 0);
+
+            // Draw decorations (background layer)
+            for (const dec of decorations) {
+                if (dec.x > cameraX - 100 && dec.x < cameraX + canvas.width + 100) {
+                    drawDecoration(dec);
+                }
+            }
+
+            // Draw exit door
+            if (exitDoor) {
+                drawExitDoor();
+            }
+
+            // Draw loot
+            for (const l of loot) {
+                drawLoot(l);
+            }
+
+            // Draw platforms
+            for (const plat of platforms) {
+                if (plat.x + plat.width > cameraX - 50 && plat.x < cameraX + canvas.width + 50) {
+                    drawPlatform(plat);
+                }
+            }
+
+            // Draw pickups
+            for (const p of pickups) {
+                if (p.x > cameraX - 50 && p.x < cameraX + canvas.width + 50) {
+                    drawPickup(p);
+                }
+            }
+
+            // Draw enemies
+            for (const enemy of enemies) {
+                if (enemy.x > cameraX - 50 && enemy.x < cameraX + canvas.width + 50) {
+                    drawEnemy(enemy);
+                }
+            }
+
+            // Draw boss
+            if (boss && boss.active && !levelComplete) {
+                drawBoss();
+            }
+
+            // Draw bullets
+            ctx.fillStyle = '#ffff00';
+            for (const b of bullets) {
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.rotate(Math.atan2(b.vy, b.vx));
+                ctx.fillRect(-b.width / 2, -b.height / 2, b.width, b.height);
+                ctx.restore();
+            }
+
+            // Draw enemy bullets
+            for (const b of enemyBullets) {
+                ctx.fillStyle = b.isBoss ? '#ff00ff' : '#ff4444';
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                ctx.globalAlpha = p.life / 30;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player
+            drawPlayer();
+
+            ctx.restore();
+
+            // Draw enemy counter
+            if (enemies.length > 0 && !boss) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(canvas.width - 150, 10, 140, 30);
+                ctx.fillStyle = '#ff6666';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`ENEMIES: ${enemies.length}`, canvas.width - 20, 30);
+            }
+        }
+
+        function drawBackground() {
+            // Wall color based on floor
+            const wallColors = ['#2a2a35', '#252530', '#20202a', '#1a1a25', '#151520'];
+            const wallColor = wallColors[Math.min(currentFloor - 1, wallColors.length - 1)];
+
+            // Main wall
+            ctx.fillStyle = wallColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Wall panels
+            ctx.strokeStyle = '#3a3a45';
+            ctx.lineWidth = 2;
+            for (let x = -cameraX % 150; x < canvas.width; x += 150) {
+                ctx.beginPath();
+                ctx.moveTo(x, 30);
+                ctx.lineTo(x, GROUND_Y);
+                ctx.stroke();
+            }
+
+            // Baseboard
+            ctx.fillStyle = '#1a1a22';
+            ctx.fillRect(0, GROUND_Y - 15, canvas.width, 15);
+
+            // Crown molding
+            ctx.fillStyle = '#3a3a45';
+            ctx.fillRect(0, 28, canvas.width, 5);
+        }
+
+        function drawDecoration(dec) {
+            if (dec.type === 'window') {
+                // Window frame
+                ctx.fillStyle = '#1a1a25';
+                ctx.fillRect(dec.x - 5, dec.y - 5, dec.width + 10, dec.height + 10);
+
+                // Night sky view
+                const skyGrad = ctx.createLinearGradient(dec.x, dec.y, dec.x, dec.y + dec.height);
+                skyGrad.addColorStop(0, '#0a0a15');
+                skyGrad.addColorStop(1, '#151525');
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(dec.x, dec.y, dec.width, dec.height);
+
+                // City lights in distance
+                ctx.fillStyle = '#ffa500';
+                for (let i = 0; i < 8; i++) {
+                    const lx = dec.x + 10 + (i * 10);
+                    const ly = dec.y + dec.height - 20 - Math.random() * 40;
+                    ctx.fillRect(lx, ly, 3, 3);
+                }
+
+                // Stars
+                ctx.fillStyle = '#fff';
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(dec.x + 10 + Math.random() * 60, dec.y + 10 + Math.random() * 40, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Window frame dividers
+                ctx.strokeStyle = '#2a2a35';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(dec.x + dec.width / 2, dec.y);
+                ctx.lineTo(dec.x + dec.width / 2, dec.y + dec.height);
+                ctx.moveTo(dec.x, dec.y + dec.height / 2);
+                ctx.lineTo(dec.x + dec.width, dec.y + dec.height / 2);
+                ctx.stroke();
+
+            } else if (dec.type === 'computer') {
+                // Monitor
+                ctx.fillStyle = '#222';
+                ctx.fillRect(dec.x - 20, dec.y - 25, 40, 30);
+                ctx.fillStyle = '#003366';
+                ctx.fillRect(dec.x - 17, dec.y - 22, 34, 24);
+
+                // Screen glow
+                if (Math.random() > 0.95) {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(dec.x - 15, dec.y - 20, 30, 20);
+                }
+
+                // Stand
+                ctx.fillStyle = '#333';
+                ctx.fillRect(dec.x - 5, dec.y + 5, 10, 10);
+
+            } else if (dec.type === 'vent') {
+                ctx.fillStyle = '#1a1a22';
+                ctx.fillRect(dec.x - 30, dec.y, 60, 20);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(dec.x - 25 + i * 12, dec.y + 3);
+                    ctx.lineTo(dec.x - 25 + i * 12, dec.y + 17);
+                    ctx.stroke();
+                }
+
+            } else if (dec.type === 'light') {
+                // Light fixture
+                ctx.fillStyle = '#444';
+                ctx.fillRect(dec.x - 40, dec.y, 80, 10);
+
+                // Light glow
+                const gradient = ctx.createRadialGradient(dec.x, dec.y + 50, 0, dec.x, dec.y + 50, 150);
+                gradient.addColorStop(0, 'rgba(255, 250, 220, 0.15)');
+                gradient.addColorStop(1, 'rgba(255, 250, 220, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(dec.x, dec.y + 50, 150, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (dec.type === 'plant') {
+                // Pot
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(dec.x - 15, dec.y + 30, 30, 25);
+                ctx.fillStyle = '#654321';
+                ctx.fillRect(dec.x - 18, dec.y + 25, 36, 8);
+
+                // Plant leaves
+                ctx.fillStyle = '#228B22';
+                ctx.beginPath();
+                ctx.ellipse(dec.x - 10, dec.y + 10, 12, 20, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(dec.x + 10, dec.y + 5, 12, 22, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(dec.x, dec.y - 5, 10, 25, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (dec.type === 'poster') {
+                // Poster frame
+                ctx.fillStyle = '#3a3a45';
+                ctx.fillRect(dec.x - 25, dec.y - 35, 50, 70);
+                // Poster content
+                ctx.fillStyle = '#1a4a6a';
+                ctx.fillRect(dec.x - 22, dec.y - 32, 44, 64);
+                // Simple design on poster
+                ctx.fillStyle = '#2a6a8a';
+                ctx.fillRect(dec.x - 15, dec.y - 20, 30, 8);
+                ctx.fillRect(dec.x - 15, dec.y, 30, 8);
+                ctx.fillRect(dec.x - 15, dec.y + 20, 30, 8);
+
+            } else if (dec.type === 'watercooler') {
+                // Base
+                ctx.fillStyle = '#555';
+                ctx.fillRect(dec.x - 15, dec.y + 30, 30, 40);
+                // Water jug
+                ctx.fillStyle = '#88ccff';
+                ctx.globalAlpha = 0.7;
+                ctx.beginPath();
+                ctx.ellipse(dec.x, dec.y + 5, 18, 25, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                // Spout
+                ctx.fillStyle = '#444';
+                ctx.fillRect(dec.x - 8, dec.y + 30, 16, 10);
+
+            } else if (dec.type === 'bookshelf') {
+                // Shelf frame
+                ctx.fillStyle = '#5a4a3a';
+                ctx.fillRect(dec.x - 40, dec.y, 80, 120);
+                // Shelves
+                ctx.fillStyle = '#4a3a2a';
+                for (let i = 0; i < 4; i++) {
+                    ctx.fillRect(dec.x - 38, dec.y + 5 + i * 30, 76, 5);
+                }
+                // Books
+                const bookColors = ['#aa3333', '#3333aa', '#33aa33', '#aaaa33', '#aa33aa', '#33aaaa'];
+                for (let shelf = 0; shelf < 3; shelf++) {
+                    let bookX = dec.x - 35;
+                    for (let b = 0; b < 6; b++) {
+                        const bookWidth = 8 + Math.random() * 4;
+                        const bookHeight = 20 + Math.random() * 5;
+                        ctx.fillStyle = bookColors[(shelf + b) % bookColors.length];
+                        ctx.fillRect(bookX, dec.y + 10 + shelf * 30 + (25 - bookHeight), bookWidth, bookHeight);
+                        bookX += bookWidth + 1;
+                    }
+                }
+
+        }
+
+        function drawLoot(l) {
+            ctx.save();
+            ctx.translate(l.x, l.y);
+
+            // Glow effect
+            const glowColor = l.type === 'coin' ? 'rgba(255, 220, 0, 0.4)' :
+                             l.type === 'ammo' ? 'rgba(0, 255, 200, 0.4)' : 'rgba(255, 100, 100, 0.4)';
+            ctx.fillStyle = glowColor;
+            ctx.beginPath();
+            ctx.arc(0, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (l.type === 'coin') {
+                // Gold coin
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#cc9900';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Dollar sign
+                ctx.fillStyle = '#cc9900';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('$', 0, 0);
+            } else if (l.type === 'ammo') {
+                // Ammo box
+                ctx.fillStyle = '#00aa88';
+                ctx.fillRect(-8, -8, 16, 16);
+                ctx.strokeStyle = '#00ffcc';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-8, -8, 16, 16);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('A', 0, 0);
+            } else {
+                // Health pack
+                ctx.fillStyle = '#aa4444';
+                ctx.fillRect(-8, -8, 16, 16);
+                ctx.strokeStyle = '#ff6666';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-8, -8, 16, 16);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(-2, -6, 4, 12);
+                ctx.fillRect(-6, -2, 12, 4);
+            }
+
+            ctx.restore();
+        }
+
+        function drawExitDoor() {
+            const d = exitDoor;
+            const openAmount = d.doorPosition * 30;
+
+            // Door frame
+            ctx.fillStyle = '#2a2a35';
+            ctx.fillRect(d.x - 10, d.y - 10, d.width + 20, d.height + 10);
+
+            // Door interior (visible when open)
+            if (d.doorPosition > 0) {
+                // Stairway/next room visible
+                ctx.fillStyle = '#1a1a22';
+                ctx.fillRect(d.x, d.y, d.width, d.height);
+                // Stairs going up
+                ctx.fillStyle = '#2a2a32';
+                for (let i = 0; i < 5; i++) {
+                    ctx.fillRect(d.x + 10, d.y + d.height - 30 - i * 25, d.width - 20, 20);
+                }
+                // Light from above
+                const gradient = ctx.createLinearGradient(d.x, d.y, d.x, d.y + 60);
+                gradient.addColorStop(0, 'rgba(255, 255, 200, 0.3)');
+                gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(d.x, d.y, d.width, 60);
+            }
+
+            // Door (slides open to the right)
+            ctx.fillStyle = d.state === 'locked' ? '#4a3a3a' : '#3a4a3a';
+            ctx.fillRect(d.x + openAmount, d.y, d.width - openAmount, d.height);
+
+            // Door panels
+            ctx.strokeStyle = '#3a3a45';
+            ctx.lineWidth = 2;
+            if (d.width - openAmount > 10) {
+                ctx.strokeRect(d.x + openAmount + 5, d.y + 10, (d.width - openAmount) / 2 - 10, d.height / 2 - 15);
+                ctx.strokeRect(d.x + openAmount + 5, d.y + d.height / 2 + 5, (d.width - openAmount) / 2 - 10, d.height / 2 - 15);
+            }
+
+            // Door handle
+            if (d.width - openAmount > 20) {
+                ctx.fillStyle = d.state === 'open' ? '#44ff44' : '#888';
+                ctx.beginPath();
+                ctx.arc(d.x + d.width - 15, d.y + d.height / 2, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Frame border
+            ctx.strokeStyle = '#5a5a65';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(d.x - 5, d.y - 5, d.width + 10, d.height + 5);
+
+            // Sign above door
+            ctx.fillStyle = '#1a1a22';
+            ctx.fillRect(d.x + 10, d.y - 35, d.width - 20, 25);
+
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+
+            if (d.state === 'locked') {
+                ctx.fillStyle = '#ff4444';
+                ctx.fillText('LOCKED', d.x + d.width / 2, d.y - 18);
+            } else if (d.state === 'unlocking') {
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillText('UNLOCKING...', d.x + d.width / 2, d.y - 18);
+            } else {
+                ctx.fillStyle = '#44ff44';
+                ctx.fillText('EXIT →', d.x + d.width / 2, d.y - 18);
+            }
+
+            // Light above door
+            const lightColor = d.state === 'locked' ? '#ff4444' : d.state === 'unlocking' ? '#ffaa00' : '#44ff44';
+            ctx.fillStyle = lightColor;
+            ctx.beginPath();
+            ctx.arc(d.x + d.width / 2, d.y - 45, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawPlatform(plat) {
+            if (plat.isGround) {
+                // Floor tiles
+                const tileGrad = ctx.createLinearGradient(0, plat.y, 0, plat.y + 20);
+                tileGrad.addColorStop(0, '#3a3a45');
+                tileGrad.addColorStop(1, '#2a2a35');
+                ctx.fillStyle = tileGrad;
+                ctx.fillRect(plat.x, plat.y, canvas.width + cameraX, plat.height);
+
+                // Tile lines
+                ctx.strokeStyle = '#2a2a35';
+                ctx.lineWidth = 2;
+                for (let x = Math.floor(cameraX / 80) * 80; x < cameraX + canvas.width; x += 80) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, plat.y);
+                    ctx.lineTo(x, plat.y + 5);
+                    ctx.stroke();
+                }
+
+            } else if (plat.isCeiling) {
+                ctx.fillStyle = '#1a1a22';
+                ctx.fillRect(plat.x, plat.y, canvas.width + cameraX, plat.height);
+
+            } else if (plat.isWall) {
+                ctx.fillStyle = '#2a2a35';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                ctx.strokeStyle = '#3a3a45';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(plat.x + 2, plat.y + 2, plat.width - 4, plat.height - 4);
+
+            } else if (plat.isDesk) {
+                // Desk
+                ctx.fillStyle = '#4a3a2a';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                ctx.fillStyle = '#3a2a1a';
+                ctx.fillRect(plat.x + 5, plat.y + 5, plat.width - 10, 5);
+
+                // Desk legs
+                ctx.fillStyle = '#2a1a0a';
+                ctx.fillRect(plat.x + 5, plat.y + 10, 8, plat.height - 10);
+                ctx.fillRect(plat.x + plat.width - 13, plat.y + 10, 8, plat.height - 10);
+
+            } else if (plat.isCabinet) {
+                // Filing cabinet
+                ctx.fillStyle = '#4a4a55';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+
+                // Drawers
+                ctx.strokeStyle = '#3a3a45';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const dy = plat.y + 5 + i * 25;
+                    ctx.strokeRect(plat.x + 3, dy, plat.width - 6, 22);
+                    // Handle
+                    ctx.fillStyle = '#666';
+                    ctx.fillRect(plat.x + plat.width / 2 - 8, dy + 8, 16, 5);
+                }
+
+            } else if (plat.isPlatform) {
+                // Metal grating platform
+                ctx.fillStyle = '#3a3a45';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                ctx.fillStyle = '#4a4a55';
+                ctx.fillRect(plat.x, plat.y, plat.width, 4);
+
+                // Grating pattern
+                ctx.strokeStyle = '#2a2a35';
+                ctx.lineWidth = 1;
+                for (let x = plat.x + 10; x < plat.x + plat.width; x += 15) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, plat.y + 5);
+                    ctx.lineTo(x, plat.y + plat.height);
+                    ctx.stroke();
+                }
+
+            } else if (plat.isBalcony) {
+                // Balcony platform
+                ctx.fillStyle = '#3a3a45';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+
+                // Balcony floor pattern
+                ctx.strokeStyle = '#2a2a35';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 8; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(plat.x + 10 + i * 25, plat.y + 3);
+                    ctx.lineTo(plat.x + 10 + i * 25, plat.y + 17);
+                    ctx.stroke();
+                }
+
+                // Railing posts
+                ctx.fillStyle = '#4a4a55';
+                ctx.fillRect(plat.x, plat.y - 55, 10, 55);
+                ctx.fillRect(plat.x + plat.width - 10, plat.y - 55, 10, 55);
+                ctx.fillRect(plat.x + plat.width / 2 - 5, plat.y - 45, 8, 45);
+
+                // Railing top bar
+                ctx.fillStyle = '#5a5a65';
+                ctx.fillRect(plat.x - 3, plat.y - 58, plat.width + 6, 8);
+
+                // Railing vertical bars
+                ctx.fillStyle = '#3a3a45';
+                const barSpacing = plat.width / 11;
+                for (let i = 1; i < 11; i++) {
+                    ctx.fillRect(plat.x + i * barSpacing - 2, plat.y - 50, 5, 45);
+                }
+
+                // Support brackets underneath
+                ctx.fillStyle = '#2a2a35';
+                ctx.beginPath();
+                ctx.moveTo(plat.x, plat.y + plat.height);
+                ctx.lineTo(plat.x, plat.y + plat.height + 50);
+                ctx.lineTo(plat.x + 50, plat.y + plat.height);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(plat.x + plat.width, plat.y + plat.height);
+                ctx.lineTo(plat.x + plat.width, plat.y + plat.height + 50);
+                ctx.lineTo(plat.x + plat.width - 50, plat.y + plat.height);
+                ctx.closePath();
+                ctx.fill();
+
+                // Middle support
+                ctx.beginPath();
+                ctx.moveTo(plat.x + plat.width / 2 - 20, plat.y + plat.height);
+                ctx.lineTo(plat.x + plat.width / 2, plat.y + plat.height + 40);
+                ctx.lineTo(plat.x + plat.width / 2 + 20, plat.y + plat.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        function drawPickup(p) {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+
+            const glowColor = p.type === 'ammo' ? 'rgba(0, 255, 200, 0.3)' : 'rgba(255, 100, 100, 0.3)';
+            ctx.fillStyle = glowColor;
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = p.type === 'ammo' ? '#00aa88' : '#aa4444';
+            ctx.fillRect(-12, -12, 24, 24);
+            ctx.strokeStyle = p.type === 'ammo' ? '#00ffcc' : '#ff6666';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-12, -12, 24, 24);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p.type === 'ammo' ? 'A' : '+', 0, 0);
+
+            ctx.restore();
+        }
+
+        function drawEnemy(enemy) {
+            ctx.save();
+            ctx.translate(enemy.x, enemy.y);
+            ctx.scale(enemy.facing, 1);
+
+            if (enemy.type === 'guard') {
+                // Security guard
+                ctx.fillStyle = '#333344';
+                ctx.fillRect(-12, -15, 24, 35);
+
+                ctx.fillStyle = '#ffccaa';
+                ctx.beginPath();
+                ctx.arc(0, -25, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Security cap
+                ctx.fillStyle = '#222233';
+                ctx.beginPath();
+                ctx.ellipse(0, -30, 12, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillRect(-12, -32, 24, 5);
+
+                ctx.fillStyle = '#222';
+                ctx.fillRect(10, -12, 18, 6);
+
+                ctx.fillStyle = '#222233';
+                ctx.fillRect(-10, 18, 8, 15);
+                ctx.fillRect(2, 18, 8, 15);
+
+            } else if (enemy.type === 'sniper') {
+                ctx.fillStyle = '#223344';
+                ctx.fillRect(-10, -18, 20, 38);
+
+                ctx.fillStyle = '#ffccaa';
+                ctx.beginPath();
+                ctx.arc(0, -28, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Night vision
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.arc(-4, -28, 4, 0, Math.PI * 2);
+                ctx.arc(4, -28, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#222';
+                ctx.fillRect(8, -15, 35, 5);
+                ctx.fillRect(35, -18, 8, 10);
+
+            } else if (enemy.type === 'heavy') {
+                // Heavy with body armor
+                ctx.fillStyle = '#2a2a3a';
+                ctx.fillRect(-18, -20, 36, 45);
+
+                ctx.fillStyle = '#3a3a4a';
+                ctx.fillRect(-15, -15, 30, 10);
+                ctx.fillRect(-15, 5, 30, 10);
+
+                ctx.fillStyle = '#222';
+                ctx.beginPath();
+                ctx.arc(0, -30, 14, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Visor
+                ctx.fillStyle = '#ff2200';
+                ctx.fillRect(-10, -32, 20, 6);
+
+                ctx.fillStyle = '#111';
+                ctx.fillRect(15, -18, 25, 12);
+
+                ctx.fillStyle = '#1a1a2a';
+                ctx.fillRect(-14, 23, 12, 15);
+                ctx.fillRect(2, 23, 12, 15);
+            }
+
+            ctx.restore();
+        }
+
+        function drawBoss() {
+            ctx.save();
+            ctx.translate(boss.x, boss.y);
+
+            const flash = boss.invincible > 0 && Math.floor(boss.invincible / 2) % 2 === 0;
+            ctx.scale(boss.facing, 1);
+
+            // Cape
+            ctx.fillStyle = flash ? '#fff' : '#440066';
+            ctx.beginPath();
+            ctx.moveTo(-25, -30);
+            ctx.quadraticCurveTo(-40, 20, -30, 50);
+            ctx.lineTo(30, 50);
+            ctx.quadraticCurveTo(40, 20, 25, -30);
+            ctx.fill();
+
+            // Suit
+            ctx.fillStyle = flash ? '#fff' : '#1a1a1a';
+            ctx.fillRect(-20, -25, 40, 55);
+
+            // Tie
+            ctx.fillStyle = flash ? '#fff' : '#660000';
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(5, 0);
+            ctx.lineTo(0, 25);
+            ctx.lineTo(-5, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Head
+            ctx.fillStyle = flash ? '#fff' : '#ccaa88';
+            ctx.beginPath();
+            ctx.arc(0, -40, 15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Goatee
+            ctx.fillStyle = flash ? '#fff' : '#222';
+            ctx.beginPath();
+            ctx.moveTo(-5, -30);
+            ctx.lineTo(0, -22);
+            ctx.lineTo(5, -30);
+            ctx.fill();
+
+            // Monocle
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(6, -42, 6, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Eyes
+            ctx.fillStyle = boss.phase === 2 ? '#ff0000' : '#ffff00';
+            ctx.beginPath();
+            ctx.arc(-5, -42, 3, 0, Math.PI * 2);
+            ctx.arc(5, -42, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Arms
+            ctx.fillStyle = flash ? '#fff' : '#1a1a1a';
+            ctx.fillRect(18, -20, 12, 35);
+            ctx.fillRect(-30, -20, 12, 35);
+
+            // Weapon
+            ctx.fillStyle = '#333';
+            ctx.fillRect(25, -25, 8, 60);
+            ctx.fillStyle = '#ff00ff';
+            ctx.beginPath();
+            ctx.arc(29, -25, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            if (!flash) {
+                ctx.fillStyle = '#333';
+                ctx.fillRect(boss.x - 40, boss.y - 70, 80, 8);
+                ctx.fillStyle = boss.phase === 2 ? '#ff0000' : '#ff6600';
+                ctx.fillRect(boss.x - 40, boss.y - 70, 80 * (boss.health / boss.maxHealth), 8);
+            }
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            if (player.invincible > 0 && Math.floor(player.invincible / 4) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+
+            ctx.scale(player.facing, 1);
+
+            const h = player.crouching ? player.height * 0.6 : player.height;
+            const yOffset = player.crouching ? 10 : 0;
+
+            if (player.onGround) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(0, h / 2 + yOffset, 15, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (!player.crouching) {
+                const legAnim = Math.abs(player.vx) > 0.5 ? Math.sin(Date.now() / 60) * 8 : 0;
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(-10, 5, 8, 20 + legAnim);
+                ctx.fillRect(2, 5, 8, 20 - legAnim);
+            } else {
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(-12, 10, 24, 12);
+            }
+
+            ctx.fillStyle = '#2a2a3e';
+            ctx.fillRect(-12, -15 + yOffset, 24, 25);
+
+            ctx.fillStyle = '#3a3a4e';
+            ctx.fillRect(-10, -10 + yOffset, 8, 15);
+            ctx.fillRect(2, -10 + yOffset, 8, 15);
+
+            ctx.fillStyle = '#ffccaa';
+            ctx.beginPath();
+            ctx.arc(0, -22 + yOffset, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(0, -25 + yOffset, 10, Math.PI, 0);
+            ctx.fill();
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-8, -24 + yOffset, 16, 5);
+            ctx.fillStyle = '#003366';
+            ctx.fillRect(-7, -23 + yOffset, 6, 3);
+            ctx.fillRect(1, -23 + yOffset, 6, 3);
+
+            ctx.save();
+            ctx.translate(8, -8 + yOffset);
+            ctx.rotate(player.aimAngle);
+
+            ctx.fillStyle = '#2a2a3e';
+            ctx.fillRect(0, -4, 18, 8);
+
+            ctx.fillStyle = '#111';
+            ctx.fillRect(15, -5, 18, 10);
+            ctx.fillStyle = '#222';
+            ctx.fillRect(15, -3, 12, 6);
+
+            ctx.fillStyle = '#333';
+            ctx.fillRect(30, -3, 10, 6);
+
+            ctx.restore();
+            ctx.restore();
+        }
+
+        function endGame() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = `Score: ${score}`;
+            document.getElementById('finalFloor').textContent = `Reached Floor ${currentFloor} of ${TOTAL_FLOORS}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function victory() {
+            gameRunning = false;
+            document.getElementById('victoryScore').textContent = `Final Score: ${score}`;
+            document.getElementById('victoryScreen').style.display = 'flex';
+        }
+
+        function backToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('victoryScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>

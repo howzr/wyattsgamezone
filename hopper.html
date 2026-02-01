@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hopper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2c3e50 0%, #1a1a2e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 200, 0, 0.3);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ffd700;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #startScreen, #storeScreen, #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 52px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ffd700, #ff8c00, #ff6347);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+        .coins-display {
+            font-size: 24px;
+            color: #ffd700;
+            margin: 15px 0;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #ffd700, #ff8c00);
+            color: #000;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        button:disabled {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #888;
+        }
+        .store-container {
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+            gap: 15px;
+            margin: 10px;
+            max-width: 780px;
+            max-height: 360px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 10px;
+        }
+        .store-container::-webkit-scrollbar {
+            height: 10px;
+        }
+        .store-container::-webkit-scrollbar-track {
+            background: #333;
+            border-radius: 5px;
+        }
+        .store-container::-webkit-scrollbar-thumb {
+            background: #ffd700;
+            border-radius: 5px;
+        }
+        .rarity-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 170px;
+            flex-shrink: 0;
+        }
+        .rarity-title {
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .rarity-title.common { background: #888; color: #fff; }
+        .rarity-title.uncommon { background: #4CAF50; color: #fff; }
+        .rarity-title.rare { background: #2196F3; color: #fff; }
+        .rarity-title.epic { background: #9C27B0; color: #fff; }
+        .rarity-title.legendary { background: linear-gradient(45deg, #ff8c00, #ffd700); color: #000; }
+        .rarity-title.mythical { background: linear-gradient(45deg, #ff0080, #ff00ff, #00ffff); color: #fff; }
+        .skin-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        .skin-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .skin-grid::-webkit-scrollbar-track {
+            background: #222;
+            border-radius: 3px;
+        }
+        .skin-grid::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+        .skin-item {
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 8px;
+            padding: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 75px;
+        }
+        .skin-item:hover {
+            transform: scale(1.05);
+        }
+        .skin-item.common { border-color: #888; }
+        .skin-item.common:hover { border-color: #aaa; box-shadow: 0 0 10px rgba(136,136,136,0.5); }
+        .skin-item.uncommon { border-color: #4CAF50; }
+        .skin-item.uncommon:hover { box-shadow: 0 0 10px rgba(76,175,80,0.5); }
+        .skin-item.rare { border-color: #2196F3; }
+        .skin-item.rare:hover { box-shadow: 0 0 10px rgba(33,150,243,0.5); }
+        .skin-item.epic { border-color: #9C27B0; }
+        .skin-item.epic:hover { box-shadow: 0 0 10px rgba(156,39,176,0.5); }
+        .skin-item.legendary { border-color: #ffd700; }
+        .skin-item.legendary:hover { box-shadow: 0 0 15px rgba(255,215,0,0.7); }
+        .skin-item.mythical { border: 3px solid; border-image: linear-gradient(45deg, #ff0080, #ff00ff, #00ffff) 1; }
+        .skin-item.mythical:hover { box-shadow: 0 0 20px rgba(255,0,255,0.7); }
+        .skin-item.owned {
+            background: #2a3a2a;
+        }
+        .skin-item.selected {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+        .skin-item canvas {
+            border-radius: 4px;
+            box-shadow: none;
+        }
+        .skin-name {
+            font-size: 9px;
+            color: #fff;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .skin-price {
+            font-size: 8px;
+            color: #ffd700;
+        }
+        .high-score {
+            color: #ff8c00;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div id="ui">
+            <div id="coinDisplay">Coins: 0</div>
+            <div id="scoreDisplay">Score: 0</div>
+        </div>
+
+        <div id="startScreen">
+            <h1>HOPPER</h1>
+            <p>Hop across the factory platforms!</p>
+            <p>Collect coins to buy new skins!</p>
+            <div class="controls">
+                <p>Arrow Left/Right - Move</p>
+                <p>Space - Jump</p>
+            </div>
+            <div class="high-score" id="highScoreDisplay"></div>
+            <button onclick="startGame()">Start Hopping!</button>
+            <button onclick="openStore()">Skin Store</button>
+        </div>
+
+        <div id="storeScreen" style="display: none;">
+            <h2>Skin Store</h2>
+            <div class="coins-display" id="storeCoins">Coins: 0</div>
+            <div class="store-container" id="storeContainer" tabindex="-1"></div>
+            <button onclick="closeStore()">Back to Menu</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>Game Over!</h2>
+            <p id="finalScore"></p>
+            <p id="coinsEarned"></p>
+            <div class="high-score" id="gameOverHighScore"></div>
+            <button onclick="startGame()">Play Again</button>
+            <button onclick="backToMenu()">Main Menu</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Skins data - each has a unique shape and color, organized by rarity
+        const skins = [
+            // COMMON (gray) - basic shapes, basic colors
+            { id: 'square', name: 'Square', color: '#00ff00', shape: 'square', price: 0, owned: true, rarity: 'common' },
+            { id: 'circle', name: 'Ball', color: '#ff4444', shape: 'circle', price: 25, owned: false, rarity: 'common' },
+            { id: 'gray-square', name: 'Stone', color: '#888888', shape: 'square', price: 30, owned: false, rarity: 'common' },
+            { id: 'brown-circle', name: 'Mud Ball', color: '#8B4513', shape: 'circle', price: 35, owned: false, rarity: 'common' },
+            { id: 'blue-square', name: 'Ice Block', color: '#5599ff', shape: 'square', price: 40, owned: false, rarity: 'common' },
+            { id: 'yellow-circle', name: 'Lemon', color: '#ffee00', shape: 'circle', price: 40, owned: false, rarity: 'common' },
+            { id: 'pink-square', name: 'Bubblegum', color: '#ff99cc', shape: 'square', price: 45, owned: false, rarity: 'common' },
+            { id: 'olive-circle', name: 'Olive', color: '#808000', shape: 'circle', price: 45, owned: false, rarity: 'common' },
+            { id: 'tan-square', name: 'Cardboard', color: '#d2b48c', shape: 'square', price: 48, owned: false, rarity: 'common' },
+            { id: 'navy-circle', name: 'Blueberry', color: '#000080', shape: 'circle', price: 48, owned: false, rarity: 'common' },
+            { id: 'mint-square', name: 'Mint Block', color: '#98ff98', shape: 'square', price: 50, owned: false, rarity: 'common' },
+
+            // UNCOMMON (green) - triangles, basic diamonds, pentagons
+            { id: 'triangle', name: 'Triangle', color: '#4444ff', shape: 'triangle', price: 55, owned: false, rarity: 'uncommon' },
+            { id: 'green-tri', name: 'Leaf', color: '#32CD32', shape: 'triangle', price: 60, owned: false, rarity: 'uncommon' },
+            { id: 'orange-diamond', name: 'Carrot', color: '#FF8C00', shape: 'diamond', price: 65, owned: false, rarity: 'uncommon' },
+            { id: 'cyan-circle', name: 'Bubble', color: '#00CED1', shape: 'circle', price: 70, owned: false, rarity: 'uncommon' },
+            { id: 'red-tri', name: 'Fire Chip', color: '#ff3300', shape: 'triangle', price: 75, owned: false, rarity: 'uncommon' },
+            { id: 'purple-tri', name: 'Grape Slice', color: '#9932CC', shape: 'triangle', price: 80, owned: false, rarity: 'uncommon' },
+            { id: 'teal-diamond', name: 'Aqua Gem', color: '#008080', shape: 'diamond', price: 85, owned: false, rarity: 'uncommon' },
+            { id: 'pentagon', name: 'Pentagon', color: '#ff6699', shape: 'pentagon', price: 90, owned: false, rarity: 'uncommon' },
+            { id: 'lime-pent', name: 'Lime Star', color: '#00ff00', shape: 'pentagon', price: 95, owned: false, rarity: 'uncommon' },
+            { id: 'coral-tri', name: 'Coral', color: '#ff7f50', shape: 'triangle', price: 98, owned: false, rarity: 'uncommon' },
+            { id: 'sky-diamond', name: 'Sky Shard', color: '#87ceeb', shape: 'diamond', price: 100, owned: false, rarity: 'uncommon' },
+
+            // RARE (blue) - stars, hexagons, octagons
+            { id: 'star', name: 'Star', color: '#ffff00', shape: 'star', price: 110, owned: false, rarity: 'rare' },
+            { id: 'blue-star', name: 'Ice Star', color: '#00BFFF', shape: 'star', price: 120, owned: false, rarity: 'rare' },
+            { id: 'hexagon', name: 'Hexagon', color: '#00ffff', shape: 'hexagon', price: 130, owned: false, rarity: 'rare' },
+            { id: 'purple-hex', name: 'Amethyst', color: '#9370DB', shape: 'hexagon', price: 140, owned: false, rarity: 'rare' },
+            { id: 'octagon', name: 'Octagon', color: '#ff4500', shape: 'octagon', price: 150, owned: false, rarity: 'rare' },
+            { id: 'green-star', name: 'Nature Star', color: '#228B22', shape: 'star', price: 160, owned: false, rarity: 'rare' },
+            { id: 'silver-hex', name: 'Silver Cell', color: '#c0c0c0', shape: 'hexagon', price: 170, owned: false, rarity: 'rare' },
+            { id: 'rose-oct', name: 'Rose Stop', color: '#ff66b2', shape: 'octagon', price: 180, owned: false, rarity: 'rare' },
+            { id: 'crescent', name: 'Moon', color: '#fffacd', shape: 'crescent', price: 190, owned: false, rarity: 'rare' },
+            { id: 'orange-star', name: 'Sun Star', color: '#ffa500', shape: 'star', price: 195, owned: false, rarity: 'rare' },
+            { id: 'violet-oct', name: 'Violet Sign', color: '#ee82ee', shape: 'octagon', price: 200, owned: false, rarity: 'rare' },
+
+            // EPIC (purple) - hearts, fancy colors, crosses
+            { id: 'diamond', name: 'Diamond', color: '#ff00ff', shape: 'diamond', price: 220, owned: false, rarity: 'epic' },
+            { id: 'heart', name: 'Heart', color: '#ff69b4', shape: 'heart', price: 240, owned: false, rarity: 'epic' },
+            { id: 'red-heart', name: 'Ruby Heart', color: '#DC143C', shape: 'heart', price: 260, owned: false, rarity: 'epic' },
+            { id: 'gold-hex', name: 'Gold Comb', color: '#FFD700', shape: 'hexagon', price: 280, owned: false, rarity: 'epic' },
+            { id: 'cross', name: 'Cross', color: '#ff0000', shape: 'cross', price: 300, owned: false, rarity: 'epic' },
+            { id: 'blue-cross', name: 'Ice Cross', color: '#00bfff', shape: 'cross', price: 320, owned: false, rarity: 'epic' },
+            { id: 'purple-heart', name: 'Grape Heart', color: '#800080', shape: 'heart', price: 340, owned: false, rarity: 'epic' },
+            { id: 'arrow', name: 'Arrow', color: '#32cd32', shape: 'arrow', price: 360, owned: false, rarity: 'epic' },
+            { id: 'blue-crescent', name: 'Blue Moon', color: '#4169e1', shape: 'crescent', price: 380, owned: false, rarity: 'epic' },
+            { id: 'magenta-cross', name: 'Neon Cross', color: '#ff00ff', shape: 'cross', price: 400, owned: false, rarity: 'epic' },
+            { id: 'teal-heart', name: 'Ocean Heart', color: '#20b2aa', shape: 'heart', price: 420, owned: false, rarity: 'epic' },
+
+            // LEGENDARY (gold) - ghosts, special shapes
+            { id: 'ghost', name: 'Ghost', color: '#ffffff', shape: 'ghost', price: 450, owned: false, rarity: 'legendary' },
+            { id: 'blue-ghost', name: 'Ice Ghost', color: '#87CEEB', shape: 'ghost', price: 500, owned: false, rarity: 'legendary' },
+            { id: 'gold-star', name: 'Super Star', color: '#FFD700', shape: 'star', price: 550, owned: false, rarity: 'legendary' },
+            { id: 'emerald', name: 'Emerald', color: '#50C878', shape: 'diamond', price: 600, owned: false, rarity: 'legendary' },
+            { id: 'gold-ghost', name: 'King Ghost', color: '#ffd700', shape: 'ghost', price: 650, owned: false, rarity: 'legendary' },
+            { id: 'ruby', name: 'Ruby', color: '#e0115f', shape: 'diamond', price: 700, owned: false, rarity: 'legendary' },
+            { id: 'plasma-hex', name: 'Plasma Cell', color: '#00ff7f', shape: 'hexagon', price: 750, owned: false, rarity: 'legendary' },
+            { id: 'sun-cross', name: 'Sun Cross', color: '#ffa500', shape: 'cross', price: 800, owned: false, rarity: 'legendary' },
+            { id: 'silver-arrow', name: 'Silver Arrow', color: '#c0c0c0', shape: 'arrow', price: 850, owned: false, rarity: 'legendary' },
+            { id: 'mystic-moon', name: 'Mystic Moon', color: '#dda0dd', shape: 'crescent', price: 900, owned: false, rarity: 'legendary' },
+
+            // MYTHICAL (rainbow/special) - ultimate skins
+            { id: 'pink-ghost', name: 'Spirit', color: '#FF69B4', shape: 'ghost', price: 1000, owned: false, rarity: 'mythical' },
+            { id: 'rainbow-star', name: 'Cosmic Star', color: '#FF1493', shape: 'star', price: 1200, owned: false, rarity: 'mythical' },
+            { id: 'void-hex', name: 'Void Crystal', color: '#4B0082', shape: 'hexagon', price: 1400, owned: false, rarity: 'mythical' },
+            { id: 'celestial', name: 'Celestial', color: '#E6E6FA', shape: 'heart', price: 1600, owned: false, rarity: 'mythical' },
+            { id: 'shadow-ghost', name: 'Shadow', color: '#1a1a2e', shape: 'ghost', price: 1800, owned: false, rarity: 'mythical' },
+            { id: 'aurora-star', name: 'Aurora', color: '#7fffd4', shape: 'star', price: 2000, owned: false, rarity: 'mythical' },
+            { id: 'dragon-diamond', name: 'Dragon Eye', color: '#8b0000', shape: 'diamond', price: 2200, owned: false, rarity: 'mythical' },
+            { id: 'phoenix-arrow', name: 'Phoenix', color: '#ff4500', shape: 'arrow', price: 2500, owned: false, rarity: 'mythical' },
+            { id: 'galaxy-cross', name: 'Galaxy', color: '#9400d3', shape: 'cross', price: 3000, owned: false, rarity: 'mythical' },
+            { id: 'omega', name: 'Omega', color: '#ffd700', shape: 'ghost', price: 5000, owned: false, rarity: 'mythical' },
+        ];
+
+        let totalCoins = 0;
+        let selectedSkin = 'square';
+        let highScore = 0;
+
+        // Load saved data
+        function loadSaveData() {
+            const saved = localStorage.getItem('hopperSave');
+            if (saved) {
+                const data = JSON.parse(saved);
+                totalCoins = data.coins || 0;
+                selectedSkin = data.selectedSkin || 'square';
+                highScore = data.highScore || 0;
+                if (data.ownedSkins) {
+                    data.ownedSkins.forEach(id => {
+                        const skin = skins.find(s => s.id === id);
+                        if (skin) skin.owned = true;
+                    });
+                }
+            }
+            updateHighScoreDisplay();
+        }
+
+        function saveData() {
+            const data = {
+                coins: totalCoins,
+                selectedSkin: selectedSkin,
+                highScore: highScore,
+                ownedSkins: skins.filter(s => s.owned).map(s => s.id)
+            };
+            localStorage.setItem('hopperSave', JSON.stringify(data));
+        }
+
+        function updateHighScoreDisplay() {
+            document.getElementById('highScoreDisplay').textContent = highScore > 0 ? `High Score: ${highScore}` : '';
+        }
+
+        // Game state
+        let player = {
+            x: 100,
+            y: 300,
+            vx: 0,
+            vy: 0,
+            width: 30,
+            height: 30,
+            onGround: false,
+            jumpPower: -16,
+            speed: 4
+        };
+
+        let platforms = [];
+        let coins = [];
+        let particles = [];
+        let gameRunning = false;
+        let score = 0;
+        let coinsCollected = 0;
+        let cameraX = 0;
+        let gameSpeed = 1;
+        let platformSpawnX = 400;
+
+        const GRAVITY = 0.6;
+        const GROUND_Y = 450;
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            // Always prevent arrow keys and space from scrolling the page
+            if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+
+        // Prevent arrow key scrolling on store container
+        document.getElementById('storeContainer').addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function getCurrentSkin() {
+            return skins.find(s => s.id === selectedSkin) || skins[0];
+        }
+
+        function drawShape(ctx, shape, color, x, y, size, showFace = true) {
+            ctx.fillStyle = color;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+
+            switch (shape) {
+                case 'square':
+                    ctx.fillRect(x - size/2, y - size/2, size, size);
+                    ctx.strokeRect(x - size/2, y - size/2, size, size);
+                    break;
+
+                case 'circle':
+                    ctx.beginPath();
+                    ctx.arc(x, y, size/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'triangle':
+                    ctx.beginPath();
+                    ctx.moveTo(x, y - size/2);
+                    ctx.lineTo(x + size/2, y + size/2);
+                    ctx.lineTo(x - size/2, y + size/2);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'star':
+                    drawStar(ctx, x, y, 5, size/2, size/4);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'diamond':
+                    ctx.beginPath();
+                    ctx.moveTo(x, y - size/2);
+                    ctx.lineTo(x + size/2, y);
+                    ctx.lineTo(x, y + size/2);
+                    ctx.lineTo(x - size/2, y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'hexagon':
+                    drawPolygon(ctx, x, y, size/2, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'heart':
+                    drawHeart(ctx, x, y, size);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'ghost':
+                    drawGhost(ctx, x, y, size);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'pentagon':
+                    drawPolygon(ctx, x, y, size/2, 5);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'octagon':
+                    drawPolygon(ctx, x, y, size/2, 8);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'crescent':
+                    drawCrescent(ctx, x, y, size);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'cross':
+                    drawCross(ctx, x, y, size);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+
+                case 'arrow':
+                    drawArrow(ctx, x, y, size);
+                    ctx.fill();
+                    ctx.stroke();
+                    break;
+            }
+
+            // Draw face
+            if (showFace) {
+                ctx.fillStyle = '#000';
+                // Eyes
+                let eyeY = y - size/8;
+                let eyeSpacing = size/5;
+                ctx.beginPath();
+                ctx.arc(x - eyeSpacing, eyeY, size/10, 0, Math.PI * 2);
+                ctx.arc(x + eyeSpacing, eyeY, size/10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Smile
+                ctx.beginPath();
+                ctx.arc(x, y + size/8, size/6, 0, Math.PI);
+                ctx.stroke();
+            }
+        }
+
+        function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+            let rot = Math.PI / 2 * 3;
+            let step = Math.PI / spikes;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - outerRadius);
+
+            for (let i = 0; i < spikes; i++) {
+                let x = cx + Math.cos(rot) * outerRadius;
+                let y = cy + Math.sin(rot) * outerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+
+                x = cx + Math.cos(rot) * innerRadius;
+                y = cy + Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            ctx.lineTo(cx, cy - outerRadius);
+            ctx.closePath();
+        }
+
+        function drawPolygon(ctx, cx, cy, radius, sides) {
+            ctx.beginPath();
+            for (let i = 0; i < sides; i++) {
+                let angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+                let x = cx + Math.cos(angle) * radius;
+                let y = cy + Math.sin(angle) * radius;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+        }
+
+        function drawHeart(ctx, cx, cy, size) {
+            ctx.beginPath();
+            let topY = cy - size/4;
+            ctx.moveTo(cx, cy + size/3);
+            ctx.bezierCurveTo(cx - size/2, cy, cx - size/2, topY - size/4, cx, topY);
+            ctx.bezierCurveTo(cx + size/2, topY - size/4, cx + size/2, cy, cx, cy + size/3);
+            ctx.closePath();
+        }
+
+        function drawGhost(ctx, cx, cy, size) {
+            ctx.beginPath();
+            ctx.arc(cx, cy - size/6, size/2.5, Math.PI, 0);
+            ctx.lineTo(cx + size/2.5, cy + size/3);
+            // Wavy bottom
+            for (let i = 0; i < 4; i++) {
+                let waveX = cx + size/2.5 - (i + 0.5) * (size/2.5 * 2 / 4);
+                let waveY = cy + size/3 + (i % 2 === 0 ? size/6 : 0);
+                ctx.lineTo(waveX, waveY);
+            }
+            ctx.lineTo(cx - size/2.5, cy + size/3);
+            ctx.closePath();
+        }
+
+        function drawCrescent(ctx, cx, cy, size) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, size/2, 0.5, Math.PI * 2 - 0.5);
+            ctx.arc(cx + size/4, cy, size/3, Math.PI * 2 - 0.8, 0.8, true);
+            ctx.closePath();
+        }
+
+        function drawCross(ctx, cx, cy, size) {
+            let w = size / 3;
+            let h = size / 2;
+            ctx.beginPath();
+            ctx.moveTo(cx - w/2, cy - h);
+            ctx.lineTo(cx + w/2, cy - h);
+            ctx.lineTo(cx + w/2, cy - w/2);
+            ctx.lineTo(cx + h, cy - w/2);
+            ctx.lineTo(cx + h, cy + w/2);
+            ctx.lineTo(cx + w/2, cy + w/2);
+            ctx.lineTo(cx + w/2, cy + h);
+            ctx.lineTo(cx - w/2, cy + h);
+            ctx.lineTo(cx - w/2, cy + w/2);
+            ctx.lineTo(cx - h, cy + w/2);
+            ctx.lineTo(cx - h, cy - w/2);
+            ctx.lineTo(cx - w/2, cy - w/2);
+            ctx.closePath();
+        }
+
+        function drawArrow(ctx, cx, cy, size) {
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - size/2);
+            ctx.lineTo(cx + size/2, cy);
+            ctx.lineTo(cx + size/4, cy);
+            ctx.lineTo(cx + size/4, cy + size/2);
+            ctx.lineTo(cx - size/4, cy + size/2);
+            ctx.lineTo(cx - size/4, cy);
+            ctx.lineTo(cx - size/2, cy);
+            ctx.closePath();
+        }
+
+        function spawnPlatform(x) {
+            let y = 150 + Math.random() * 250;
+            let width = 80 + Math.random() * 100;
+
+            platforms.push({
+                x: x,
+                y: y,
+                width: width,
+                height: 20
+            });
+
+            // Maybe spawn a coin above
+            if (Math.random() < 0.6) {
+                coins.push({
+                    x: x + width / 2,
+                    y: y - 40,
+                    collected: false
+                });
+            }
+        }
+
+        function initPlatforms() {
+            platforms = [];
+            coins = [];
+
+            // Starting platform
+            platforms.push({
+                x: 50,
+                y: 350,
+                width: 150,
+                height: 20
+            });
+
+            platformSpawnX = 300;
+            for (let i = 0; i < 8; i++) {
+                spawnPlatform(platformSpawnX);
+                platformSpawnX += 150 + Math.random() * 100;
+            }
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            // Player input
+            if (keys['ArrowLeft']) {
+                player.vx = -player.speed;
+            } else if (keys['ArrowRight']) {
+                player.vx = player.speed;
+            } else {
+                player.vx *= 0.8;
+            }
+
+            // Jump
+            if (keys['Space'] && player.onGround) {
+                player.vy = player.jumpPower;
+                player.onGround = false;
+                // Jump particles
+                for (let i = 0; i < 5; i++) {
+                    particles.push({
+                        x: player.x,
+                        y: player.y + player.height / 2,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: Math.random() * 2,
+                        life: 15,
+                        color: getCurrentSkin().color
+                    });
+                }
+            }
+
+            // Apply gravity
+            player.vy += GRAVITY;
+
+            // Move player
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Platform collision
+            player.onGround = false;
+            for (let plat of platforms) {
+                if (player.vy >= 0 &&
+                    player.x + player.width / 2 > plat.x &&
+                    player.x - player.width / 2 < plat.x + plat.width &&
+                    player.y + player.height / 2 >= plat.y &&
+                    player.y + player.height / 2 <= plat.y + plat.height + player.vy) {
+
+                    player.y = plat.y - player.height / 2;
+                    player.vy = 0;
+                    player.onGround = true;
+                }
+            }
+
+            // Coin collection
+            for (let coin of coins) {
+                if (!coin.collected) {
+                    let dx = player.x - coin.x;
+                    let dy = player.y - coin.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < 25) {
+                        coin.collected = true;
+                        coinsCollected++;
+                        // Coin particles
+                        for (let i = 0; i < 8; i++) {
+                            particles.push({
+                                x: coin.x,
+                                y: coin.y,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                life: 20,
+                                color: '#ffd700'
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Camera follows player
+            let targetCameraX = player.x - 200;
+            cameraX += (targetCameraX - cameraX) * 0.1;
+
+            // Score based on distance
+            score = Math.max(score, Math.floor(player.x / 10));
+
+            // Spawn new platforms
+            while (platformSpawnX < cameraX + canvas.width + 200) {
+                spawnPlatform(platformSpawnX);
+                platformSpawnX += 120 + Math.random() * 100;
+
+                // Increase difficulty
+                gameSpeed = 1 + score / 500;
+            }
+
+            // Remove old platforms
+            platforms = platforms.filter(p => p.x + p.width > cameraX - 100);
+            coins = coins.filter(c => c.x > cameraX - 100);
+
+            // Player falls off screen
+            if (player.y > canvas.height + 50) {
+                endGame();
+            }
+
+            // Don't go too far left
+            if (player.x < cameraX + 30) {
+                player.x = cameraX + 30;
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].vy += 0.2;
+                particles[i].life--;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Update UI
+            document.getElementById('coinDisplay').textContent = `Coins: ${coinsCollected}`;
+            document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+        }
+
+        function draw() {
+            // Factory background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background factory elements
+            drawFactoryBackground();
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            // Platforms
+            for (let plat of platforms) {
+                // Platform shadow
+                ctx.fillStyle = '#222';
+                ctx.fillRect(plat.x + 5, plat.y + 5, plat.width, plat.height);
+
+                // Platform
+                let gradient = ctx.createLinearGradient(plat.x, plat.y, plat.x, plat.y + plat.height);
+                gradient.addColorStop(0, '#666');
+                gradient.addColorStop(1, '#444');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+
+                // Platform top highlight
+                ctx.fillStyle = '#888';
+                ctx.fillRect(plat.x, plat.y, plat.width, 4);
+
+                // Hazard stripes
+                ctx.fillStyle = '#ff8c00';
+                for (let i = 0; i < plat.width; i += 20) {
+                    ctx.fillRect(plat.x + i, plat.y + plat.height - 4, 10, 4);
+                }
+            }
+
+            // Coins
+            for (let coin of coins) {
+                if (!coin.collected) {
+                    // Coin glow
+                    ctx.shadowColor = '#ffd700';
+                    ctx.shadowBlur = 10;
+
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.arc(coin.x, coin.y, 12, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.shadowBlur = 0;
+
+                    // Coin inner
+                    ctx.fillStyle = '#ffec8b';
+                    ctx.beginPath();
+                    ctx.arc(coin.x, coin.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Dollar sign
+                    ctx.fillStyle = '#b8860b';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('$', coin.x, coin.y);
+                }
+            }
+
+            // Particles
+            for (const p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 20;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Player
+            const skin = getCurrentSkin();
+            drawShape(ctx, skin.shape, skin.color, player.x, player.y, player.width);
+
+            ctx.restore();
+        }
+
+        function drawFactoryBackground() {
+            // Gears
+            ctx.fillStyle = '#2a2a4a';
+            for (let i = 0; i < 5; i++) {
+                let gx = ((i * 200) - (cameraX * 0.3)) % (canvas.width + 200) - 100;
+                let gy = 80 + (i % 2) * 50;
+                drawGear(gx, gy, 40 + i * 10, Date.now() / 1000 + i);
+            }
+
+            // Pipes
+            ctx.fillStyle = '#3a3a5a';
+            ctx.fillRect(0, 0, canvas.width, 15);
+            ctx.fillRect(0, canvas.height - 15, canvas.width, 15);
+
+            // Warning signs
+            ctx.fillStyle = '#ff8c00';
+            for (let i = 0; i < canvas.width; i += 100) {
+                ctx.fillRect(i, canvas.height - 15, 30, 15);
+            }
+        }
+
+        function drawGear(x, y, radius, rotation) {
+            const teeth = 8;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+
+            ctx.beginPath();
+            for (let i = 0; i < teeth * 2; i++) {
+                let angle = (i / (teeth * 2)) * Math.PI * 2;
+                let r = i % 2 === 0 ? radius : radius * 0.7;
+                let px = Math.cos(angle) * r;
+                let py = Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Center hole
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+
+            player.x = 125;
+            player.y = 300;
+            player.vx = 0;
+            player.vy = 0;
+            score = 0;
+            coinsCollected = 0;
+            cameraX = 0;
+            gameSpeed = 1;
+            particles = [];
+
+            initPlatforms();
+
+            gameRunning = true;
+        }
+
+        function endGame() {
+            gameRunning = false;
+
+            // Add coins to total
+            totalCoins += coinsCollected;
+
+            // Check high score
+            if (score > highScore) {
+                highScore = score;
+            }
+
+            saveData();
+            updateHighScoreDisplay();
+
+            document.getElementById('finalScore').textContent = `Score: ${score}`;
+            document.getElementById('coinsEarned').textContent = `Coins earned: ${coinsCollected}`;
+            document.getElementById('gameOverHighScore').textContent = score >= highScore ? 'New High Score!' : `High Score: ${highScore}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function backToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+        }
+
+        function openStore() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('storeCoins').textContent = `Coins: ${totalCoins}`;
+            renderSkinGrid();
+            document.getElementById('storeScreen').style.display = 'flex';
+        }
+
+        function closeStore() {
+            document.getElementById('storeScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+        }
+
+        function renderSkinGrid() {
+            const container = document.getElementById('storeContainer');
+            container.innerHTML = '';
+
+            const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythical'];
+            const rarityNames = {
+                common: 'Common',
+                uncommon: 'Uncommon',
+                rare: 'Rare',
+                epic: 'Epic',
+                legendary: 'Legendary',
+                mythical: 'Mythical'
+            };
+
+            for (const rarity of rarities) {
+                const raritySkins = skins.filter(s => s.rarity === rarity);
+                if (raritySkins.length === 0) continue;
+
+                const column = document.createElement('div');
+                column.className = 'rarity-column';
+
+                const title = document.createElement('div');
+                title.className = `rarity-title ${rarity}`;
+                title.textContent = rarityNames[rarity];
+                column.appendChild(title);
+
+                const grid = document.createElement('div');
+                grid.className = 'skin-grid';
+                grid.tabIndex = -1; // Prevent keyboard focus/scrolling
+
+                for (const skin of raritySkins) {
+                    const item = document.createElement('div');
+                    item.className = `skin-item ${rarity}`;
+                    if (skin.owned) item.classList.add('owned');
+                    if (skin.id === selectedSkin) item.classList.add('selected');
+
+                    // Mini canvas for skin preview
+                    const miniCanvas = document.createElement('canvas');
+                    miniCanvas.width = 40;
+                    miniCanvas.height = 40;
+                    const miniCtx = miniCanvas.getContext('2d');
+
+                    miniCtx.fillStyle = '#222';
+                    miniCtx.fillRect(0, 0, 40, 40);
+
+                    drawShape(miniCtx, skin.shape, skin.color, 20, 20, 28, true);
+
+                    item.appendChild(miniCanvas);
+
+                    const name = document.createElement('div');
+                    name.className = 'skin-name';
+                    name.textContent = skin.name;
+                    item.appendChild(name);
+
+                    const price = document.createElement('div');
+                    price.className = 'skin-price';
+                    if (skin.owned) {
+                        price.textContent = skin.id === selectedSkin ? 'Equipped' : 'Owned';
+                        price.style.color = '#4CAF50';
+                    } else {
+                        price.textContent = `${skin.price} coins`;
+                    }
+                    item.appendChild(price);
+
+                    item.onclick = () => handleSkinClick(skin);
+                    grid.appendChild(item);
+                }
+
+                column.appendChild(grid);
+                container.appendChild(column);
+            }
+        }
+
+        function handleSkinClick(skin) {
+            if (skin.owned) {
+                // Select this skin
+                selectedSkin = skin.id;
+                saveData();
+                renderSkinGrid();
+            } else if (totalCoins >= skin.price) {
+                // Buy the skin
+                totalCoins -= skin.price;
+                skin.owned = true;
+                selectedSkin = skin.id;
+                saveData();
+                document.getElementById('storeCoins').textContent = `Coins: ${totalCoins}`;
+                renderSkinGrid();
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize
+        loadSaveData();
+        gameLoop();
+    </script>
+</body>
+</html>
