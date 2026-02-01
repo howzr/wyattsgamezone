@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Duck Realms - Conquer All 7!</title>
+    <title>Duck Smash - Conquer All 7!</title>
     <style>
         * {
             margin: 0;
@@ -115,16 +115,16 @@
     <div id="gameContainer">
         <canvas id="gameCanvas" width="800" height="600"></canvas>
         <div id="ui">
-            <div id="levelDisplay">DUCK REALM 1</div>
+            <div id="levelDisplay">DUCK SMASH 1</div>
             <div id="scoreDisplay">SCORE: 0</div>
             <div id="highScoreUI">HIGH SCORE: 0</div>
             <div id="killsDisplay">KILLS: 0/10</div>
         </div>
 
         <div id="startScreen">
-            <h1>DUCK REALMS</h1>
-            <p class="story">Conquer all 7 Duck Realms!</p>
-            <p class="story">Defeat the ducks in each realm to advance!</p>
+            <h1>DUCK SMASH</h1>
+            <p class="story">Conquer all 7 levels!</p>
+            <p class="story">Defeat the ducks in each level to advance!</p>
             <div class="controls">
                 <p>Arrow Keys or A/D - Move</p>
                 <p>Space, W, or Up - Jump</p>
@@ -132,7 +132,7 @@
                 <p style="color: #888; font-size: 14px; margin-top: 10px;">Touch: Joystick to move, buttons to jump/shoot</p>
             </div>
             <p id="startHighScore" style="color: #ffcc00; margin-top: 15px;"></p>
-            <button onclick="startGame()">Enter the Realms!</button>
+            <button onclick="startGame()">Start Smashing!</button>
         </div>
 
         <div id="gameOver" style="display: none;">
@@ -209,7 +209,7 @@
         let spawnTimer = 0;
         let mouseX = 400;
         let mouseY = 300;
-        let highScore = parseInt(localStorage.getItem('duckRealmsHighScore')) || 10000;
+        let highScore = parseInt(localStorage.getItem('duckSmashHighScore')) || 10000;
 
         const TOTAL_LEVELS = 7;
         const levelNames = ['Meadow', 'Forest', 'Swamp', 'Canyon', 'Mountain', 'Volcano', 'Dark Realm'];
@@ -972,7 +972,7 @@
         }
 
         function updateUI() {
-            document.getElementById('levelDisplay').textContent = `DUCK REALM ${level}: ${levelNames[level-1].toUpperCase()}`;
+            document.getElementById('levelDisplay').textContent = `DUCK SMASH ${level}: ${levelNames[level-1].toUpperCase()}`;
             document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
             document.getElementById('highScoreUI').textContent = `HIGH SCORE: ${Math.max(highScore, score)}`;
             document.getElementById('killsDisplay').textContent = `KILLS: ${levelKills}/${killsNeeded}`;
@@ -1190,12 +1190,12 @@
                 ctx.fillStyle = '#ffcc00';
                 ctx.font = 'bold 48px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(`REALM ${level} COMPLETE!`, canvas.width / 2, canvas.height / 2 - 40);
+                ctx.fillText(`LEVEL ${level} COMPLETE!`, canvas.width / 2, canvas.height / 2 - 40);
 
                 ctx.fillStyle = '#fff';
                 ctx.font = '24px sans-serif';
                 if (level < TOTAL_LEVELS) {
-                    ctx.fillText(`Entering Realm ${level + 1}: ${levelNames[level]}...`, canvas.width / 2, canvas.height / 2 + 20);
+                    ctx.fillText(`Entering Level ${level + 1}: ${levelNames[level]}...`, canvas.width / 2, canvas.height / 2 + 20);
                 } else {
                     ctx.fillText('Preparing for final victory...', canvas.width / 2, canvas.height / 2 + 20);
                 }
@@ -1210,7 +1210,7 @@
                 ctx.fillStyle = '#ffcc00';
                 ctx.font = 'bold 36px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(`REALM ${level}: ${levelNames[level-1].toUpperCase()}`, canvas.width / 2, 200);
+                ctx.fillText(`LEVEL ${level}: ${levelNames[level-1].toUpperCase()}`, canvas.width / 2, 200);
                 ctx.fillStyle = '#fff';
                 ctx.font = '20px sans-serif';
                 ctx.fillText(`Defeat ${killsNeeded} ducks to advance!`, canvas.width / 2, 240);
@@ -1517,11 +1517,11 @@
             const isNewHighScore = score > highScore;
             if (isNewHighScore) {
                 highScore = score;
-                localStorage.setItem('duckRealmsHighScore', highScore);
+                localStorage.setItem('duckSmashHighScore', highScore);
             }
 
             document.getElementById('finalScore').textContent = `VICTORY! Final Score: ${score}`;
-            document.getElementById('finalDistance').textContent = `All 7 Duck Realms Conquered!`;
+            document.getElementById('finalDistance').textContent = `All 7 Levels Conquered!`;
             document.getElementById('finalKills').textContent = `Total Kills: ${kills}`;
             document.getElementById('highScoreDisplay').textContent = isNewHighScore ? `NEW HIGH SCORE: ${highScore}` : `High Score: ${highScore}`;
             document.getElementById('gameOver').querySelector('h2').textContent = 'You Win!';
@@ -1549,11 +1549,11 @@
 
             if (isNewHighScore) {
                 highScore = score;
-                localStorage.setItem('duckRealmsHighScore', highScore);
+                localStorage.setItem('duckSmashHighScore', highScore);
             }
 
             document.getElementById('finalScore').textContent = `Final Score: ${score}`;
-            document.getElementById('finalDistance').textContent = `Reached: Realm ${level} - ${levelNames[level-1]}`;
+            document.getElementById('finalDistance').textContent = `Reached: Level ${level} - ${levelNames[level-1]}`;
             document.getElementById('finalKills').textContent = isNewHighScore ? 'NEW HIGH SCORE!' : `Total Kills: ${kills}`;
             document.getElementById('highScoreDisplay').textContent = `High Score: ${highScore}`;
             document.getElementById('gameOver').querySelector('h2').textContent = 'Game Over!';
