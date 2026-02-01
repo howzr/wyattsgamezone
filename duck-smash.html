@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Realms - Conquer All 7!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 100, 0, 0.3);
+            cursor: crosshair;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ffcc00;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #startScreen, #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(10, 10, 20, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 52px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff6600, #ffcc00, #ff6600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 4px;
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ff4444;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #ff6600, #ffcc00);
+            color: #000;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 150, 0, 0.5);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #888;
+        }
+        .story {
+            font-size: 16px;
+            color: #ffaa00;
+            margin-bottom: 20px;
+            font-style: italic;
+            max-width: 450px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div id="levelDisplay">DUCK REALM 1</div>
+            <div id="scoreDisplay">SCORE: 0</div>
+            <div id="highScoreUI">HIGH SCORE: 0</div>
+            <div id="killsDisplay">KILLS: 0/10</div>
+        </div>
+
+        <div id="startScreen">
+            <h1>DUCK REALMS</h1>
+            <p class="story">Conquer all 7 Duck Realms!</p>
+            <p class="story">Defeat the ducks in each realm to advance!</p>
+            <div class="controls">
+                <p>Arrow Keys or A/D - Move</p>
+                <p>Space, W, or Up - Jump</p>
+                <p>Mouse - Aim | Click - Shoot</p>
+            </div>
+            <p id="startHighScore" style="color: #ffcc00; margin-top: 15px;"></p>
+            <button onclick="startGame()">Enter the Realms!</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>Game Over!</h2>
+            <p id="finalScore"></p>
+            <p id="finalDistance"></p>
+            <p id="finalKills"></p>
+            <p id="highScoreDisplay"></p>
+            <button onclick="startGame()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const GROUND_Y = 520;
+        const GRAVITY = 0.7;
+        const JUMP_FORCE = -15;
+        const DOUBLE_JUMP_FORCE = -13;
+
+        let player = {
+            x: 400,
+            y: GROUND_Y - 60,
+            width: 40,
+            height: 60,
+            vx: 0,
+            vy: 0,
+            onGround: true,
+            canDoubleJump: true,
+            health: 3,
+            maxHealth: 3,
+            ammo: 30,
+            shootCooldown: 0,
+            invincible: 0,
+            facing: 1,
+            runFrame: 0,
+            runTimer: 0
+        };
+
+        let ducks = [];
+        let bullets = [];
+        let particles = [];
+        let feathers = [];
+        let pickups = [];
+        let clouds = [];
+        let groundTiles = [];
+        let gameRunning = false;
+        let score = 0;
+        let kills = 0;
+        let level = 1;
+        let levelKills = 0;
+        let killsNeeded = 10;
+        let showingLevelComplete = false;
+        let levelCompleteTimer = 0;
+        let speedMultiplier = 1;
+        let spawnTimer = 0;
+        let mouseX = 400;
+        let mouseY = 300;
+        let highScore = parseInt(localStorage.getItem('duckRealmsHighScore')) || 10000;
+
+        const TOTAL_LEVELS = 7;
+        const levelNames = ['Meadow', 'Forest', 'Swamp', 'Canyon', 'Mountain', 'Volcano', 'Dark Realm'];
+        const killsPerLevel = [10, 15, 20, 25, 30, 40, 50];
+        const levelColors = [
+            { sky1: '#87CEEB', sky2: '#98D8C8', ground: '#228B22', dirt: '#8B4513' },  // Meadow
+            { sky1: '#4A7023', sky2: '#2E4A1C', ground: '#1B4D1B', dirt: '#3D2914' },  // Forest
+            { sky1: '#5C6B5C', sky2: '#3D4A3D', ground: '#4A5D4A', dirt: '#2F4F2F' },  // Swamp
+            { sky1: '#CD853F', sky2: '#D2691E', ground: '#8B4513', dirt: '#A0522D' },  // Canyon
+            { sky1: '#B0C4DE', sky2: '#708090', ground: '#696969', dirt: '#4A4A4A' },  // Mountain
+            { sky1: '#8B0000', sky2: '#4A0000', ground: '#2F1F1F', dirt: '#1A0A0A' },  // Volcano
+            { sky1: '#1A1A2E', sky2: '#0D0D1A', ground: '#2A2A3A', dirt: '#1A1A2A' }   // Dark Realm
+        ];
+
+        const keys = {};
+
+        // Initialize clouds
+        function initClouds() {
+            clouds = [];
+            for (let i = 0; i < 5; i++) {
+                clouds.push({
+                    x: Math.random() * canvas.width,
+                    y: 50 + Math.random() * 150,
+                    width: 80 + Math.random() * 60,
+                    speed: 0.3 + Math.random() * 0.3
+                });
+            }
+        }
+
+        // Initialize ground tiles
+        function initGround() {
+            groundTiles = [];
+            for (let i = 0; i < 20; i++) {
+                groundTiles.push({
+                    x: i * 50,
+                    type: Math.floor(Math.random() * 3)
+                });
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+                e.preventDefault();
+                if (gameRunning) jump();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (gameRunning) shoot();
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameRunning) {
+                // Touch top half to jump, bottom half to shoot
+                const rect = canvas.getBoundingClientRect();
+                const touchY = e.touches[0].clientY - rect.top;
+                if (touchY < canvas.height / 2) {
+                    jump();
+                } else {
+                    shoot();
+                }
+            }
+        });
+
+        function jump() {
+            if (player.onGround) {
+                player.vy = JUMP_FORCE;
+                player.onGround = false;
+                player.canDoubleJump = true;
+                createJumpParticles();
+            } else if (player.canDoubleJump) {
+                player.vy = DOUBLE_JUMP_FORCE;
+                player.canDoubleJump = false;
+                createDoubleJumpParticles();
+            }
+        }
+
+        function shoot() {
+            if (player.shootCooldown <= 0) {
+                player.shootCooldown = 12;
+
+                const angle = Math.atan2(mouseY - (player.y + 10), mouseX - player.x);
+                const speed = 20;
+
+                bullets.push({
+                    x: player.x + Math.cos(angle) * 25,
+                    y: player.y + 10 + Math.sin(angle) * 10,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 60
+                });
+
+                // Muzzle flash
+                for (let i = 0; i < 5; i++) {
+                    particles.push({
+                        x: player.x + Math.cos(angle) * 30,
+                        y: player.y + 10,
+                        vx: Math.cos(angle + (Math.random() - 0.5) * 0.5) * (8 + Math.random() * 4),
+                        vy: Math.sin(angle + (Math.random() - 0.5) * 0.5) * (8 + Math.random() * 4),
+                        life: 10,
+                        size: 3 + Math.random() * 3,
+                        color: '#ffff00'
+                    });
+                }
+            }
+        }
+
+        function createJumpParticles() {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: player.x,
+                    y: GROUND_Y - 10,
+                    vx: (Math.random() - 0.5) * 6 - gameSpeed / 2,
+                    vy: -Math.random() * 4,
+                    life: 20,
+                    size: 4 + Math.random() * 4,
+                    color: '#8B4513'
+                });
+            }
+        }
+
+        function createDoubleJumpParticles() {
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                particles.push({
+                    x: player.x,
+                    y: player.y + 30,
+                    vx: Math.cos(angle) * 4,
+                    vy: Math.sin(angle) * 4,
+                    life: 15,
+                    size: 3 + Math.random() * 3,
+                    color: '#ffcc00'
+                });
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+
+            player.x = canvas.width / 2;
+            player.y = GROUND_Y - 60;
+            player.vy = 0;
+            player.onGround = true;
+            player.canDoubleJump = true;
+            player.health = 3;
+            player.ammo = 30;
+            player.shootCooldown = 0;
+            player.invincible = 0;
+            player.runFrame = 0;
+
+            ducks = [];
+            bullets = [];
+            particles = [];
+            feathers = [];
+            pickups = [];
+            score = 0;
+            kills = 0;
+            level = 1;
+            levelKills = 0;
+            killsNeeded = killsPerLevel[0];
+            showingLevelComplete = false;
+            levelCompleteTimer = 0;
+            speedMultiplier = 1;
+            spawnTimer = 80;
+
+            initClouds();
+            initGround();
+
+            gameRunning = true;
+            updateUI();
+        }
+
+        function spawnDuck() {
+            const type = Math.random();
+            const side = Math.random() > 0.3 ? 1 : 0; // Mostly from right, sometimes left
+            const levelBoost = 0.6 + (level - 1) * 0.1; // Slower base speed, increases with level
+            let duck;
+
+            if (type < 0.4) {
+                // Normal ground duck - hops around
+                duck = {
+                    x: side === 1 ? canvas.width + 50 : -50,
+                    y: GROUND_Y - 30,
+                    width: 50,
+                    height: 40,
+                    vx: (side === 1 ? -1 : 1) * (2 + Math.random() * 2) * levelBoost,
+                    vy: 0,
+                    type: 'normal',
+                    health: 1,
+                    animTimer: 0,
+                    jumpTimer: 30 + Math.random() * 60
+                };
+            } else if (type < 0.6) {
+                // Fast duck - runs toward player
+                duck = {
+                    x: side === 1 ? canvas.width + 50 : -50,
+                    y: GROUND_Y - 25,
+                    width: 40,
+                    height: 32,
+                    vx: (side === 1 ? -1 : 1) * (5 + Math.random() * 3) * levelBoost,
+                    vy: 0,
+                    type: 'fast',
+                    health: 1,
+                    animTimer: 0
+                };
+            } else if (type < 0.8) {
+                // Big duck - tanky (more health in later levels)
+                duck = {
+                    x: side === 1 ? canvas.width + 60 : -60,
+                    y: GROUND_Y - 50,
+                    width: 70,
+                    height: 60,
+                    vx: (side === 1 ? -1 : 1) * (1.5 + Math.random()) * levelBoost,
+                    vy: 0,
+                    type: 'big',
+                    health: 2 + Math.floor(level / 2),
+                    animTimer: 0
+                };
+            } else {
+                // Flying duck - swoops up and down
+                duck = {
+                    x: side === 1 ? canvas.width + 50 : -50,
+                    y: 200 + Math.random() * 100,
+                    width: 45,
+                    height: 35,
+                    vx: (side === 1 ? -1 : 1) * (3 + Math.random() * 2) * levelBoost,
+                    vy: 0,
+                    type: 'flying',
+                    health: 1,
+                    animTimer: 0,
+                    baseY: 0,
+                    swoopPhase: Math.random() * Math.PI * 2
+                };
+                duck.baseY = duck.y;
+            }
+
+            ducks.push(duck);
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            // Level complete check
+            if (levelKills >= killsNeeded && !showingLevelComplete) {
+                showingLevelComplete = true;
+                levelCompleteTimer = 180; // 3 seconds
+                ducks = []; // Clear remaining ducks
+            }
+
+            // Handle level complete timer
+            if (showingLevelComplete) {
+                levelCompleteTimer--;
+                if (levelCompleteTimer <= 0) {
+                    if (level >= TOTAL_LEVELS) {
+                        // Beat the game!
+                        victory();
+                        return;
+                    } else {
+                        // Next level
+                        level++;
+                        levelKills = 0;
+                        killsNeeded = killsPerLevel[level - 1];
+                        showingLevelComplete = false;
+                        spawnTimer = 120; // Give player a moment at start of new level
+                        player.health = Math.min(player.maxHealth, player.health + 1); // Heal 1 heart
+                        score += 100 * level; // Bonus for completing level
+                    }
+                }
+                updateUI();
+                return; // Pause game during level complete
+            }
+
+            // Difficulty scales with level
+            speedMultiplier = 1 + (level - 1) * 0.2;
+
+            // Player horizontal movement - only moves when holding keys
+            player.vx = 0;
+            if (keys['ArrowLeft'] || keys['KeyA']) {
+                player.vx = -6;
+            }
+            if (keys['ArrowRight'] || keys['KeyD']) {
+                player.vx = 6;
+            }
+            player.x += player.vx;
+
+            // Keep player in bounds
+            player.x = Math.max(40, Math.min(canvas.width - 40, player.x));
+
+            // Player gravity
+            player.vy += GRAVITY;
+            player.y += player.vy;
+
+            // Ground collision
+            if (player.y >= GROUND_Y - 60) {
+                player.y = GROUND_Y - 60;
+                player.vy = 0;
+                player.onGround = true;
+            }
+
+            // Face mouse direction
+            player.facing = mouseX > player.x ? 1 : -1;
+
+            // Running animation - only when moving
+            if (player.onGround && player.vx !== 0) {
+                player.runTimer++;
+                if (player.runTimer > 4) {
+                    player.runTimer = 0;
+                    player.runFrame = (player.runFrame + 1) % 4;
+                }
+            } else if (player.vx === 0) {
+                player.runFrame = 0;
+            }
+
+            // Cooldowns
+            if (player.shootCooldown > 0) player.shootCooldown--;
+            if (player.invincible > 0) player.invincible--;
+
+            // Spawn ducks (faster in higher levels)
+            spawnTimer--;
+            if (spawnTimer <= 0) {
+                spawnDuck();
+                spawnTimer = Math.max(15, 70 - level * 7) + Math.random() * 30;
+            }
+
+            // Update ducks
+            for (let i = ducks.length - 1; i >= 0; i--) {
+                const duck = ducks[i];
+                duck.animTimer++;
+
+                // Duck movement (no auto-scroll, ducks move on their own)
+                duck.x += duck.vx;
+
+                if (duck.type === 'normal') {
+                    // Random hopping
+                    duck.jumpTimer--;
+                    if (duck.jumpTimer <= 0 && duck.y >= GROUND_Y - duck.height / 2 - 1) {
+                        duck.vy = -6 - Math.random() * 4;
+                        duck.jumpTimer = 50 + Math.random() * 80;
+                    }
+
+                    // Gravity
+                    duck.vy += 0.4;
+                    duck.y += duck.vy;
+                    if (duck.y > GROUND_Y - duck.height / 2) {
+                        duck.y = GROUND_Y - duck.height / 2;
+                        duck.vy = 0;
+                    }
+
+                } else if (duck.type === 'fast') {
+                    // Stays on ground, already moving fast via vx
+                    duck.y = GROUND_Y - duck.height / 2;
+
+                } else if (duck.type === 'big') {
+                    // Just scrolls, stays on ground
+                    duck.y = GROUND_Y - duck.height / 2;
+
+                } else if (duck.type === 'flying') {
+                    // Swoop up and down
+                    duck.swoopPhase += 0.05;
+                    duck.y = duck.baseY + Math.sin(duck.swoopPhase) * 80;
+
+                    // Dive at player when close
+                    if (Math.abs(duck.x - player.x) < 150) {
+                        const dy = player.y - duck.y;
+                        duck.y += dy * 0.03;
+                    }
+
+                    // Keep in bounds
+                    duck.y = Math.max(80, Math.min(GROUND_Y - 60, duck.y));
+                }
+
+                // Collision with player
+                const playerBox = {
+                    x: player.x - 15,
+                    y: player.y,
+                    width: 30,
+                    height: 55
+                };
+                const duckBox = {
+                    x: duck.x - duck.width / 2 + 8,
+                    y: duck.y - duck.height / 2 + 8,
+                    width: duck.width - 16,
+                    height: duck.height - 16
+                };
+
+                if (playerBox.x < duckBox.x + duckBox.width &&
+                    playerBox.x + playerBox.width > duckBox.x &&
+                    playerBox.y < duckBox.y + duckBox.height &&
+                    playerBox.y + playerBox.height > duckBox.y) {
+
+                    if (player.invincible === 0) {
+                        player.health--;
+                        player.invincible = 90;
+                        player.vy = -8;
+                        player.onGround = false;
+                        createHitEffect(player.x, player.y + 25);
+
+                        if (player.health <= 0) {
+                            endGame();
+                            return;
+                        }
+                    }
+                }
+
+                // Remove ducks that go off screen (either side)
+                if (duck.x < -80 || duck.x > canvas.width + 80) {
+                    ducks.splice(i, 1);
+                }
+            }
+
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.x += b.vx;
+                b.y += b.vy;
+                b.life--;
+
+                // Check duck hits
+                for (let j = ducks.length - 1; j >= 0; j--) {
+                    const duck = ducks[j];
+                    if (b.x > duck.x - duck.width / 2 && b.x < duck.x + duck.width / 2 &&
+                        b.y > duck.y - duck.height / 2 && b.y < duck.y + duck.height / 2) {
+
+                        duck.health--;
+                        createHitEffect(b.x, b.y);
+                        bullets.splice(i, 1);
+
+                        if (duck.health <= 0) {
+                            createFeathers(duck.x, duck.y, duck.type);
+                            score += duck.type === 'big' ? 50 : duck.type === 'fast' ? 30 : duck.type === 'flying' ? 40 : 20;
+                            kills++;
+                            levelKills++;
+
+                            // Drop loot
+                            if (Math.random() < 0.4) {
+                                dropPickup(duck.x, duck.y);
+                            }
+
+                            ducks.splice(j, 1);
+                        }
+                        break;
+                    }
+                }
+
+                // Remove off-screen or expired bullets
+                if (b.life <= 0 || b.x < -20 || b.x > canvas.width + 20 || b.y < -20 || b.y > canvas.height + 20) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // Update feathers
+            for (let i = feathers.length - 1; i >= 0; i--) {
+                const f = feathers[i];
+                f.x += f.vx;
+                f.y += f.vy;
+                f.vy += 0.1;
+                f.vx *= 0.99;
+                f.rotation += f.rotSpeed;
+                f.life--;
+                if (f.life <= 0 || f.y > GROUND_Y) feathers.splice(i, 1);
+            }
+
+            // Update pickups
+            for (let i = pickups.length - 1; i >= 0; i--) {
+                const p = pickups[i];
+                p.vy += 0.3;
+                p.y += p.vy;
+                if (p.y > GROUND_Y - 15) {
+                    p.y = GROUND_Y - 15;
+                    p.vy = 0;
+                }
+
+                // Check player pickup
+                if (Math.abs(player.x - p.x) < 40 && Math.abs((player.y + 25) - p.y) < 50) {
+                    if (p.type === 'ammo') {
+                        player.ammo = Math.min(99, player.ammo + 10);
+                    } else {
+                        player.health = Math.min(player.maxHealth, player.health + 1);
+                    }
+                    createPickupEffect(p.x, p.y, p.type);
+                    pickups.splice(i, 1);
+                    continue;
+                }
+
+                if (p.x < -30) {
+                    pickups.splice(i, 1);
+                }
+            }
+
+            // Update clouds (slow drift for atmosphere)
+            for (const cloud of clouds) {
+                cloud.x -= cloud.speed * 0.5;
+                if (cloud.x + cloud.width < 0) {
+                    cloud.x = canvas.width + 50;
+                    cloud.y = 50 + Math.random() * 150;
+                }
+            }
+
+            updateUI();
+        }
+
+        function dropPickup(x, y) {
+            pickups.push({
+                x: x,
+                y: y,
+                vy: -5,
+                type: 'health',
+                timer: 400
+            });
+        }
+
+        function createHitEffect(x, y) {
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 15,
+                    size: 3 + Math.random() * 4,
+                    color: '#ff4444'
+                });
+            }
+        }
+
+        function createFeathers(x, y, type) {
+            const count = type === 'big' ? 20 : 12;
+            const colors = type === 'big' ? ['#ff4444', '#cc2222', '#ffaa00'] :
+                          type === 'fast' ? ['#4444ff', '#2222cc', '#44aaff'] :
+                          type === 'flying' ? ['#aa44ff', '#8822cc', '#cc66ff'] :
+                          ['#ffcc00', '#ffaa00', '#ff8800'];
+
+            for (let i = 0; i < count; i++) {
+                feathers.push({
+                    x: x + (Math.random() - 0.5) * 30,
+                    y: y + (Math.random() - 0.5) * 20,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: -Math.random() * 10 - 2,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 0.3,
+                    life: 60 + Math.random() * 30,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: 5 + Math.random() * 5
+                });
+            }
+        }
+
+        function createPickupEffect(x, y, type) {
+            const color = type === 'ammo' ? '#00ffcc' : '#ff6666';
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: -Math.random() * 4,
+                    life: 20,
+                    size: 3 + Math.random() * 3,
+                    color: color
+                });
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('levelDisplay').textContent = `DUCK REALM ${level}: ${levelNames[level-1].toUpperCase()}`;
+            document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
+            document.getElementById('highScoreUI').textContent = `HIGH SCORE: ${Math.max(highScore, score)}`;
+            document.getElementById('killsDisplay').textContent = `KILLS: ${levelKills}/${killsNeeded}`;
+        }
+
+        function draw() {
+            // Sky gradient (changes per level)
+            const colors = levelColors[level - 1];
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, colors.sky1);
+            skyGrad.addColorStop(1, colors.sky2);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Sun (or moon for dark levels)
+            if (level <= 5) {
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(700, 80, 50, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#FFF8DC';
+                ctx.beginPath();
+                ctx.arc(700, 80, 40, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Moon for volcano and dark realm
+                ctx.fillStyle = '#CCCCCC';
+                ctx.beginPath();
+                ctx.arc(700, 80, 40, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#AAAAAA';
+                ctx.beginPath();
+                ctx.arc(690, 70, 8, 0, Math.PI * 2);
+                ctx.arc(710, 90, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Clouds
+            ctx.fillStyle = '#fff';
+            for (const cloud of clouds) {
+                ctx.beginPath();
+                ctx.arc(cloud.x, cloud.y, cloud.width / 4, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.width / 4, cloud.y - 10, cloud.width / 3, 0, Math.PI * 2);
+                ctx.arc(cloud.x + cloud.width / 2, cloud.y, cloud.width / 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Background hills
+            ctx.fillStyle = colors.ground;
+            ctx.globalAlpha = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(0, GROUND_Y);
+            for (let x = 0; x <= canvas.width; x += 100) {
+                ctx.lineTo(x, GROUND_Y - 50 - Math.sin(x * 0.01) * 30);
+            }
+            ctx.lineTo(canvas.width, GROUND_Y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Ground
+            ctx.fillStyle = colors.dirt;
+            ctx.fillRect(0, GROUND_Y, canvas.width, canvas.height - GROUND_Y);
+
+            // Grass on top
+            ctx.fillStyle = colors.ground;
+            ctx.fillRect(0, GROUND_Y - 10, canvas.width, 15);
+
+            // Ground detail
+            ctx.fillStyle = '#6B3E0A';
+            for (const tile of groundTiles) {
+                if (tile.type === 0) {
+                    ctx.beginPath();
+                    ctx.arc(tile.x + 25, GROUND_Y + 30, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (tile.type === 1) {
+                    ctx.fillRect(tile.x + 10, GROUND_Y + 20, 15, 4);
+                }
+            }
+
+            // Grass blades
+            ctx.strokeStyle = '#32CD32';
+            ctx.lineWidth = 2;
+            for (let x = 0; x < canvas.width; x += 20) {
+                ctx.beginPath();
+                ctx.moveTo(x, GROUND_Y - 5);
+                ctx.quadraticCurveTo(x + 3, GROUND_Y - 18, x + 6, GROUND_Y - 5);
+                ctx.stroke();
+            }
+
+            // Draw feathers
+            for (const f of feathers) {
+                ctx.save();
+                ctx.translate(f.x, f.y);
+                ctx.rotate(f.rotation);
+                ctx.globalAlpha = f.life / 60;
+                ctx.fillStyle = f.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, f.size, f.size / 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw pickups
+            for (const p of pickups) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+
+                // Glow
+                ctx.fillStyle = p.type === 'ammo' ? 'rgba(0, 255, 200, 0.3)' : 'rgba(255, 100, 100, 0.3)';
+                ctx.beginPath();
+                ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Box
+                ctx.fillStyle = p.type === 'ammo' ? '#00aa88' : '#aa4444';
+                ctx.fillRect(-12, -12, 24, 24);
+                ctx.strokeStyle = p.type === 'ammo' ? '#00ffcc' : '#ff6666';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-12, -12, 24, 24);
+
+                // Label
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.type === 'ammo' ? 'A' : '+', 0, 0);
+
+                ctx.restore();
+            }
+
+            // Draw ducks
+            for (const duck of ducks) {
+                drawDuck(duck);
+            }
+
+            // Draw bullets
+            for (const b of bullets) {
+                ctx.save();
+                ctx.translate(b.x, b.y);
+                ctx.rotate(Math.atan2(b.vy, b.vx));
+
+                // Bullet trail
+                ctx.fillStyle = 'rgba(255, 200, 0, 0.5)';
+                ctx.fillRect(-15, -2, 15, 4);
+
+                // Bullet
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                ctx.globalAlpha = p.life / 20;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player
+            drawPlayer();
+
+            // Draw crosshair
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(mouseX - 12, mouseY);
+            ctx.lineTo(mouseX - 5, mouseY);
+            ctx.moveTo(mouseX + 5, mouseY);
+            ctx.lineTo(mouseX + 12, mouseY);
+            ctx.moveTo(mouseX, mouseY - 12);
+            ctx.lineTo(mouseX, mouseY - 5);
+            ctx.moveTo(mouseX, mouseY + 5);
+            ctx.lineTo(mouseX, mouseY + 12);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Draw health hearts
+            for (let i = 0; i < player.maxHealth; i++) {
+                ctx.fillStyle = i < player.health ? '#ff4444' : '#444';
+                ctx.beginPath();
+                const hx = canvas.width - 40 - i * 35;
+                const hy = 25;
+                ctx.moveTo(hx, hy + 5);
+                ctx.bezierCurveTo(hx, hy, hx - 10, hy, hx - 10, hy + 5);
+                ctx.bezierCurveTo(hx - 10, hy + 10, hx, hy + 18, hx, hy + 22);
+                ctx.bezierCurveTo(hx, hy + 18, hx + 10, hy + 10, hx + 10, hy + 5);
+                ctx.bezierCurveTo(hx + 10, hy, hx, hy, hx, hy + 5);
+                ctx.fill();
+            }
+
+            // Instructions at start of level
+            if (levelKills < 3 && gameRunning && !showingLevelComplete) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(canvas.width / 2 - 170, 80, 340, 50);
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('ARROWS to Move | SPACE to Jump | CLICK to Shoot', canvas.width / 2, 110);
+            }
+
+            // Level complete overlay
+            if (showingLevelComplete) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 48px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`REALM ${level} COMPLETE!`, canvas.width / 2, canvas.height / 2 - 40);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '24px sans-serif';
+                if (level < TOTAL_LEVELS) {
+                    ctx.fillText(`Entering Realm ${level + 1}: ${levelNames[level]}...`, canvas.width / 2, canvas.height / 2 + 20);
+                } else {
+                    ctx.fillText('Preparing for final victory...', canvas.width / 2, canvas.height / 2 + 20);
+                }
+
+                ctx.fillStyle = '#44ff44';
+                ctx.font = '20px sans-serif';
+                ctx.fillText(`+${100 * level} bonus points!`, canvas.width / 2, canvas.height / 2 + 60);
+            }
+
+            // Level start announcement
+            if (levelKills === 0 && !showingLevelComplete && gameRunning && spawnTimer > 60) {
+                ctx.fillStyle = '#ffcc00';
+                ctx.font = 'bold 36px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`REALM ${level}: ${levelNames[level-1].toUpperCase()}`, canvas.width / 2, 200);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px sans-serif';
+                ctx.fillText(`Defeat ${killsNeeded} ducks to advance!`, canvas.width / 2, 240);
+            }
+        }
+
+        function drawDuck(duck) {
+            ctx.save();
+            ctx.translate(duck.x, duck.y);
+
+            // Face the direction they're moving
+            ctx.scale(duck.vx > 0 ? 1 : -1, 1);
+
+            const bobY = Math.sin(duck.animTimer * 0.2) * 3;
+
+            if (duck.type === 'big') {
+                // Big red duck
+                ctx.fillStyle = '#cc2222';
+                ctx.beginPath();
+                ctx.ellipse(0, bobY, 35, 28, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#dd3333';
+                ctx.beginPath();
+                ctx.arc(25, -12 + bobY, 20, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(30, -17 + bobY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(32, -17 + bobY, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(24, -25 + bobY);
+                ctx.lineTo(36, -20 + bobY);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(45, -12 + bobY);
+                ctx.lineTo(60, -10 + bobY);
+                ctx.lineTo(45, -5 + bobY);
+                ctx.closePath();
+                ctx.fill();
+
+                // Health indicator for big ducks
+                const maxHealth = 2 + Math.floor(level / 2);
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-20, -45, 40, 6);
+                ctx.fillStyle = '#44ff44';
+                ctx.fillRect(-19, -44, (duck.health / maxHealth) * 38, 4);
+
+            } else if (duck.type === 'fast') {
+                // Fast blue duck
+                ctx.fillStyle = '#2244aa';
+                ctx.beginPath();
+                ctx.ellipse(0, bobY, 20, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#3355bb';
+                ctx.beginPath();
+                ctx.arc(15, -7 + bobY, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(19, -10 + bobY, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(20, -10 + bobY, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.moveTo(27, -7 + bobY);
+                ctx.lineTo(38, -6 + bobY);
+                ctx.lineTo(27, -3 + bobY);
+                ctx.closePath();
+                ctx.fill();
+
+                // Speed lines
+                ctx.strokeStyle = '#88aaff';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(-25 - i * 10, -5 + i * 5 + bobY);
+                    ctx.lineTo(-35 - i * 10, -5 + i * 5 + bobY);
+                    ctx.stroke();
+                }
+
+            } else if (duck.type === 'flying') {
+                // Flying purple duck
+                ctx.fillStyle = '#8844aa';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 22, 16, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#9955bb';
+                ctx.beginPath();
+                ctx.arc(17, -8, 13, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(21, -11, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(22, -11, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.moveTo(30, -8);
+                ctx.lineTo(42, -7);
+                ctx.lineTo(30, -4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Wings flapping
+                const wingAngle = Math.sin(duck.animTimer * 0.4) * 0.6;
+                ctx.fillStyle = '#7733aa';
+                ctx.save();
+                ctx.rotate(wingAngle);
+                ctx.beginPath();
+                ctx.ellipse(0, -18, 20, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+            } else {
+                // Normal yellow duck
+                ctx.fillStyle = '#ddaa00';
+                ctx.beginPath();
+                ctx.ellipse(0, bobY, 25, 18, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#eebb00';
+                ctx.beginPath();
+                ctx.arc(18, -10 + bobY, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(23, -13 + bobY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(24, -13 + bobY, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(18, -20 + bobY);
+                ctx.lineTo(28, -16 + bobY);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ff7700';
+                ctx.beginPath();
+                ctx.moveTo(33, -10 + bobY);
+                ctx.lineTo(48, -8 + bobY);
+                ctx.lineTo(33, -5 + bobY);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#cc9900';
+                ctx.beginPath();
+                ctx.ellipse(-3, 5 + bobY, 12, 9, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            // Invincibility flash
+            if (player.invincible > 0 && Math.floor(player.invincible / 4) % 2 === 0) {
+                ctx.globalAlpha = 0.5;
+            }
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(0, 55, 20, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Running animation - only when moving
+            const isMoving = player.vx !== 0;
+            const legOffset = player.onGround && isMoving ? Math.sin(player.runFrame * Math.PI / 2) * 10 : 0;
+            const bodyBob = player.onGround && isMoving ? Math.abs(Math.sin(player.runFrame * Math.PI / 2)) * 3 : 0;
+
+            // Legs
+            ctx.fillStyle = '#2a2a4a';
+            ctx.fillRect(-12 + legOffset / 2, 32 - bodyBob, 10, 22);
+            ctx.fillRect(2 - legOffset / 2, 32 - bodyBob, 10, 22);
+
+            // Shoes
+            ctx.fillStyle = '#8B0000';
+            ctx.fillRect(-14 + legOffset, 50 - bodyBob, 14, 8);
+            ctx.fillRect(0 - legOffset, 50 - bodyBob, 14, 8);
+
+            // Body
+            ctx.fillStyle = '#4169E1';
+            ctx.fillRect(-15, 5 - bodyBob, 30, 30);
+
+            // Calculate gun angle
+            const gunAngle = Math.atan2(mouseY - (player.y + 10), mouseX - player.x);
+
+            // Arms with gun
+            ctx.save();
+            ctx.translate(0, 15 - bodyBob);
+            ctx.rotate(gunAngle);
+
+            // Back arm
+            ctx.fillStyle = '#ffccaa';
+            ctx.fillRect(-5, 3, 22, 7);
+
+            // Front arm
+            ctx.fillRect(-5, -5, 22, 7);
+
+            // Gun
+            ctx.fillStyle = '#333';
+            ctx.fillRect(12, -8, 35, 16);
+            ctx.fillStyle = '#444';
+            ctx.fillRect(15, -5, 12, 10);
+            ctx.fillStyle = '#222';
+            ctx.fillRect(42, -4, 10, 8);
+
+            ctx.restore();
+
+            // Head
+            ctx.fillStyle = '#ffccaa';
+            ctx.beginPath();
+            ctx.arc(0, -8 - bodyBob, 16, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair
+            ctx.fillStyle = '#442200';
+            ctx.beginPath();
+            ctx.arc(0, -15 - bodyBob, 16, Math.PI, 0);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-5, -24 - bodyBob);
+            ctx.quadraticCurveTo(0, -32 - bodyBob, 8, -24 - bodyBob);
+            ctx.fill();
+
+            // Eyes looking at mouse
+            const eyeOffsetX = Math.min(3, Math.max(-3, (mouseX - player.x) * 0.02));
+            const eyeOffsetY = Math.min(2, Math.max(-2, (mouseY - player.y) * 0.02));
+
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(-5, -10 - bodyBob, 5, 0, Math.PI * 2);
+            ctx.arc(5, -10 - bodyBob, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-5 + eyeOffsetX, -10 - bodyBob + eyeOffsetY, 2.5, 0, Math.PI * 2);
+            ctx.arc(5 + eyeOffsetX, -10 - bodyBob + eyeOffsetY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Determined eyebrows
+            ctx.strokeStyle = '#442200';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-9, -16 - bodyBob);
+            ctx.lineTo(-1, -14 - bodyBob);
+            ctx.moveTo(9, -16 - bodyBob);
+            ctx.lineTo(1, -14 - bodyBob);
+            ctx.stroke();
+
+            // Mouth
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            if (!player.onGround) {
+                // Open mouth when jumping
+                ctx.beginPath();
+                ctx.arc(0, -2 - bodyBob, 4, 0, Math.PI);
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, -3 - bodyBob, 4, 0.2, Math.PI - 0.2);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function victory() {
+            gameRunning = false;
+            score += 500; // Victory bonus
+
+            const isNewHighScore = score > highScore;
+            if (isNewHighScore) {
+                highScore = score;
+                localStorage.setItem('duckRealmsHighScore', highScore);
+            }
+
+            document.getElementById('finalScore').textContent = `VICTORY! Final Score: ${score}`;
+            document.getElementById('finalDistance').textContent = `All 7 Duck Realms Conquered!`;
+            document.getElementById('finalKills').textContent = `Total Kills: ${kills}`;
+            document.getElementById('highScoreDisplay').textContent = isNewHighScore ? `NEW HIGH SCORE: ${highScore}` : `High Score: ${highScore}`;
+            document.getElementById('gameOver').querySelector('h2').textContent = 'You Win!';
+            document.getElementById('gameOver').querySelector('h2').style.color = '#44ff44';
+            document.getElementById('gameOver').style.display = 'flex';
+
+            // Victory particles
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: canvas.width / 2 + (Math.random() - 0.5) * 200,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: -Math.random() * 15 - 5,
+                    life: 60,
+                    size: 5 + Math.random() * 5,
+                    color: ['#ffcc00', '#44ff44', '#ff44ff', '#44ffff'][Math.floor(Math.random() * 4)]
+                });
+            }
+        }
+
+        function endGame() {
+            gameRunning = false;
+
+            const isNewHighScore = score > highScore;
+
+            if (isNewHighScore) {
+                highScore = score;
+                localStorage.setItem('duckRealmsHighScore', highScore);
+            }
+
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('finalDistance').textContent = `Reached: Realm ${level} - ${levelNames[level-1]}`;
+            document.getElementById('finalKills').textContent = isNewHighScore ? 'NEW HIGH SCORE!' : `Total Kills: ${kills}`;
+            document.getElementById('highScoreDisplay').textContent = `High Score: ${highScore}`;
+            document.getElementById('gameOver').querySelector('h2').textContent = 'Game Over!';
+            document.getElementById('gameOver').querySelector('h2').style.color = '#ff4444';
+            document.getElementById('gameOver').style.display = 'flex';
+
+            // Death particles
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: player.x,
+                    y: player.y + 25,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: -Math.random() * 10,
+                    life: 30,
+                    size: 5 + Math.random() * 5,
+                    color: '#ff4444'
+                });
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initClouds();
+        initGround();
+
+        // Show high score on start screen
+        document.getElementById('startHighScore').textContent = highScore > 0 ? `High Score: ${highScore}` : '';
+
+        gameLoop();
+    </script>
+</body>
+</html>
