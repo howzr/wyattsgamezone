@@ -243,12 +243,10 @@
         <div id="startScreen">
             <h1>Cool Jumper 3</h1>
             <p class="feature">COSMIC EDITION!</p>
-            <p>Wall Jump off walls!</p>
             <p>Dash through space!</p>
             <p>10 cosmic lands await!</p>
             <div class="controls">
                 <p>Arrow Keys - Move | Space - Jump | Shift - Dash</p>
-                <p>Jump into walls to wall jump!</p>
                 <p>Touch: Joystick + Jump & Dash buttons</p>
             </div>
             <button onclick="startGame()">Launch Mission</button>
@@ -294,16 +292,16 @@
 
         // Cosmic land themes
         const lands = [
-            { name: "Nebula Fields", bg1: '#1a0a3e', bg2: '#0a0a2e', floor: '#2a1a4e', obstacle: '#9b59b6', accent: '#e74c3c', wall: '#4a2a7e' },
-            { name: "Golden Asteroids", bg1: '#2e2a0a', bg2: '#1a1a0a', floor: '#3e3a1a', obstacle: '#f1c40f', accent: '#e67e22', wall: '#5e5a2a' },
-            { name: "Plasma Storm", bg1: '#0a2a3e', bg2: '#0a1a2e', floor: '#1a3a4e', obstacle: '#3498db', accent: '#00ffff', wall: '#2a4a6e' },
-            { name: "Crimson Void", bg1: '#3e0a1a', bg2: '#2e0a0a', floor: '#4e1a2a', obstacle: '#e74c3c', accent: '#ff6b6b', wall: '#6e2a3a' },
-            { name: "Quantum Zone", bg1: '#1a3a1a', bg2: '#0a2a0a', floor: '#2a4a2a', obstacle: '#2ecc71', accent: '#00ff88', wall: '#3a6a3a' },
-            { name: "Stardust Valley", bg1: '#2e1a3e', bg2: '#1e0a2e', floor: '#3e2a4e', obstacle: '#9b59b6', accent: '#f1c40f', wall: '#5e3a6e' },
-            { name: "Supernova Core", bg1: '#3e2a0a', bg2: '#2e1a0a', floor: '#4e3a1a', obstacle: '#e67e22', accent: '#ff4444', wall: '#6e4a2a' },
-            { name: "Dark Matter", bg1: '#0a0a1a', bg2: '#050510', floor: '#1a1a2a', obstacle: '#8e44ad', accent: '#ffffff', wall: '#2a2a4a' },
-            { name: "Wormhole Rift", bg1: '#2a0a3e', bg2: '#1a0a2e', floor: '#3a1a4e', obstacle: '#e74c3c', accent: '#00ffff', wall: '#4a2a6e' },
-            { name: "Cosmic Apex", bg1: '#1a1a2e', bg2: '#0a0a1e', floor: '#2a2a3e', obstacle: '#f1c40f', accent: '#9b59b6', wall: '#3a3a5e' }
+            { name: "Nebula Fields", bg1: '#1a0a3e', bg2: '#0a0a2e', floor: '#2a1a4e', obstacle: '#9b59b6', accent: '#e74c3c' },
+            { name: "Golden Asteroids", bg1: '#2e2a0a', bg2: '#1a1a0a', floor: '#3e3a1a', obstacle: '#f1c40f', accent: '#e67e22' },
+            { name: "Plasma Storm", bg1: '#0a2a3e', bg2: '#0a1a2e', floor: '#1a3a4e', obstacle: '#3498db', accent: '#00ffff' },
+            { name: "Crimson Void", bg1: '#3e0a1a', bg2: '#2e0a0a', floor: '#4e1a2a', obstacle: '#e74c3c', accent: '#ff6b6b' },
+            { name: "Quantum Zone", bg1: '#1a3a1a', bg2: '#0a2a0a', floor: '#2a4a2a', obstacle: '#2ecc71', accent: '#00ff88' },
+            { name: "Stardust Valley", bg1: '#2e1a3e', bg2: '#1e0a2e', floor: '#3e2a4e', obstacle: '#9b59b6', accent: '#f1c40f' },
+            { name: "Supernova Core", bg1: '#3e2a0a', bg2: '#2e1a0a', floor: '#4e3a1a', obstacle: '#e67e22', accent: '#ff4444' },
+            { name: "Dark Matter", bg1: '#0a0a1a', bg2: '#050510', floor: '#1a1a2a', obstacle: '#8e44ad', accent: '#ffffff' },
+            { name: "Wormhole Rift", bg1: '#2a0a3e', bg2: '#1a0a2e', floor: '#3a1a4e', obstacle: '#e74c3c', accent: '#00ffff' },
+            { name: "Cosmic Apex", bg1: '#1a1a2e', bg2: '#0a0a1e', floor: '#2a2a3e', obstacle: '#f1c40f', accent: '#9b59b6' }
         ];
 
         // Game constants
@@ -313,8 +311,6 @@
         const PLAYER_HEIGHT = 48;
         const GRAVITY = 0.55;
         const JUMP_FORCE = -11;
-        const WALL_JUMP_FORCE = -10;
-        const WALL_KICK_FORCE = 8;
         const MOVE_SPEED = 5;
         const DASH_SPEED = 15;
         const DASH_DURATION = 10;
@@ -323,7 +319,6 @@
         // Game state
         let player = {};
         let obstacles = [];
-        let walls = [];
         let stars = [];
         let particles = [];
         let currentLand = 0;
@@ -493,8 +488,6 @@
                 facingRight: true,
                 canDoubleJump: true,
                 spaceReleased: true,
-                onWall: 0, // -1 left, 0 none, 1 right
-                wallSlideTimer: 0,
                 dashTimer: 0,
                 dashCooldown: 0,
                 dashing: false,
@@ -504,7 +497,6 @@
 
         function generateLand(landNum) {
             obstacles = [];
-            walls = [];
             stars = [];
             particles = [];
             cameraX = 0;
@@ -521,7 +513,7 @@
                 const floor = Math.random() < 0.4 ? FLOOR2_Y : FLOOR1_Y;
 
                 // Spikes
-                if (obstacleType < 2) {
+                if (obstacleType < 4) {
                     const count = 1 + Math.floor(Math.random() * (difficulty / 3));
                     for (let i = 0; i < count; i++) {
                         obstacles.push({
@@ -533,45 +525,6 @@
                         });
                     }
                     x += count * 25 + 140;
-                }
-                // Wall section for wall jumping
-                else if (obstacleType === 2) {
-                    const wallHeight = 120 + Math.random() * 80;
-                    walls.push({
-                        x: x,
-                        y: FLOOR1_Y - wallHeight,
-                        width: 25,
-                        height: wallHeight
-                    });
-                    // Add stars above wall
-                    stars.push({
-                        x: x + 12,
-                        y: FLOOR1_Y - wallHeight - 40,
-                        collected: false
-                    });
-                    x += 200;
-                }
-                // Double wall section (wall jump challenge)
-                else if (obstacleType === 3 && difficulty > 1) {
-                    const wallHeight = 150;
-                    walls.push({
-                        x: x,
-                        y: FLOOR1_Y - wallHeight,
-                        width: 25,
-                        height: wallHeight
-                    });
-                    walls.push({
-                        x: x + 100,
-                        y: FLOOR1_Y - wallHeight - 50,
-                        width: 25,
-                        height: wallHeight + 50
-                    });
-                    stars.push({
-                        x: x + 50,
-                        y: FLOOR1_Y - wallHeight - 80,
-                        collected: false
-                    });
-                    x += 280;
                 }
                 // Gravity zone (slows fall)
                 else if (obstacleType === 4 && difficulty > 2) {
@@ -776,38 +729,7 @@
                 }
             }
 
-            // Wall detection
-            player.onWall = 0;
-            for (const wall of walls) {
-                const screenWallX = wall.x;
-                // Check if player is next to wall and in air
-                if (!player.grounded && player.vy >= 0) {
-                    // Right side of player touching left side of wall
-                    if (player.x + PLAYER_WIDTH >= screenWallX && player.x + PLAYER_WIDTH <= screenWallX + 10 &&
-                        player.y + PLAYER_HEIGHT > wall.y && player.y < wall.y + wall.height) {
-                        if (keys['ArrowRight']) {
-                            player.onWall = 1;
-                            player.x = screenWallX - PLAYER_WIDTH;
-                        }
-                    }
-                    // Left side of player touching right side of wall
-                    if (player.x <= screenWallX + wall.width && player.x >= screenWallX + wall.width - 10 &&
-                        player.y + PLAYER_HEIGHT > wall.y && player.y < wall.y + wall.height) {
-                        if (keys['ArrowLeft']) {
-                            player.onWall = -1;
-                            player.x = screenWallX + wall.width;
-                        }
-                    }
-                }
-            }
-
-            // Wall sliding
-            if (player.onWall !== 0 && !player.dashing) {
-                player.vy = Math.min(player.vy, 2); // Slow fall on wall
-                player.wallSlideTimer = 10;
-            }
-
-            // Jump and Wall Jump
+            // Jump
             if (keys['Space'] && player.spaceReleased) {
                 if (player.grounded) {
                     // Normal jump
@@ -826,25 +748,6 @@
                             vy: Math.random() * -2,
                             life: 20,
                             color: land.accent
-                        });
-                    }
-                } else if (player.onWall !== 0) {
-                    // Wall jump!
-                    player.vy = WALL_JUMP_FORCE;
-                    player.vx = player.onWall === 1 ? -WALL_KICK_FORCE : WALL_KICK_FORCE;
-                    player.facingRight = player.onWall === 1 ? false : true;
-                    player.onWall = 0;
-                    player.canDoubleJump = true;
-                    player.spaceReleased = false;
-                    // Wall jump particles
-                    for (let i = 0; i < 8; i++) {
-                        particles.push({
-                            x: player.x + (player.facingRight ? 0 : PLAYER_WIDTH),
-                            y: player.y + PLAYER_HEIGHT / 2,
-                            vx: (player.facingRight ? -1 : 1) * (2 + Math.random() * 3),
-                            vy: (Math.random() - 0.5) * 4,
-                            life: 20,
-                            color: '#fff'
                         });
                     }
                 } else if (player.canDoubleJump) {
@@ -907,29 +810,6 @@
 
             // Floor collision
             player.grounded = false;
-
-            // Wall collision (stop horizontal movement)
-            for (const wall of walls) {
-                if (player.y + PLAYER_HEIGHT > wall.y && player.y < wall.y + wall.height) {
-                    // Coming from left
-                    if (player.x + PLAYER_WIDTH > wall.x && player.x < wall.x && player.vx > 0) {
-                        player.x = wall.x - PLAYER_WIDTH;
-                    }
-                    // Coming from right
-                    if (player.x < wall.x + wall.width && player.x + PLAYER_WIDTH > wall.x + wall.width && player.vx < 0) {
-                        player.x = wall.x + wall.width;
-                    }
-                }
-                // Stand on top of wall
-                if (player.x + PLAYER_WIDTH > wall.x && player.x < wall.x + wall.width &&
-                    player.y + PLAYER_HEIGHT >= wall.y && player.y + PLAYER_HEIGHT <= wall.y + 15 &&
-                    player.vy >= 0) {
-                    player.y = wall.y - PLAYER_HEIGHT;
-                    player.vy = 0;
-                    player.grounded = true;
-                    player.canDoubleJump = true;
-                }
-            }
 
             // Check floor 1
             if (player.y + PLAYER_HEIGHT >= FLOOR1_Y && player.vy >= 0) {
@@ -1159,23 +1039,6 @@
             ctx.fillRect(0, FLOOR1_Y, canvas.width, canvas.height - FLOOR1_Y);
             ctx.fillStyle = land.accent + '60';
             ctx.fillRect(0, FLOOR1_Y, canvas.width, 5);
-
-            // Draw walls
-            for (const wall of walls) {
-                const screenX = wall.x - cameraX;
-                if (screenX < -50 || screenX > canvas.width + 50) continue;
-
-                ctx.fillStyle = land.wall;
-                ctx.fillRect(screenX, wall.y, wall.width, wall.height);
-                ctx.strokeStyle = land.accent;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(screenX, wall.y, wall.width, wall.height);
-                // Wall pattern
-                ctx.fillStyle = land.accent + '40';
-                for (let j = 0; j < wall.height; j += 20) {
-                    ctx.fillRect(screenX + 5, wall.y + j + 5, wall.width - 10, 8);
-                }
-            }
 
             // Draw obstacles
             for (const obs of obstacles) {
@@ -1441,12 +1304,6 @@
                 }
             }
 
-            // Wall slide indicator
-            if (player.onWall !== 0) {
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(player.onWall === 1 ? PLAYER_WIDTH/2 - 4 : -PLAYER_WIDTH/2, -10, 4, 20);
-            }
-
             ctx.restore();
 
             // Progress bar
@@ -1539,6 +1396,7 @@
             generateLand(currentLand);
             gameRunning = true;
             updateLandProgress();
+            startMusic();
         }
 
         function restartGame() {
@@ -1567,6 +1425,134 @@
                 dot.title = lands[i].name;
                 container.appendChild(dot);
             }
+        }
+
+        // Music System - Spacey Cosmic Music
+        let audioCtx = null;
+        let musicPlaying = false;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function startMusic() {
+            if (musicPlaying) return;
+            initAudio();
+            musicPlaying = true;
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.25;
+            masterGain.connect(audioCtx.destination);
+
+            // Ethereal space melody (pentatonic for dreamy feel)
+            const melodyNotes = [330, 392, 440, 523, 587, 659, 587, 523, 440, 392, 330, 294, 330, 392, 523, 659];
+            const padNotes = [110, 130.8, 146.8, 164.8, 130.8, 146.8];
+            const arpNotes = [659, 784, 880, 784, 659, 523, 440, 523];
+
+            let melodyIndex = 0;
+            let padIndex = 0;
+            let arpIndex = 0;
+
+            // Dreamy melody with reverb-like effect
+            function playMelody() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1500;
+                filter.Q.value = 5;
+                osc.type = 'sine';
+                osc.frequency.value = melodyNotes[melodyIndex % melodyNotes.length];
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.1);
+                gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.4);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.9);
+                melodyIndex++;
+                setTimeout(playMelody, 600);
+            }
+
+            // Ambient pad (long sustained notes)
+            function playPad() {
+                if (!musicPlaying) return;
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 800;
+
+                const baseFreq = padNotes[padIndex % padNotes.length];
+                osc1.type = 'sine';
+                osc1.frequency.value = baseFreq;
+                osc2.type = 'triangle';
+                osc2.frequency.value = baseFreq * 1.5; // Fifth
+
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.5);
+                gain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 2);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 3);
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc1.start();
+                osc2.start();
+                osc1.stop(audioCtx.currentTime + 3.2);
+                osc2.stop(audioCtx.currentTime + 3.2);
+                padIndex++;
+                setTimeout(playPad, 3000);
+            }
+
+            // Twinkling arpeggio
+            function playArp() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = arpNotes[arpIndex % arpNotes.length];
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+                arpIndex++;
+                setTimeout(playArp, 150);
+            }
+
+            // Soft space drum (slow pulse)
+            function playSpaceDrum() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+                setTimeout(playSpaceDrum, 1200);
+            }
+
+            playPad();
+            setTimeout(playMelody, 500);
+            setTimeout(playArp, 300);
+            setTimeout(playSpaceDrum, 100);
+        }
+
+        function stopMusic() {
+            musicPlaying = false;
         }
 
         function gameLoop() {

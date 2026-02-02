@@ -1169,6 +1169,7 @@
             generateLand(currentLand);
             gameRunning = true;
             updateLandProgress();
+            startMusic();
         }
 
         function restartGame() {
@@ -1197,6 +1198,114 @@
                 dot.title = lands[i].name;
                 container.appendChild(dot);
             }
+        }
+
+        // Music System - Cool Intense Music
+        let audioCtx = null;
+        let musicPlaying = false;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function startMusic() {
+            if (musicPlaying) return;
+            initAudio();
+            musicPlaying = true;
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.25;
+            masterGain.connect(audioCtx.destination);
+
+            // Intense minor key melody
+            const melodyNotes = [220, 262, 247, 220, 196, 220, 262, 294, 262, 247, 220, 196, 165, 196, 220, 196];
+            const bassNotes = [110, 110, 98, 98, 82, 82, 98, 98];
+
+            let melodyIndex = 0;
+            let bassIndex = 0;
+            let beatCount = 0;
+
+            // Aggressive melody
+            function playMelody() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 2000;
+                osc.type = 'sawtooth';
+                osc.frequency.value = melodyNotes[melodyIndex % melodyNotes.length];
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+                melodyIndex++;
+                setTimeout(playMelody, 200);
+            }
+
+            // Heavy bass
+            function playBass() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = bassNotes[bassIndex % bassNotes.length];
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+                bassIndex++;
+                setTimeout(playBass, 400);
+            }
+
+            // Fast aggressive drums
+            function playDrum() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const noise = audioCtx.createOscillator();
+                const noiseGain = audioCtx.createGain();
+
+                // Kick
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.12);
+
+                // Hi-hat on off-beats
+                if (beatCount % 2 === 1) {
+                    noise.type = 'square';
+                    noise.frequency.value = 8000;
+                    noiseGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                    noise.connect(noiseGain);
+                    noiseGain.connect(masterGain);
+                    noise.start();
+                    noise.stop(audioCtx.currentTime + 0.06);
+                }
+
+                beatCount++;
+                setTimeout(playDrum, 200);
+            }
+
+            playMelody();
+            setTimeout(playBass, 50);
+            setTimeout(playDrum, 25);
+        }
+
+        function stopMusic() {
+            musicPlaying = false;
         }
 
         function gameLoop() {
