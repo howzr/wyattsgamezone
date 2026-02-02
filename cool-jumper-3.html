@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cool Jumper 3">
+    <title>Cool Jumper 3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(138, 43, 226, 0.4);
+            touch-action: none;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #startScreen, #levelComplete, #gameOver, #winScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #9b59b6, #f1c40f, #e74c3c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 15px;
+            color: #9b59b6;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+        .feature {
+            color: #f1c40f;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        .land-name {
+            font-size: 28px;
+            color: #f1c40f;
+            margin: 15px 0;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #9b59b6, #8e44ad);
+            color: #fff;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(155, 89, 182, 0.5);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #888;
+        }
+        .controls p {
+            margin: 5px 0;
+        }
+        .stars {
+            font-size: 40px;
+            margin: 15px 0;
+        }
+        #landProgress {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .land-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #333;
+            border: 2px solid #555;
+        }
+        .land-dot.completed {
+            background: #9b59b6;
+            border-color: #9b59b6;
+            box-shadow: 0 0 10px #9b59b6;
+        }
+        .land-dot.current {
+            background: #f1c40f;
+            border-color: #f1c40f;
+            box-shadow: 0 0 10px #f1c40f;
+        }
+        #dashMeter {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        #dashFill {
+            height: 100%;
+            background: linear-gradient(90deg, #9b59b6, #f1c40f);
+            width: 100%;
+            transition: width 0.1s;
+        }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #joystickArea {
+            position: absolute;
+            left: 30px;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(155, 89, 182, 0.5);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(155, 89, 182, 0.6);
+            border: 2px solid rgba(241, 196, 15, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        .touchBtn {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(155, 89, 182, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #jumpBtn {
+            right: 30px;
+            bottom: 100px;
+        }
+        #dashBtn {
+            right: 120px;
+            bottom: 40px;
+        }
+        .touchBtn:active, .touchBtn.active {
+            background: rgba(155, 89, 182, 0.6);
+            border-color: rgba(241, 196, 15, 0.8);
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="500"></canvas>
+        <div id="ui">
+            <span id="landDisplay">Land 1: Nebula Fields</span>
+            <span id="scoreDisplay">Score: 0</span>
+            <span id="livesDisplay">Lives: 3</span>
+        </div>
+        <div id="dashMeter">
+            <div id="dashFill"></div>
+        </div>
+
+        <div id="startScreen">
+            <h1>Cool Jumper 3</h1>
+            <p class="feature">COSMIC EDITION!</p>
+            <p>Wall Jump off walls!</p>
+            <p>Dash through space!</p>
+            <p>10 cosmic lands await!</p>
+            <div class="controls">
+                <p>Arrow Keys - Move | Space - Jump | Shift - Dash</p>
+                <p>Jump into walls to wall jump!</p>
+                <p>Touch: Joystick + Jump & Dash buttons</p>
+            </div>
+            <button onclick="startGame()">Launch Mission</button>
+            <div id="landProgress"></div>
+        </div>
+
+        <div id="levelComplete" style="display: none;">
+            <h2>Land Complete!</h2>
+            <div class="land-name" id="completedLand"></div>
+            <div class="stars" id="starsEarned"></div>
+            <p id="landScore"></p>
+            <button onclick="nextLand()">Next Land</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>Mission Failed</h2>
+            <p id="finalScore"></p>
+            <button onclick="restartGame()">Retry</button>
+            <button onclick="backToMenu()">Main Menu</button>
+        </div>
+
+        <div id="winScreen" style="display: none;">
+            <h1>COSMIC CHAMPION!</h1>
+            <p>You conquered the universe!</p>
+            <p id="totalScore"></p>
+            <div class="stars">&#127775;&#127775;&#127775;</div>
+            <button onclick="backToMenu()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
+        </div>
+        <div id="jumpBtn" class="touchBtn">JUMP</div>
+        <div id="dashBtn" class="touchBtn">DASH</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Cosmic land themes
+        const lands = [
+            { name: "Nebula Fields", bg1: '#1a0a3e', bg2: '#0a0a2e', floor: '#2a1a4e', obstacle: '#9b59b6', accent: '#e74c3c', wall: '#4a2a7e' },
+            { name: "Golden Asteroids", bg1: '#2e2a0a', bg2: '#1a1a0a', floor: '#3e3a1a', obstacle: '#f1c40f', accent: '#e67e22', wall: '#5e5a2a' },
+            { name: "Plasma Storm", bg1: '#0a2a3e', bg2: '#0a1a2e', floor: '#1a3a4e', obstacle: '#3498db', accent: '#00ffff', wall: '#2a4a6e' },
+            { name: "Crimson Void", bg1: '#3e0a1a', bg2: '#2e0a0a', floor: '#4e1a2a', obstacle: '#e74c3c', accent: '#ff6b6b', wall: '#6e2a3a' },
+            { name: "Quantum Zone", bg1: '#1a3a1a', bg2: '#0a2a0a', floor: '#2a4a2a', obstacle: '#2ecc71', accent: '#00ff88', wall: '#3a6a3a' },
+            { name: "Stardust Valley", bg1: '#2e1a3e', bg2: '#1e0a2e', floor: '#3e2a4e', obstacle: '#9b59b6', accent: '#f1c40f', wall: '#5e3a6e' },
+            { name: "Supernova Core", bg1: '#3e2a0a', bg2: '#2e1a0a', floor: '#4e3a1a', obstacle: '#e67e22', accent: '#ff4444', wall: '#6e4a2a' },
+            { name: "Dark Matter", bg1: '#0a0a1a', bg2: '#050510', floor: '#1a1a2a', obstacle: '#8e44ad', accent: '#ffffff', wall: '#2a2a4a' },
+            { name: "Wormhole Rift", bg1: '#2a0a3e', bg2: '#1a0a2e', floor: '#3a1a4e', obstacle: '#e74c3c', accent: '#00ffff', wall: '#4a2a6e' },
+            { name: "Cosmic Apex", bg1: '#1a1a2e', bg2: '#0a0a1e', floor: '#2a2a3e', obstacle: '#f1c40f', accent: '#9b59b6', wall: '#3a3a5e' }
+        ];
+
+        // Game constants
+        const FLOOR1_Y = 350;
+        const FLOOR2_Y = 180;
+        const PLAYER_WIDTH = 38;
+        const PLAYER_HEIGHT = 48;
+        const GRAVITY = 0.55;
+        const JUMP_FORCE = -11;
+        const WALL_JUMP_FORCE = -10;
+        const WALL_KICK_FORCE = 8;
+        const MOVE_SPEED = 5;
+        const DASH_SPEED = 15;
+        const DASH_DURATION = 10;
+        const DASH_COOLDOWN = 60;
+
+        // Game state
+        let player = {};
+        let obstacles = [];
+        let walls = [];
+        let stars = [];
+        let particles = [];
+        let currentLand = 0;
+        let score = 0;
+        let lives = 3;
+        let landScore = 0;
+        let gameRunning = false;
+        let levelComplete = false;
+        let cameraX = 0;
+        let levelLength = 3000;
+        let completedLands = [];
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') e.preventDefault();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Touch controls - Virtual Joystick
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
+        const jumpBtn = document.getElementById('jumpBtn');
+        const dashBtn = document.getElementById('dashBtn');
+
+        let joystickActive = false;
+        let joystickTouchId = null;
+        const joystickRadius = 60;
+        const knobRadius = 25;
+        const maxKnobDistance = joystickRadius - knobRadius;
+
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickActive = true;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    updateJoystick(touch);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', () => {
+            resetJoystick();
+        }, { passive: false });
+
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+            const normalizedX = dx / maxKnobDistance;
+            const deadzone = 0.3;
+            keys['ArrowLeft'] = normalizedX < -deadzone;
+            keys['ArrowRight'] = normalizedX > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickActive = false;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+        }
+
+        // Jump button
+        let jumpTouchId = null;
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (jumpTouchId !== null) return;
+            jumpTouchId = e.changedTouches[0].identifier;
+            jumpBtn.classList.add('active');
+            keys['Space'] = true;
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === jumpTouchId) {
+                    jumpTouchId = null;
+                    jumpBtn.classList.remove('active');
+                    keys['Space'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchcancel', () => {
+            jumpTouchId = null;
+            jumpBtn.classList.remove('active');
+            keys['Space'] = false;
+        }, { passive: false });
+
+        // Dash button
+        let dashTouchId = null;
+        dashBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (dashTouchId !== null) return;
+            dashTouchId = e.changedTouches[0].identifier;
+            dashBtn.classList.add('active');
+            keys['ShiftLeft'] = true;
+        }, { passive: false });
+
+        dashBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === dashTouchId) {
+                    dashTouchId = null;
+                    dashBtn.classList.remove('active');
+                    keys['ShiftLeft'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        dashBtn.addEventListener('touchcancel', () => {
+            dashTouchId = null;
+            dashBtn.classList.remove('active');
+            keys['ShiftLeft'] = false;
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+        function initPlayer() {
+            player = {
+                x: 100,
+                y: FLOOR1_Y - PLAYER_HEIGHT,
+                vx: 0,
+                vy: 0,
+                grounded: true,
+                facingRight: true,
+                canDoubleJump: true,
+                spaceReleased: true,
+                onWall: 0, // -1 left, 0 none, 1 right
+                wallSlideTimer: 0,
+                dashTimer: 0,
+                dashCooldown: 0,
+                dashing: false,
+                shiftReleased: true
+            };
+        }
+
+        function generateLand(landNum) {
+            obstacles = [];
+            walls = [];
+            stars = [];
+            particles = [];
+            cameraX = 0;
+            landScore = 0;
+            levelComplete = false;
+
+            const difficulty = landNum + 1;
+            levelLength = 2800 + landNum * 350;
+
+            let x = 400;
+
+            while (x < levelLength - 300) {
+                const obstacleType = Math.floor(Math.random() * 12);
+                const floor = Math.random() < 0.4 ? FLOOR2_Y : FLOOR1_Y;
+
+                // Spikes
+                if (obstacleType < 2) {
+                    const count = 1 + Math.floor(Math.random() * (difficulty / 3));
+                    for (let i = 0; i < count; i++) {
+                        obstacles.push({
+                            x: x + i * 25,
+                            y: floor,
+                            type: 'spike',
+                            width: 20,
+                            height: 20
+                        });
+                    }
+                    x += count * 25 + 140;
+                }
+                // Wall section for wall jumping
+                else if (obstacleType === 2) {
+                    const wallHeight = 120 + Math.random() * 80;
+                    walls.push({
+                        x: x,
+                        y: FLOOR1_Y - wallHeight,
+                        width: 25,
+                        height: wallHeight
+                    });
+                    // Add stars above wall
+                    stars.push({
+                        x: x + 12,
+                        y: FLOOR1_Y - wallHeight - 40,
+                        collected: false
+                    });
+                    x += 200;
+                }
+                // Double wall section (wall jump challenge)
+                else if (obstacleType === 3 && difficulty > 1) {
+                    const wallHeight = 150;
+                    walls.push({
+                        x: x,
+                        y: FLOOR1_Y - wallHeight,
+                        width: 25,
+                        height: wallHeight
+                    });
+                    walls.push({
+                        x: x + 100,
+                        y: FLOOR1_Y - wallHeight - 50,
+                        width: 25,
+                        height: wallHeight + 50
+                    });
+                    stars.push({
+                        x: x + 50,
+                        y: FLOOR1_Y - wallHeight - 80,
+                        collected: false
+                    });
+                    x += 280;
+                }
+                // Gravity zone (slows fall)
+                else if (obstacleType === 4 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 150,
+                        type: 'gravity',
+                        width: 120,
+                        height: 150,
+                        strength: 0.3
+                    });
+                    x += 200;
+                }
+                // Energy barrier (pulsing)
+                else if (obstacleType === 5 && difficulty > 1) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 80,
+                        type: 'barrier',
+                        width: 15,
+                        height: 80,
+                        active: true,
+                        phase: Math.random() * 2000
+                    });
+                    x += 180;
+                }
+                // Homing orb
+                else if (obstacleType === 6 && difficulty > 3) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 100,
+                        type: 'homing',
+                        width: 30,
+                        height: 30,
+                        startX: x,
+                        startY: floor - 100,
+                        speed: 1.5 + difficulty * 0.2
+                    });
+                    x += 250;
+                }
+                // Teleporter pair
+                else if (obstacleType === 7 && difficulty > 2) {
+                    const teleId = Date.now() + Math.random();
+                    obstacles.push({
+                        x: x,
+                        y: floor - 60,
+                        type: 'teleporter',
+                        width: 40,
+                        height: 60,
+                        pairId: teleId,
+                        isEntry: true
+                    });
+                    obstacles.push({
+                        x: x + 150,
+                        y: FLOOR2_Y - 60,
+                        type: 'teleporter',
+                        width: 40,
+                        height: 60,
+                        pairId: teleId,
+                        isEntry: false
+                    });
+                    x += 280;
+                }
+                // Meteor (falls from sky)
+                else if (obstacleType === 8 && difficulty > 4) {
+                    obstacles.push({
+                        x: x,
+                        y: -50,
+                        type: 'meteor',
+                        width: 40,
+                        height: 40,
+                        fallSpeed: 0,
+                        triggered: false
+                    });
+                    x += 180;
+                }
+                // Spinning laser
+                else if (obstacleType === 9 && difficulty > 5) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 60,
+                        type: 'spinlaser',
+                        width: 100,
+                        height: 8,
+                        rotation: 0
+                    });
+                    x += 220;
+                }
+                // Black hole (pulls player)
+                else if (obstacleType === 10 && difficulty > 6) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 80,
+                        type: 'blackhole',
+                        width: 50,
+                        height: 50,
+                        pullStrength: 0.3
+                    });
+                    x += 200;
+                }
+                // Default spike
+                else {
+                    obstacles.push({
+                        x: x,
+                        y: floor,
+                        type: 'spike',
+                        width: 20,
+                        height: 20
+                    });
+                    x += 150;
+                }
+
+                // Add stars
+                if (Math.random() < 0.4) {
+                    const starY = Math.random() < 0.5 ? FLOOR2_Y - 50 : FLOOR1_Y - 50;
+                    for (let i = 0; i < 3; i++) {
+                        stars.push({
+                            x: x - 80 + i * 30,
+                            y: starY - Math.sin(i * 0.5) * 20,
+                            collected: false
+                        });
+                    }
+                }
+
+                x += Math.random() * 80;
+            }
+
+            // End flag
+            obstacles.push({
+                x: levelLength - 100,
+                y: FLOOR1_Y,
+                type: 'flag',
+                width: 20,
+                height: 100
+            });
+        }
+
+        function update() {
+            if (!gameRunning || levelComplete) return;
+
+            const land = lands[currentLand];
+
+            // Dash cooldown
+            if (player.dashCooldown > 0) player.dashCooldown--;
+
+            // Handle dashing
+            if (player.dashing) {
+                player.dashTimer--;
+                if (player.dashTimer <= 0) {
+                    player.dashing = false;
+                    player.vx = player.facingRight ? MOVE_SPEED : -MOVE_SPEED;
+                }
+                // Dash particles
+                particles.push({
+                    x: player.x + PLAYER_WIDTH / 2,
+                    y: player.y + PLAYER_HEIGHT / 2,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 15,
+                    color: '#f1c40f'
+                });
+            }
+
+            // Dash input
+            if ((keys['ShiftLeft'] || keys['ShiftRight']) && player.shiftReleased && player.dashCooldown <= 0 && !player.dashing) {
+                player.dashing = true;
+                player.dashTimer = DASH_DURATION;
+                player.dashCooldown = DASH_COOLDOWN;
+                player.vx = player.facingRight ? DASH_SPEED : -DASH_SPEED;
+                player.vy = 0;
+                player.shiftReleased = false;
+                // Dash burst particles
+                for (let i = 0; i < 10; i++) {
+                    particles.push({
+                        x: player.x + PLAYER_WIDTH / 2,
+                        y: player.y + PLAYER_HEIGHT / 2,
+                        vx: (player.facingRight ? -1 : 1) * (2 + Math.random() * 4),
+                        vy: (Math.random() - 0.5) * 4,
+                        life: 20,
+                        color: '#9b59b6'
+                    });
+                }
+            }
+            if (!keys['ShiftLeft'] && !keys['ShiftRight']) {
+                player.shiftReleased = true;
+            }
+
+            // Update dash meter UI
+            const dashPercent = Math.max(0, 100 - (player.dashCooldown / DASH_COOLDOWN * 100));
+            document.getElementById('dashFill').style.width = dashPercent + '%';
+
+            // Regular movement (when not dashing)
+            if (!player.dashing) {
+                if (keys['ArrowLeft']) {
+                    player.vx = -MOVE_SPEED;
+                    player.facingRight = false;
+                } else if (keys['ArrowRight']) {
+                    player.vx = MOVE_SPEED;
+                    player.facingRight = true;
+                } else {
+                    player.vx *= 0.8;
+                }
+            }
+
+            // Wall detection
+            player.onWall = 0;
+            for (const wall of walls) {
+                const screenWallX = wall.x;
+                // Check if player is next to wall and in air
+                if (!player.grounded && player.vy >= 0) {
+                    // Right side of player touching left side of wall
+                    if (player.x + PLAYER_WIDTH >= screenWallX && player.x + PLAYER_WIDTH <= screenWallX + 10 &&
+                        player.y + PLAYER_HEIGHT > wall.y && player.y < wall.y + wall.height) {
+                        if (keys['ArrowRight']) {
+                            player.onWall = 1;
+                            player.x = screenWallX - PLAYER_WIDTH;
+                        }
+                    }
+                    // Left side of player touching right side of wall
+                    if (player.x <= screenWallX + wall.width && player.x >= screenWallX + wall.width - 10 &&
+                        player.y + PLAYER_HEIGHT > wall.y && player.y < wall.y + wall.height) {
+                        if (keys['ArrowLeft']) {
+                            player.onWall = -1;
+                            player.x = screenWallX + wall.width;
+                        }
+                    }
+                }
+            }
+
+            // Wall sliding
+            if (player.onWall !== 0 && !player.dashing) {
+                player.vy = Math.min(player.vy, 2); // Slow fall on wall
+                player.wallSlideTimer = 10;
+            }
+
+            // Jump and Wall Jump
+            if (keys['Space'] && player.spaceReleased) {
+                if (player.grounded) {
+                    // Normal jump
+                    player.vy = JUMP_FORCE;
+                    player.grounded = false;
+                    player.canDoubleJump = true;
+                    player.spaceReleased = false;
+                    if (keys['ArrowRight']) player.vx = 8;
+                    else if (keys['ArrowLeft']) player.vx = -8;
+                    // Jump particles
+                    for (let i = 0; i < 5; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: Math.random() * -2,
+                            life: 20,
+                            color: land.accent
+                        });
+                    }
+                } else if (player.onWall !== 0) {
+                    // Wall jump!
+                    player.vy = WALL_JUMP_FORCE;
+                    player.vx = player.onWall === 1 ? -WALL_KICK_FORCE : WALL_KICK_FORCE;
+                    player.facingRight = player.onWall === 1 ? false : true;
+                    player.onWall = 0;
+                    player.canDoubleJump = true;
+                    player.spaceReleased = false;
+                    // Wall jump particles
+                    for (let i = 0; i < 8; i++) {
+                        particles.push({
+                            x: player.x + (player.facingRight ? 0 : PLAYER_WIDTH),
+                            y: player.y + PLAYER_HEIGHT / 2,
+                            vx: (player.facingRight ? -1 : 1) * (2 + Math.random() * 3),
+                            vy: (Math.random() - 0.5) * 4,
+                            life: 20,
+                            color: '#fff'
+                        });
+                    }
+                } else if (player.canDoubleJump) {
+                    // Double jump
+                    player.vy = JUMP_FORCE;
+                    player.canDoubleJump = false;
+                    player.spaceReleased = false;
+                    if (keys['ArrowRight']) player.vx = 8;
+                    else if (keys['ArrowLeft']) player.vx = -8;
+                    // Double jump particles
+                    for (let i = 0; i < 10; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT / 2,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 6,
+                            life: 25,
+                            color: '#9b59b6'
+                        });
+                    }
+                }
+            }
+            if (!keys['Space']) {
+                player.spaceReleased = true;
+            }
+
+            // Apply gravity (reduced during dash)
+            if (!player.dashing) {
+                player.vy += GRAVITY;
+            }
+
+            // Check gravity zones
+            for (const obs of obstacles) {
+                if (obs.type === 'gravity') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT > obs.y && player.y < obs.y + obs.height) {
+                        player.vy -= obs.strength;
+                    }
+                }
+                // Black hole pull
+                if (obs.type === 'blackhole') {
+                    const dx = (obs.x + obs.width/2) - (player.x + PLAYER_WIDTH/2);
+                    const dy = (obs.y + obs.height/2) - (player.y + PLAYER_HEIGHT/2);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150 && dist > 0) {
+                        const pull = obs.pullStrength * (1 - dist / 150);
+                        player.vx += (dx / dist) * pull;
+                        player.vy += (dy / dist) * pull;
+                    }
+                }
+            }
+
+            // Move player
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Keep player in bounds
+            if (player.x < 0) player.x = 0;
+            if (player.x > levelLength - PLAYER_WIDTH) player.x = levelLength - PLAYER_WIDTH;
+
+            // Floor collision
+            player.grounded = false;
+
+            // Wall collision (stop horizontal movement)
+            for (const wall of walls) {
+                if (player.y + PLAYER_HEIGHT > wall.y && player.y < wall.y + wall.height) {
+                    // Coming from left
+                    if (player.x + PLAYER_WIDTH > wall.x && player.x < wall.x && player.vx > 0) {
+                        player.x = wall.x - PLAYER_WIDTH;
+                    }
+                    // Coming from right
+                    if (player.x < wall.x + wall.width && player.x + PLAYER_WIDTH > wall.x + wall.width && player.vx < 0) {
+                        player.x = wall.x + wall.width;
+                    }
+                }
+                // Stand on top of wall
+                if (player.x + PLAYER_WIDTH > wall.x && player.x < wall.x + wall.width &&
+                    player.y + PLAYER_HEIGHT >= wall.y && player.y + PLAYER_HEIGHT <= wall.y + 15 &&
+                    player.vy >= 0) {
+                    player.y = wall.y - PLAYER_HEIGHT;
+                    player.vy = 0;
+                    player.grounded = true;
+                    player.canDoubleJump = true;
+                }
+            }
+
+            // Check floor 1
+            if (player.y + PLAYER_HEIGHT >= FLOOR1_Y && player.vy >= 0) {
+                player.y = FLOOR1_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+
+            // Check floor 2
+            if (player.y + PLAYER_HEIGHT >= FLOOR2_Y && player.y + PLAYER_HEIGHT <= FLOOR2_Y + 10 &&
+                player.vy >= 0 && player.y < FLOOR2_Y) {
+                player.y = FLOOR2_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+
+            // Fall off screen
+            if (player.y > canvas.height + 50) {
+                loseLife();
+                return;
+            }
+
+            // Camera follow
+            const targetCameraX = player.x - 200;
+            cameraX += (targetCameraX - cameraX) * 0.1;
+            if (cameraX < 0) cameraX = 0;
+            if (cameraX > levelLength - canvas.width) cameraX = levelLength - canvas.width;
+
+            // Update obstacles
+            for (const obs of obstacles) {
+                if (obs.type === 'barrier') {
+                    obs.active = Math.floor((Date.now() + obs.phase) / 800) % 2 === 0;
+                }
+                else if (obs.type === 'homing') {
+                    const dx = (player.x + PLAYER_WIDTH/2) - (obs.x + obs.width/2);
+                    const dy = (player.y + PLAYER_HEIGHT/2) - (obs.y + obs.height/2);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 300 && dist > 0) {
+                        obs.x += (dx / dist) * obs.speed;
+                        obs.y += (dy / dist) * obs.speed;
+                    } else {
+                        // Return to start slowly
+                        const homeDx = obs.startX - obs.x;
+                        const homeDy = obs.startY - obs.y;
+                        obs.x += homeDx * 0.02;
+                        obs.y += homeDy * 0.02;
+                    }
+                }
+                else if (obs.type === 'meteor') {
+                    if (!obs.triggered && Math.abs(player.x - obs.x) < 120) {
+                        obs.triggered = true;
+                    }
+                    if (obs.triggered) {
+                        obs.fallSpeed += 0.4;
+                        obs.y += obs.fallSpeed;
+                    }
+                }
+                else if (obs.type === 'spinlaser') {
+                    obs.rotation += 2;
+                }
+            }
+
+            // Check collisions
+            for (const obs of obstacles) {
+                if (obs.type === 'flag') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width) {
+                        completeLand();
+                        return;
+                    }
+                    continue;
+                }
+
+                // Skip non-damaging obstacles
+                if (obs.type === 'gravity' || obs.type === 'teleporter') continue;
+
+                let hit = false;
+                const px = player.x + 5;
+                const py = player.y + 5;
+                const pw = PLAYER_WIDTH - 10;
+                const ph = PLAYER_HEIGHT - 10;
+
+                if (obs.type === 'spike') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y && py + ph > obs.y - obs.height) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'barrier' && obs.active) {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'homing' || obs.type === 'meteor' || obs.type === 'blackhole') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'spinlaser') {
+                    // Simplified hitbox for spinning laser
+                    const cx = obs.x + obs.width / 2;
+                    const cy = obs.y;
+                    const playerCx = player.x + PLAYER_WIDTH / 2;
+                    const playerCy = player.y + PLAYER_HEIGHT / 2;
+                    const dist = Math.sqrt(Math.pow(cx - playerCx, 2) + Math.pow(cy - playerCy, 2));
+                    if (dist < obs.width / 2 + 15) {
+                        hit = true;
+                    }
+                }
+
+                if (hit && !player.dashing) { // Invincible while dashing
+                    loseLife();
+                    return;
+                }
+            }
+
+            // Check teleporters
+            for (const obs of obstacles) {
+                if (obs.type === 'teleporter' && obs.isEntry) {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT > obs.y && player.y < obs.y + obs.height) {
+                        // Find exit teleporter
+                        const exit = obstacles.find(o => o.type === 'teleporter' && o.pairId === obs.pairId && !o.isEntry);
+                        if (exit) {
+                            player.x = exit.x;
+                            player.y = exit.y - PLAYER_HEIGHT + exit.height;
+                            // Teleport particles
+                            for (let i = 0; i < 15; i++) {
+                                particles.push({
+                                    x: player.x + PLAYER_WIDTH / 2,
+                                    y: player.y + PLAYER_HEIGHT / 2,
+                                    vx: (Math.random() - 0.5) * 8,
+                                    vy: (Math.random() - 0.5) * 8,
+                                    life: 30,
+                                    color: '#00ffff'
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Collect stars
+            for (const star of stars) {
+                if (!star.collected) {
+                    const dist = Math.sqrt(
+                        Math.pow(player.x + PLAYER_WIDTH/2 - star.x, 2) +
+                        Math.pow(player.y + PLAYER_HEIGHT/2 - star.y, 2)
+                    );
+                    if (dist < 30) {
+                        star.collected = true;
+                        score += 15;
+                        landScore += 15;
+                        // Star particles
+                        for (let i = 0; i < 8; i++) {
+                            particles.push({
+                                x: star.x,
+                                y: star.y,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                life: 25,
+                                color: '#f1c40f'
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Update UI
+            document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+            document.getElementById('livesDisplay').textContent = `Lives: ${lives}`;
+        }
+
+        function draw() {
+            const land = lands[currentLand];
+
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, land.bg1);
+            gradient.addColorStop(1, land.bg2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background stars
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 50; i++) {
+                const x = ((i * 73 + i * i * 13) % canvas.width);
+                const y = ((i * 47 + i * 17) % (canvas.height - 150));
+                const twinkle = Math.sin(Date.now() * 0.003 + i) * 0.5 + 0.5;
+                ctx.globalAlpha = 0.3 + twinkle * 0.4;
+                ctx.beginPath();
+                ctx.arc(x, y, 1 + (i % 3), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Background decorations
+            ctx.fillStyle = land.accent + '20';
+            for (let i = 0; i < 8; i++) {
+                const x = ((i * 180) - cameraX * 0.2) % (canvas.width + 150) - 75;
+                ctx.beginPath();
+                ctx.arc(x, 70 + Math.sin(i + Date.now() * 0.001) * 20, 25 + i * 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Floor 2 (upper)
+            ctx.fillStyle = land.floor;
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 10);
+            ctx.fillStyle = land.accent + '60';
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 3);
+
+            // Floor 1 (lower/ground)
+            ctx.fillStyle = land.floor;
+            ctx.fillRect(0, FLOOR1_Y, canvas.width, canvas.height - FLOOR1_Y);
+            ctx.fillStyle = land.accent + '60';
+            ctx.fillRect(0, FLOOR1_Y, canvas.width, 5);
+
+            // Draw walls
+            for (const wall of walls) {
+                const screenX = wall.x - cameraX;
+                if (screenX < -50 || screenX > canvas.width + 50) continue;
+
+                ctx.fillStyle = land.wall;
+                ctx.fillRect(screenX, wall.y, wall.width, wall.height);
+                ctx.strokeStyle = land.accent;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(screenX, wall.y, wall.width, wall.height);
+                // Wall pattern
+                ctx.fillStyle = land.accent + '40';
+                for (let j = 0; j < wall.height; j += 20) {
+                    ctx.fillRect(screenX + 5, wall.y + j + 5, wall.width - 10, 8);
+                }
+            }
+
+            // Draw obstacles
+            for (const obs of obstacles) {
+                const screenX = obs.x - cameraX;
+                if (screenX < -150 || screenX > canvas.width + 150) continue;
+
+                ctx.save();
+
+                if (obs.type === 'spike') {
+                    ctx.fillStyle = land.obstacle;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + obs.width / 2, obs.y - obs.height);
+                    ctx.lineTo(screenX + obs.width, obs.y);
+                    ctx.lineTo(screenX, obs.y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                else if (obs.type === 'gravity') {
+                    ctx.fillStyle = 'rgba(100, 200, 255, 0.2)';
+                    ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    ctx.strokeStyle = 'rgba(100, 200, 255, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(screenX, obs.y, obs.width, obs.height);
+                    ctx.setLineDash([]);
+                    // Floating particles effect
+                    ctx.fillStyle = 'rgba(100, 200, 255, 0.6)';
+                    for (let i = 0; i < 5; i++) {
+                        const py = obs.y + obs.height - ((Date.now() * 0.05 + i * 30) % obs.height);
+                        ctx.beginPath();
+                        ctx.arc(screenX + 20 + i * 20, py, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                else if (obs.type === 'barrier') {
+                    if (obs.active) {
+                        ctx.fillStyle = '#e74c3c';
+                        ctx.shadowColor = '#e74c3c';
+                        ctx.shadowBlur = 20;
+                        ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                        ctx.shadowBlur = 0;
+                    } else {
+                        ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
+                        ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    }
+                    // Emitters
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(screenX - 5, obs.y - 10, obs.width + 10, 12);
+                    ctx.fillRect(screenX - 5, obs.y + obs.height - 2, obs.width + 10, 12);
+                }
+                else if (obs.type === 'homing') {
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.shadowColor = '#e74c3c';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    // Eye
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'teleporter') {
+                    const col = obs.isEntry ? '#00ffff' : '#ff00ff';
+                    ctx.fillStyle = col + '40';
+                    ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    ctx.strokeStyle = col;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(screenX, obs.y, obs.width, obs.height);
+                    // Swirl effect
+                    ctx.strokeStyle = col;
+                    ctx.lineWidth = 2;
+                    const swirl = Date.now() * 0.005;
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.arc(screenX + obs.width/2, obs.y + obs.height/2,
+                            10 + i * 8, swirl + i, swirl + i + Math.PI);
+                        ctx.stroke();
+                    }
+                }
+                else if (obs.type === 'meteor') {
+                    ctx.fillStyle = '#e67e22';
+                    ctx.shadowColor = '#e74c3c';
+                    ctx.shadowBlur = 20;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    // Crater details
+                    ctx.fillStyle = '#d35400';
+                    ctx.beginPath();
+                    ctx.arc(screenX + 12, obs.y + 12, 6, 0, Math.PI * 2);
+                    ctx.arc(screenX + 28, obs.y + 25, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Trail when falling
+                    if (obs.triggered && obs.fallSpeed > 0) {
+                        ctx.fillStyle = '#e74c3c80';
+                        for (let i = 1; i <= 5; i++) {
+                            ctx.beginPath();
+                            ctx.arc(screenX + obs.width/2, obs.y - i * 15, obs.width/2 - i * 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+                else if (obs.type === 'spinlaser') {
+                    ctx.translate(screenX + obs.width/2, obs.y);
+                    ctx.rotate(obs.rotation * Math.PI / 180);
+                    // Laser beams
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.shadowColor = '#e74c3c';
+                    ctx.shadowBlur = 15;
+                    ctx.fillRect(-obs.width/2, -obs.height/2, obs.width, obs.height);
+                    ctx.fillRect(-obs.height/2, -obs.width/2, obs.height, obs.width);
+                    ctx.shadowBlur = 0;
+                    // Center
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'blackhole') {
+                    // Accretion disk
+                    ctx.fillStyle = '#9b59b680';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Event horizon
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Glow ring
+                    ctx.strokeStyle = '#f1c40f';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2 + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                else if (obs.type === 'flag') {
+                    // Pole
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(screenX, obs.y - obs.height, obs.width, obs.height);
+                    // Flag
+                    ctx.fillStyle = '#9b59b6';
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + obs.width, obs.y - obs.height);
+                    ctx.lineTo(screenX + obs.width + 50, obs.y - obs.height + 25);
+                    ctx.lineTo(screenX + obs.width, obs.y - obs.height + 50);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#f1c40f';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    // Star
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.font = '20px Arial';
+                    ctx.fillText('★', screenX + obs.width + 15, obs.y - obs.height + 30);
+                }
+
+                ctx.restore();
+            }
+
+            // Draw stars
+            for (const star of stars) {
+                if (star.collected) continue;
+                const screenX = star.x - cameraX;
+                if (screenX < -20 || screenX > canvas.width + 20) continue;
+
+                const pulse = Math.sin(Date.now() * 0.005) * 0.2 + 0.8;
+                ctx.fillStyle = '#f1c40f';
+                ctx.shadowColor = '#f1c40f';
+                ctx.shadowBlur = 15 * pulse;
+
+                // Draw star shape
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 4 * Math.PI / 5) - Math.PI / 2;
+                    const r = i === 0 ? 12 : 12;
+                    const x = screenX + Math.cos(angle) * r;
+                    const y = star.y + Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+
+                    const innerAngle = angle + Math.PI / 5;
+                    const innerX = screenX + Math.cos(innerAngle) * 5;
+                    const innerY = star.y + Math.sin(innerAngle) * 5;
+                    ctx.lineTo(innerX, innerY);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                const screenX = p.x - cameraX;
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 25;
+                ctx.beginPath();
+                ctx.arc(screenX, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player
+            const playerScreenX = player.x - cameraX;
+            ctx.save();
+            ctx.translate(playerScreenX + PLAYER_WIDTH/2, player.y + PLAYER_HEIGHT/2);
+            if (!player.facingRight) ctx.scale(-1, 1);
+
+            // Dash effect
+            if (player.dashing) {
+                ctx.shadowColor = '#f1c40f';
+                ctx.shadowBlur = 30;
+            }
+
+            // Body
+            ctx.fillStyle = player.dashing ? '#f1c40f' : '#9b59b6';
+            ctx.fillRect(-PLAYER_WIDTH/2, -PLAYER_HEIGHT/2, PLAYER_WIDTH, PLAYER_HEIGHT);
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-PLAYER_WIDTH/2, -PLAYER_HEIGHT/2, PLAYER_WIDTH, PLAYER_HEIGHT);
+
+            ctx.shadowBlur = 0;
+
+            // Visor/face
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(-12, -15, 24, 12);
+            ctx.fillStyle = '#003';
+            ctx.fillRect(-10, -13, 20, 8);
+
+            // Antenna
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -PLAYER_HEIGHT/2);
+            ctx.lineTo(0, -PLAYER_HEIGHT/2 - 10);
+            ctx.stroke();
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(0, -PLAYER_HEIGHT/2 - 12, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Jetpack/boost lines when jumping
+            if (!player.grounded) {
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const len = 10 + Math.random() * 10;
+                    ctx.beginPath();
+                    ctx.moveTo(-8 + i * 8, PLAYER_HEIGHT/2);
+                    ctx.lineTo(-8 + i * 8 + (Math.random() - 0.5) * 4, PLAYER_HEIGHT/2 + len);
+                    ctx.stroke();
+                }
+            }
+
+            // Wall slide indicator
+            if (player.onWall !== 0) {
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(player.onWall === 1 ? PLAYER_WIDTH/2 - 4 : -PLAYER_WIDTH/2, -10, 4, 20);
+            }
+
+            ctx.restore();
+
+            // Progress bar
+            const progress = player.x / levelLength;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(canvas.width - 210, 10, 200, 15);
+            ctx.fillStyle = '#9b59b6';
+            ctx.fillRect(canvas.width - 210, 10, 200 * progress, 15);
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width - 210, 10, 200, 15);
+        }
+
+        function loseLife() {
+            lives--;
+            // Death particles
+            for (let i = 0; i < 25; i++) {
+                particles.push({
+                    x: player.x + PLAYER_WIDTH/2,
+                    y: player.y + PLAYER_HEIGHT/2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 35,
+                    color: '#9b59b6'
+                });
+            }
+
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                initPlayer();
+                cameraX = 0;
+            }
+        }
+
+        function completeLand() {
+            levelComplete = true;
+            gameRunning = false;
+
+            completedLands[currentLand] = true;
+            score += 150 * (currentLand + 1);
+
+            const stars = lives === 3 ? '★★★' : lives === 2 ? '★★☆' : '★☆☆';
+
+            document.getElementById('completedLand').textContent = lands[currentLand].name;
+            document.getElementById('starsEarned').textContent = stars;
+            document.getElementById('landScore').textContent = `Land Score: ${landScore + 150 * (currentLand + 1)}`;
+            document.getElementById('levelComplete').style.display = 'flex';
+
+            updateLandProgress();
+        }
+
+        function nextLand() {
+            document.getElementById('levelComplete').style.display = 'none';
+            currentLand++;
+
+            if (currentLand >= lands.length) {
+                winGame();
+                return;
+            }
+
+            document.getElementById('landDisplay').textContent = `Land ${currentLand + 1}: ${lands[currentLand].name}`;
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function winGame() {
+            gameRunning = false;
+            document.getElementById('totalScore').textContent = `Total Score: ${score}`;
+            document.getElementById('winScreen').style.display = 'flex';
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            currentLand = 0;
+            score = 0;
+            lives = 3;
+            completedLands = [];
+            document.getElementById('landDisplay').textContent = `Land ${currentLand + 1}: ${lands[currentLand].name}`;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+        }
+
+        function backToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+            updateLandProgress();
+        }
+
+        function updateLandProgress() {
+            const container = document.getElementById('landProgress');
+            container.innerHTML = '';
+            for (let i = 0; i < lands.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'land-dot';
+                if (completedLands[i]) dot.classList.add('completed');
+                if (i === currentLand && gameRunning) dot.classList.add('current');
+                dot.title = lands[i].name;
+                container.appendChild(dot);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize
+        updateLandProgress();
+        gameLoop();
+    </script>
+</body>
+</html>
