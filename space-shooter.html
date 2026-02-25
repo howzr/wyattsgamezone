@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Shooter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #gameContainer { position: relative; }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 200, 255, 0.5);
+        }
+        #startScreen, #gameOverScreen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 20, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        .hidden { display: none !important; }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00ffff, #ff4444, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 { font-size: 36px; color: #ff4444; margin-bottom: 10px; }
+        p { font-size: 16px; margin-bottom: 8px; color: #aaa; }
+        .cyan { color: #00ffff; }
+        .gold { color: #ffd700; }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 15px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #00ffff, #0088ff);
+            color: #000;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(0, 200, 255, 0.6);
+        }
+        #mobileControls {
+            display: none;
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 160px;
+            pointer-events: none;
+        }
+        #joystickArea {
+            position: absolute;
+            bottom: 20px; left: 20px;
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 200, 255, 0.5);
+            border: 2px solid rgba(0, 200, 255, 0.8);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #fireBtn {
+            position: absolute;
+            bottom: 30px; right: 30px;
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 50, 50, 0.5);
+            border: 3px solid rgba(255, 50, 50, 0.8);
+            pointer-events: auto;
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+        }
+        @media (pointer: coarse) {
+            #mobileControls { display: block; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="mobileControls">
+            <div id="joystickArea">
+                <div id="joystickKnob"></div>
+            </div>
+            <div id="fireBtn">FIRE</div>
+        </div>
+
+        <div id="startScreen">
+            <h1>SPACE SHOOTER</h1>
+            <p class="cyan">Arrow keys or WASD to move</p>
+            <p class="cyan">SPACE to shoot</p>
+            <p style="margin-top:8px; color:#ff6666;">Crash into an enemy and you BLOW UP!</p>
+            <p style="color:#ffd700;">You have 5 lives</p>
+            <p style="color:#aa66ff;">Grab weapon powerups: Shotgun, Minigun, Sniper!</p>
+            <p style="color:#ff8888; margin-top:4px;">At wave 40 enemies shoot back!</p>
+            <button id="startBtn">START GAME</button>
+        </div>
+
+        <div id="gameOverScreen" class="hidden">
+            <h2>GAME OVER</h2>
+            <p id="crashMsg" style="font-size:20px; color:#ff6666; margin-bottom:12px;"></p>
+            <p>Score: <span id="finalScore" class="gold"></span></p>
+            <p>Wave: <span id="finalWave" class="cyan"></span></p>
+            <button id="restartBtn">PLAY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const W = 800, H = 600;
+    canvas.width = W;
+    canvas.height = H;
+
+    function resizeCanvas() {
+        const maxW = window.innerWidth - 20;
+        const maxH = window.innerHeight - 20;
+        const scale = Math.min(maxW / W, maxH / H, 1);
+        canvas.style.width = (W * scale) + 'px';
+        canvas.style.height = (H * scale) + 'px';
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Game state
+    let gameRunning = false;
+    let score = 0;
+    let wave = 1;
+    let lives = 5;
+    let enemiesPerWave = 5;
+    let enemySpeed = 1.5;
+    let ship, bullets, enemyBullets, enemies, particles, stars, explosionParts, powerups;
+    let keys = {};
+    let lastShotTime = 0;
+    let respawnTimer = 0;
+    let invincibleTimer = 0;
+
+    // Weapon system
+    // 'normal' = single shot, 'shotgun' = wide spread, 'minigun' = super fast, 'sniper' = big powerful shot
+    let currentWeapon = 'normal';
+
+    const WEAPON_INFO = {
+        normal:  { cooldown: 180, color: '#ffff66', name: 'BLASTER' },
+        shotgun: { cooldown: 350, color: '#ff8844', name: 'SHOTGUN' },
+        minigun: { cooldown: 50,  color: '#66ffff', name: 'MINIGUN' },
+        sniper:  { cooldown: 600, color: '#ff66ff', name: 'SNIPER' }
+    };
+
+    const FPS = 60;
+    const FRAME_TIME = 1000 / FPS;
+    let lastFrameTime = 0;
+
+    // Mobile joystick state
+    let joystickActive = false;
+    let joystickDx = 0, joystickDy = 0;
+    let mobileFireHeld = false;
+
+    function initStars() {
+        stars = [];
+        for (let i = 0; i < 120; i++) {
+            stars.push({
+                x: Math.random() * W,
+                y: Math.random() * H,
+                speed: 0.3 + Math.random() * 1.5,
+                size: Math.random() * 2 + 0.5,
+                brightness: Math.random()
+            });
+        }
+    }
+
+    function createShip() {
+        return {
+            x: W / 2,
+            y: H - 80,
+            width: 40,
+            height: 40,
+            speed: 5,
+            alive: true,
+            thrusterFlicker: 0
+        };
+    }
+
+    function spawnWave() {
+        for (let i = 0; i < enemiesPerWave; i++) {
+            const type = Math.random();
+            let enemy;
+            if (type < 0.6) {
+                enemy = {
+                    x: 40 + Math.random() * (W - 80),
+                    y: -30 - Math.random() * 300,
+                    width: 40, height: 40,
+                    speed: enemySpeed + Math.random() * 0.8,
+                    type: 'basic',
+                    wobble: Math.random() * Math.PI * 2,
+                    wobbleSpeed: 0.02 + Math.random() * 0.03
+                };
+            } else if (type < 0.85) {
+                enemy = {
+                    x: 40 + Math.random() * (W - 80),
+                    y: -30 - Math.random() * 300,
+                    width: 40, height: 40,
+                    speed: enemySpeed * 0.8 + Math.random() * 0.5,
+                    type: 'zigzag',
+                    angle: Math.random() * Math.PI * 2,
+                    angSpeed: 0.05 + Math.random() * 0.03
+                };
+            } else {
+                enemy = {
+                    x: 40 + Math.random() * (W - 80),
+                    y: -50 - Math.random() * 300,
+                    width: 56, height: 56,
+                    speed: enemySpeed * 0.5,
+                    type: 'tank',
+                    hp: 3,
+                    wobble: Math.random() * Math.PI * 2
+                };
+            }
+            enemies.push(enemy);
+        }
+    }
+
+    // Spawn a weapon powerup at position
+    function spawnPowerup(x, y) {
+        const types = ['shotgun', 'minigun', 'sniper'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        powerups.push({
+            x: x,
+            y: y,
+            width: 24,
+            height: 24,
+            speed: 1.5,
+            type: type,
+            age: 0
+        });
+    }
+
+    function init() {
+        ship = createShip();
+        bullets = [];
+        enemyBullets = [];
+        enemies = [];
+        particles = [];
+        explosionParts = [];
+        powerups = [];
+        score = 0;
+        wave = 1;
+        lives = 5;
+        enemiesPerWave = 5;
+        enemySpeed = 1.5;
+        currentWeapon = 'normal';
+        respawnTimer = 0;
+        invincibleTimer = 0;
+        initStars();
+        spawnWave();
+    }
+
+    // Input
+    window.addEventListener('keydown', e => {
+        keys[e.key] = true;
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+            e.preventDefault();
+        }
+    });
+    window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+    // Mobile joystick
+    const joystickArea = document.getElementById('joystickArea');
+    const joystickKnob = document.getElementById('joystickKnob');
+    const fireBtn = document.getElementById('fireBtn');
+
+    joystickArea.addEventListener('touchstart', e => {
+        e.preventDefault();
+        joystickActive = true;
+        handleJoystick(e.touches[0]);
+    });
+    joystickArea.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (joystickActive) handleJoystick(e.touches[0]);
+    });
+    joystickArea.addEventListener('touchend', e => {
+        e.preventDefault();
+        joystickActive = false;
+        joystickDx = 0;
+        joystickDy = 0;
+        joystickKnob.style.transform = 'translate(-50%, -50%)';
+    });
+
+    function handleJoystick(touch) {
+        const rect = joystickArea.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        let dx = touch.clientX - cx;
+        let dy = touch.clientY - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxDist = rect.width / 2 - 10;
+        if (dist > maxDist) {
+            dx = (dx / dist) * maxDist;
+            dy = (dy / dist) * maxDist;
+        }
+        joystickDx = dx / maxDist;
+        joystickDy = dy / maxDist;
+        joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    }
+
+    fireBtn.addEventListener('touchstart', e => { e.preventDefault(); mobileFireHeld = true; });
+    fireBtn.addEventListener('touchend', e => { e.preventDefault(); mobileFireHeld = false; });
+
+    // Shooting
+    function makeBullet(x, y, vx, vy, w, h) {
+        return {
+            x: x, y: y,
+            width: w || 4, height: h || 12,
+            vx: vx, vy: vy
+        };
+    }
+
+    function shoot() {
+        const now = performance.now();
+        const cooldown = WEAPON_INFO[currentWeapon].cooldown;
+        if (now - lastShotTime < cooldown) return;
+        lastShotTime = now;
+
+        const bx = ship.x;
+        const by = ship.y - ship.height / 2 - 5;
+
+        if (currentWeapon === 'normal') {
+            bullets.push(makeBullet(bx, by, 0, -8, 4, 12));
+        } else if (currentWeapon === 'shotgun') {
+            // 5 pellets in a wide spread
+            for (let i = -2; i <= 2; i++) {
+                bullets.push(makeBullet(bx + i * 6, by, i * 1.5, -7 - Math.random(), 5, 5));
+            }
+        } else if (currentWeapon === 'minigun') {
+            // Fast small bullets with slight random spread
+            bullets.push(makeBullet(bx, by, (Math.random() - 0.5) * 1, -10, 3, 8));
+        } else if (currentWeapon === 'sniper') {
+            // One big powerful piercing shot
+            bullets.push(makeBullet(bx, by, 0, -14, 6, 24));
+            bullets[bullets.length - 1].piercing = true;
+            bullets[bullets.length - 1].damage = 3;
+        }
+
+        // Muzzle flash
+        const wColor = WEAPON_INFO[currentWeapon].color;
+        for (let i = 0; i < 5; i++) {
+            particles.push({
+                x: bx, y: by,
+                vx: (Math.random() - 0.5) * 3,
+                vy: -Math.random() * 4 - 2,
+                life: 10 + Math.random() * 10,
+                maxLife: 20,
+                color: wColor
+            });
+        }
+    }
+
+    // Collision
+    function rectsOverlap(a, b) {
+        return a.x - a.width / 2 < b.x + b.width / 2 &&
+               a.x + a.width / 2 > b.x - b.width / 2 &&
+               a.y - a.height / 2 < b.y + b.height / 2 &&
+               a.y + a.height / 2 > b.y - b.height / 2;
+    }
+
+    function explode(x, y, count, hueBase) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 5;
+            particles.push({
+                x: x, y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 20 + Math.random() * 30,
+                maxLife: 50,
+                color: `hsl(${hueBase + Math.random() * 40}, 100%, ${50 + Math.random() * 40}%)`
+            });
+        }
+    }
+
+    function shipExplode() {
+        ship.alive = false;
+        lives--;
+        // Huge explosion
+        for (let i = 0; i < 80; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 7;
+            explosionParts.push({
+                x: ship.x, y: ship.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 40 + Math.random() * 60,
+                maxLife: 100,
+                size: 2 + Math.random() * 5,
+                color: `hsl(${Math.random() * 60}, 100%, ${50 + Math.random() * 40}%)`
+            });
+        }
+        // Debris chunks
+        for (let i = 0; i < 12; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 4;
+            explosionParts.push({
+                x: ship.x, y: ship.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 60 + Math.random() * 60,
+                maxLife: 120,
+                size: 4 + Math.random() * 8,
+                color: '#888',
+                isDebris: true,
+                rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 0.2
+            });
+        }
+
+        if (lives > 0) {
+            respawnTimer = 90; // 1.5 seconds at 60fps
+        }
+    }
+
+    function respawnShip() {
+        ship = createShip();
+        enemyBullets = []; // clear enemy bullets on respawn
+        invincibleTimer = 120; // 2 seconds of invincibility
+    }
+
+    // Update
+    function update() {
+        // Handle respawn countdown
+        if (!ship.alive && respawnTimer > 0) {
+            // Update explosion particles
+            for (let i = explosionParts.length - 1; i >= 0; i--) {
+                const p = explosionParts[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.03;
+                p.vx *= 0.99;
+                p.life--;
+                if (p.isDebris) p.rotation += p.rotSpeed;
+                if (p.life <= 0) explosionParts.splice(i, 1);
+            }
+            respawnTimer--;
+            if (respawnTimer <= 0) {
+                explosionParts = [];
+                respawnShip();
+            }
+            // Still update stars and particles while dead
+            updateStars();
+            updateParticles();
+            // Still move enemies down while dead
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].y += enemies[i].speed;
+                if (enemies[i].y > H + 60) enemies.splice(i, 1);
+            }
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                powerups[i].y += powerups[i].speed;
+                if (powerups[i].y > H + 30) powerups.splice(i, 1);
+            }
+            if (enemies.length === 0) {
+                wave++;
+                enemiesPerWave = Math.min(5 + wave * 2, 30);
+                enemySpeed = 1.5 + wave * 0.3;
+                spawnWave();
+            }
+            return;
+        }
+
+        if (!ship.alive) {
+            // Final death - update explosion then game over
+            for (let i = explosionParts.length - 1; i >= 0; i--) {
+                const p = explosionParts[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.03;
+                p.vx *= 0.99;
+                p.life--;
+                if (p.isDebris) p.rotation += p.rotSpeed;
+                if (p.life <= 0) explosionParts.splice(i, 1);
+            }
+            updateStars();
+            updateParticles();
+            if (explosionParts.length === 0) {
+                gameOver();
+            }
+            return;
+        }
+
+        // Invincibility countdown
+        if (invincibleTimer > 0) invincibleTimer--;
+
+        // Move ship
+        let dx = 0, dy = 0;
+        if (keys['ArrowLeft'] || keys['a'] || keys['A']) dx -= 1;
+        if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
+        if (keys['ArrowUp'] || keys['w'] || keys['W']) dy -= 1;
+        if (keys['ArrowDown'] || keys['s'] || keys['S']) dy += 1;
+
+        if (joystickActive) {
+            dx += joystickDx;
+            dy += joystickDy;
+        }
+
+        if (dx !== 0 && dy !== 0) {
+            const len = Math.sqrt(dx * dx + dy * dy);
+            dx /= len;
+            dy /= len;
+        }
+
+        ship.x += dx * ship.speed;
+        ship.y += dy * ship.speed;
+
+        ship.x = Math.max(ship.width / 2, Math.min(W - ship.width / 2, ship.x));
+        ship.y = Math.max(ship.height / 2, Math.min(H - ship.height / 2, ship.y));
+
+        ship.thrusterFlicker = Math.random();
+
+        // Shoot
+        if (keys[' '] || mobileFireHeld) shoot();
+
+        // Update bullets
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            bullets[i].x += bullets[i].vx;
+            bullets[i].y += bullets[i].vy;
+            if (bullets[i].y < -20 || bullets[i].x < -20 || bullets[i].x > W + 20) {
+                bullets.splice(i, 1);
+            }
+        }
+
+        // Update powerups
+        for (let i = powerups.length - 1; i >= 0; i--) {
+            const pu = powerups[i];
+            pu.y += pu.speed;
+            pu.age++;
+            if (pu.y > H + 30) {
+                powerups.splice(i, 1);
+                continue;
+            }
+            // Check pickup by ship
+            if (rectsOverlap(ship, pu)) {
+                currentWeapon = pu.type;
+                // Pickup sparkle
+                for (let j = 0; j < 20; j++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1 + Math.random() * 3;
+                    const wInfo = WEAPON_INFO[pu.type];
+                    particles.push({
+                        x: pu.x, y: pu.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 15 + Math.random() * 20,
+                        maxLife: 35,
+                        color: wInfo.color
+                    });
+                }
+                powerups.splice(i, 1);
+            }
+        }
+
+        // Update enemies
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+            e.y += e.speed;
+
+            if (e.type === 'basic') {
+                e.wobble += e.wobbleSpeed;
+                e.x += Math.sin(e.wobble) * 1.2;
+            } else if (e.type === 'zigzag') {
+                e.angle += e.angSpeed;
+                e.x += Math.sin(e.angle) * 3;
+            } else if (e.type === 'tank') {
+                e.wobble += 0.02;
+                e.x += Math.sin(e.wobble) * 0.8;
+            }
+
+            if (e.y > H + 60) {
+                enemies.splice(i, 1);
+                continue;
+            }
+
+            // Enemy shooting (wave 40+)
+            if (wave >= 40 && e.y > 0 && e.y < H - 100 && ship.alive) {
+                if (!e.shotTimer) e.shotTimer = Math.floor(Math.random() * 120) + 60;
+                e.shotTimer--;
+                if (e.shotTimer <= 0) {
+                    // Aim toward player
+                    const dx = ship.x - e.x;
+                    const dy = ship.y - e.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0) {
+                        const spd = 3;
+                        enemyBullets.push({
+                            x: e.x, y: e.y + e.height / 2,
+                            vx: (dx / dist) * spd,
+                            vy: (dy / dist) * spd,
+                            width: 6, height: 6
+                        });
+                    }
+                    // Reset timer - tanks shoot slower, zigzags shoot faster
+                    const rate = e.type === 'tank' ? 180 : e.type === 'zigzag' ? 80 : 120;
+                    e.shotTimer = rate + Math.floor(Math.random() * 60);
+                }
+            }
+
+            // Crash with ship (only if not invincible)
+            if (invincibleTimer <= 0 && rectsOverlap(ship, e)) {
+                // Destroy the enemy too
+                explode(e.x, e.y, 15, 30);
+                enemies.splice(i, 1);
+                shipExplode();
+                return;
+            }
+
+            // Bullet hits
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                if (rectsOverlap(bullets[j], e)) {
+                    const dmg = bullets[j].damage || 1;
+                    const piercing = bullets[j].piercing;
+                    if (!piercing) {
+                        bullets.splice(j, 1);
+                    }
+                    if (e.type === 'tank') {
+                        e.hp -= dmg;
+                        explode(e.x, e.y, 8, 0);
+                        if (e.hp <= 0) {
+                            explode(e.x, e.y, 30, 0);
+                            score += 30;
+                            if (Math.random() < 0.3) spawnPowerup(e.x, e.y);
+                            enemies.splice(i, 1);
+                        }
+                    } else {
+                        explode(e.x, e.y, 15, e.type === 'zigzag' ? 120 : 30);
+                        score += e.type === 'zigzag' ? 20 : 10;
+                        if (Math.random() < 0.15) spawnPowerup(e.x, e.y);
+                        enemies.splice(i, 1);
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Update enemy bullets
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            const eb = enemyBullets[i];
+            eb.x += eb.vx;
+            eb.y += eb.vy;
+            if (eb.y > H + 20 || eb.y < -20 || eb.x < -20 || eb.x > W + 20) {
+                enemyBullets.splice(i, 1);
+                continue;
+            }
+            // Hit player
+            if (ship.alive && invincibleTimer <= 0 && rectsOverlap(eb, ship)) {
+                enemyBullets.splice(i, 1);
+                shipExplode();
+                return;
+            }
+        }
+
+        updateParticles();
+
+        // Next wave
+        if (enemies.length === 0) {
+            wave++;
+            enemiesPerWave = Math.min(5 + wave * 2, 30);
+            enemySpeed = 1.5 + wave * 0.3;
+            spawnWave();
+        }
+
+        updateStars();
+    }
+
+    function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function updateStars() {
+        for (const s of stars) {
+            s.y += s.speed;
+            if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+        }
+    }
+
+    // Draw
+    function drawShip() {
+        if (!ship.alive) return;
+        const x = ship.x, y = ship.y;
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Blink when invincible
+        if (invincibleTimer > 0 && Math.floor(invincibleTimer / 4) % 2 === 0) {
+            ctx.globalAlpha = 0.3;
+        }
+
+        // Thruster glow
+        const thrustH = 12 + ship.thrusterFlicker * 10;
+        const grad = ctx.createLinearGradient(0, 10, 0, 10 + thrustH);
+        grad.addColorStop(0, 'rgba(0, 180, 255, 0.9)');
+        grad.addColorStop(0.5, 'rgba(0, 100, 255, 0.5)');
+        grad.addColorStop(1, 'rgba(0, 50, 255, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(-8, 12);
+        ctx.lineTo(8, 12);
+        ctx.lineTo(3, 12 + thrustH);
+        ctx.lineTo(-3, 12 + thrustH);
+        ctx.closePath();
+        ctx.fill();
+
+        // Ship body
+        ctx.fillStyle = '#1a8aff';
+        ctx.beginPath();
+        ctx.moveTo(0, -20);
+        ctx.lineTo(-16, 14);
+        ctx.lineTo(-6, 10);
+        ctx.lineTo(0, 14);
+        ctx.lineTo(6, 10);
+        ctx.lineTo(16, 14);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cockpit
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.lineTo(-5, 2);
+        ctx.lineTo(0, 4);
+        ctx.lineTo(5, 2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Wing highlights
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.beginPath();
+        ctx.moveTo(0, -18);
+        ctx.lineTo(-14, 12);
+        ctx.lineTo(-6, 9);
+        ctx.closePath();
+        ctx.fill();
+
+        // Weapon indicator glow on wings if powered up
+        if (currentWeapon !== 'normal') {
+            ctx.fillStyle = WEAPON_INFO[currentWeapon].color;
+            ctx.globalAlpha = 0.4 + Math.sin(Date.now() * 0.01) * 0.3;
+            ctx.beginPath();
+            ctx.arc(-12, 8, 4, 0, Math.PI * 2);
+            ctx.arc(12, 8, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+        ctx.globalAlpha = 1;
+    }
+
+    function drawEnemy(e) {
+        ctx.save();
+        ctx.translate(e.x, e.y);
+
+        if (e.type === 'basic') {
+            ctx.fillStyle = '#ff3333';
+            ctx.beginPath();
+            ctx.moveTo(0, 20);
+            ctx.lineTo(-18, -10);
+            ctx.lineTo(-8, -18);
+            ctx.lineTo(0, -10);
+            ctx.lineTo(8, -18);
+            ctx.lineTo(18, -10);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#ff8800';
+            ctx.beginPath();
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (e.type === 'zigzag') {
+            ctx.fillStyle = '#33ff55';
+            ctx.beginPath();
+            ctx.moveTo(0, 18);
+            ctx.lineTo(-16, 0);
+            ctx.lineTo(-8, -18);
+            ctx.lineTo(8, -18);
+            ctx.lineTo(16, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#aaffaa';
+            ctx.beginPath();
+            ctx.arc(0, -2, 6, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (e.type === 'tank') {
+            ctx.fillStyle = e.hp === 3 ? '#aa44ff' : e.hp === 2 ? '#cc44aa' : '#ff4444';
+            ctx.beginPath();
+            ctx.moveTo(0, 28);
+            ctx.lineTo(-26, 7);
+            ctx.lineTo(-22, -19);
+            ctx.lineTo(-10, -26);
+            ctx.lineTo(10, -26);
+            ctx.lineTo(22, -19);
+            ctx.lineTo(26, 7);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(0, -5, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(0, -5, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function drawPowerup(pu) {
+        const wInfo = WEAPON_INFO[pu.type];
+        ctx.save();
+        ctx.translate(pu.x, pu.y);
+
+        // Pulsing glow
+        const pulse = 0.6 + Math.sin(pu.age * 0.1) * 0.4;
+        ctx.globalAlpha = pulse * 0.3;
+        ctx.fillStyle = wInfo.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Box
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#222';
+        ctx.strokeStyle = wInfo.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-12, -12, 24, 24, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Icon
+        ctx.fillStyle = wInfo.color;
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (pu.type === 'shotgun') {
+            ctx.fillText('SG', 0, 0);
+        } else if (pu.type === 'minigun') {
+            ctx.fillText('MG', 0, 0);
+        } else if (pu.type === 'sniper') {
+            ctx.fillText('SR', 0, 0);
+        }
+
+        ctx.restore();
+    }
+
+    function draw() {
+        // Background
+        ctx.fillStyle = '#060612';
+        ctx.fillRect(0, 0, W, H);
+
+        // Stars
+        for (const s of stars) {
+            const alpha = 0.3 + s.brightness * 0.7;
+            ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+        }
+
+        // Powerups
+        for (const pu of powerups) {
+            drawPowerup(pu);
+        }
+
+        // Bullets
+        const bulletColor = WEAPON_INFO[currentWeapon].color;
+        for (const b of bullets) {
+            const grad = ctx.createLinearGradient(b.x, b.y - b.height, b.x, b.y + b.height);
+            grad.addColorStop(0, 'rgba(255, 255, 100, 0)');
+            grad.addColorStop(0.5, bulletColor);
+            grad.addColorStop(1, 'rgba(255, 255, 100, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(b.x - 3, b.y - 8, 6, 16);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(b.x - b.width / 2, b.y - b.height / 2, b.width, b.height);
+        }
+
+        // Enemy bullets
+        for (const eb of enemyBullets) {
+            ctx.fillStyle = '#ff3333';
+            ctx.beginPath();
+            ctx.arc(eb.x, eb.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
+            ctx.beginPath();
+            ctx.arc(eb.x, eb.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Enemies
+        for (const e of enemies) {
+            drawEnemy(e);
+        }
+
+        // Particles
+        for (const p of particles) {
+            const alpha = p.life / p.maxLife;
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color;
+            const size = 2 + (1 - alpha) * 3;
+            ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+        }
+        ctx.globalAlpha = 1;
+
+        // Ship explosion
+        for (const p of explosionParts) {
+            const alpha = p.life / p.maxLife;
+            ctx.globalAlpha = alpha;
+            if (p.isDebris) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+                ctx.restore();
+            } else {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+
+        // Ship
+        drawShip();
+
+        // HUD
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Score: ${score}`, 14, 30);
+        ctx.fillStyle = '#00ffff';
+        ctx.fillText(`Wave: ${wave}`, 14, 55);
+
+        // Lives display
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.fillText('Lives:', W - 110, 30);
+        for (let i = 0; i < lives; i++) {
+            // Draw mini ships as life icons
+            ctx.save();
+            ctx.translate(W - 90 + i * 20, 26);
+            ctx.scale(0.4, 0.4);
+            ctx.fillStyle = '#1a8aff';
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(-16, 14);
+            ctx.lineTo(-6, 10);
+            ctx.lineTo(0, 14);
+            ctx.lineTo(6, 10);
+            ctx.lineTo(16, 14);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Current weapon display
+        if (currentWeapon !== 'normal') {
+            const wInfo = WEAPON_INFO[currentWeapon];
+            ctx.textAlign = 'center';
+            ctx.fillStyle = wInfo.color;
+            ctx.font = 'bold 14px sans-serif';
+            ctx.fillText(wInfo.name, W / 2, 25);
+        }
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        currentWeapon = 'normal'; // lose your gun upgrades
+        document.getElementById('finalScore').textContent = score;
+        document.getElementById('finalWave').textContent = wave;
+        document.getElementById('crashMsg').textContent = 'All ships destroyed!';
+        document.getElementById('gameOverScreen').classList.remove('hidden');
+    }
+
+    // Game loop - runs at 60fps
+    function gameLoop(timestamp) {
+        if (!gameRunning) return;
+
+        if (timestamp - lastFrameTime >= FRAME_TIME) {
+            lastFrameTime = timestamp - ((timestamp - lastFrameTime) % FRAME_TIME);
+            update();
+            draw();
+        }
+        requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+        init();
+        gameRunning = true;
+        lastFrameTime = performance.now();
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('gameOverScreen').classList.add('hidden');
+        requestAnimationFrame(gameLoop);
+    }
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', startGame);
+
+    // Draw initial background while on start screen
+    initStars();
+    draw();
+    </script>
+</body>
+</html>

@@ -588,21 +588,8 @@
                     });
                     x += 280;
                 }
-                // Meteor (falls from sky)
-                else if (obstacleType === 8 && difficulty > 4) {
-                    obstacles.push({
-                        x: x,
-                        y: -50,
-                        type: 'meteor',
-                        width: 40,
-                        height: 40,
-                        fallSpeed: 0,
-                        triggered: false
-                    });
-                    x += 180;
-                }
                 // Spinning laser
-                else if (obstacleType === 9 && difficulty > 5) {
+                else if (obstacleType === 8 && difficulty > 4) {
                     obstacles.push({
                         x: x,
                         y: floor - 60,
@@ -612,18 +599,6 @@
                         rotation: 0
                     });
                     x += 220;
-                }
-                // Black hole (pulls player)
-                else if (obstacleType === 10 && difficulty > 6) {
-                    obstacles.push({
-                        x: x,
-                        y: floor - 80,
-                        type: 'blackhole',
-                        width: 50,
-                        height: 50,
-                        pullStrength: 0.3
-                    });
-                    x += 200;
                 }
                 // Default spike
                 else {
@@ -787,17 +762,6 @@
                         player.vy -= obs.strength;
                     }
                 }
-                // Black hole pull
-                if (obs.type === 'blackhole') {
-                    const dx = (obs.x + obs.width/2) - (player.x + PLAYER_WIDTH/2);
-                    const dy = (obs.y + obs.height/2) - (player.y + PLAYER_HEIGHT/2);
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 150 && dist > 0) {
-                        const pull = obs.pullStrength * (1 - dist / 150);
-                        player.vx += (dx / dist) * pull;
-                        player.vy += (dy / dist) * pull;
-                    }
-                }
             }
 
             // Move player
@@ -860,15 +824,6 @@
                         obs.y += homeDy * 0.02;
                     }
                 }
-                else if (obs.type === 'meteor') {
-                    if (!obs.triggered && Math.abs(player.x - obs.x) < 120) {
-                        obs.triggered = true;
-                    }
-                    if (obs.triggered) {
-                        obs.fallSpeed += 0.4;
-                        obs.y += obs.fallSpeed;
-                    }
-                }
                 else if (obs.type === 'spinlaser') {
                     obs.rotation += 2;
                 }
@@ -905,7 +860,7 @@
                         hit = true;
                     }
                 }
-                else if (obs.type === 'homing' || obs.type === 'meteor' || obs.type === 'blackhole') {
+                else if (obs.type === 'homing') {
                     if (px < obs.x + obs.width && px + pw > obs.x &&
                         py < obs.y + obs.height && py + ph > obs.y) {
                         hit = true;
@@ -1128,30 +1083,6 @@
                         ctx.stroke();
                     }
                 }
-                else if (obs.type === 'meteor') {
-                    ctx.fillStyle = '#e67e22';
-                    ctx.shadowColor = '#e74c3c';
-                    ctx.shadowBlur = 20;
-                    ctx.beginPath();
-                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    // Crater details
-                    ctx.fillStyle = '#d35400';
-                    ctx.beginPath();
-                    ctx.arc(screenX + 12, obs.y + 12, 6, 0, Math.PI * 2);
-                    ctx.arc(screenX + 28, obs.y + 25, 4, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Trail when falling
-                    if (obs.triggered && obs.fallSpeed > 0) {
-                        ctx.fillStyle = '#e74c3c80';
-                        for (let i = 1; i <= 5; i++) {
-                            ctx.beginPath();
-                            ctx.arc(screenX + obs.width/2, obs.y - i * 15, obs.width/2 - i * 3, 0, Math.PI * 2);
-                            ctx.fill();
-                        }
-                    }
-                }
                 else if (obs.type === 'spinlaser') {
                     ctx.translate(screenX + obs.width/2, obs.y);
                     ctx.rotate(obs.rotation * Math.PI / 180);
@@ -1167,24 +1098,6 @@
                     ctx.beginPath();
                     ctx.arc(0, 0, 10, 0, Math.PI * 2);
                     ctx.fill();
-                }
-                else if (obs.type === 'blackhole') {
-                    // Accretion disk
-                    ctx.fillStyle = '#9b59b680';
-                    ctx.beginPath();
-                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Event horizon
-                    ctx.fillStyle = '#000';
-                    ctx.beginPath();
-                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Glow ring
-                    ctx.strokeStyle = '#f1c40f';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2 + 5, 0, Math.PI * 2);
-                    ctx.stroke();
                 }
                 else if (obs.type === 'flag') {
                     // Pole

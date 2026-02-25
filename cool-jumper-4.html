@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cool Jumper 4">
+    <title>Cool Jumper 4</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #4a2c2a 0%, #2d1b1a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 182, 193, 0.4);
+            touch-action: none;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #startScreen, #levelComplete, #gameOver, #winScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(45, 27, 26, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff9a9e, #fecfef, #ffecd2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 15px;
+            color: #ff9a9e;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #ddb892;
+        }
+        .feature {
+            color: #ffecd2;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        .land-name {
+            font-size: 28px;
+            color: #ffecd2;
+            margin: 15px 0;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #ff9a9e, #fecfef);
+            color: #4a2c2a;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 154, 158, 0.5);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #b08968;
+        }
+        .controls p {
+            margin: 5px 0;
+        }
+        .stars {
+            font-size: 40px;
+            margin: 15px 0;
+        }
+        #landProgress {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .land-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3d2524;
+            border: 2px solid #5d3a39;
+        }
+        .land-dot.completed {
+            background: #ff9a9e;
+            border-color: #ff9a9e;
+            box-shadow: 0 0 10px #ff9a9e;
+        }
+        .land-dot.current {
+            background: #ffecd2;
+            border-color: #ffecd2;
+            box-shadow: 0 0 10px #ffecd2;
+        }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #joystickArea {
+            position: absolute;
+            left: 30px;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 154, 158, 0.5);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 154, 158, 0.6);
+            border: 2px solid rgba(255, 236, 210, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        .touchBtn {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 154, 158, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #jumpBtn {
+            right: 30px;
+            bottom: 70px;
+        }
+        .touchBtn:active, .touchBtn.active {
+            background: rgba(255, 154, 158, 0.6);
+            border-color: rgba(255, 236, 210, 0.8);
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="500"></canvas>
+        <div id="ui">
+            <span id="landDisplay">Land 1: Cookie Crumble Valley</span>
+            <span id="scoreDisplay">Score: 0</span>
+            <span id="livesDisplay">Lives: 3</span>
+        </div>
+
+        <div id="startScreen">
+            <h1>Cool Jumper 4</h1>
+            <p class="feature">DESSERT EDITION!</p>
+            <p>You are a Cookie Box!</p>
+            <p>Jump through sweet lands!</p>
+            <p>Collect candies, avoid sticky traps!</p>
+            <div class="controls">
+                <p>Arrow Keys - Move | Space - Jump (double jump!)</p>
+                <p>Touch: Joystick + Jump button</p>
+            </div>
+            <button onclick="startGame()">Start Snacking</button>
+            <div id="landProgress"></div>
+        </div>
+
+        <div id="levelComplete" style="display: none;">
+            <h2>Land Complete!</h2>
+            <div class="land-name" id="completedLand"></div>
+            <div class="stars" id="starsEarned"></div>
+            <p id="landScore"></p>
+            <button onclick="nextLand()">Next Land</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>Crumbled!</h2>
+            <p id="finalScore"></p>
+            <button onclick="restartGame()">Try Again</button>
+            <button onclick="backToMenu()">Main Menu</button>
+        </div>
+
+        <div id="winScreen" style="display: none;">
+            <h1>DESSERT CHAMPION!</h1>
+            <p>You conquered the candy kingdom!</p>
+            <p id="totalScore"></p>
+            <div class="stars">🍪🍪🍪</div>
+            <button onclick="backToMenu()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
+        </div>
+        <div id="jumpBtn" class="touchBtn">JUMP</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Dessert land themes
+        const lands = [
+            { name: "Cookie Crumble Valley", bg1: '#d4a574', bg2: '#b8956c', floor: '#8b6914', obstacle: '#5c4033', accent: '#f5deb3' },
+            { name: "Chocolate Falls", bg1: '#3d2314', bg2: '#2a1810', floor: '#1a0f0a', obstacle: '#5c3a21', accent: '#d2691e' },
+            { name: "Candy Cane Forest", bg1: '#ffe4e1', bg2: '#ffb6c1', floor: '#ff69b4', obstacle: '#dc143c', accent: '#ffffff' },
+            { name: "Frosting Peaks", bg1: '#e8f4f8', bg2: '#d4eaf0', floor: '#fff0f5', obstacle: '#ff69b4', accent: '#87ceeb' },
+            { name: "Caramel Caves", bg1: '#d2691e', bg2: '#a0522d', floor: '#8b4513', obstacle: '#daa520', accent: '#ffd700' },
+            { name: "Gummy Bear Jungle", bg1: '#98fb98', bg2: '#90ee90', floor: '#228b22', obstacle: '#ff6347', accent: '#ffd700' },
+            { name: "Ice Cream Mountains", bg1: '#fffacd', bg2: '#ffefd5', floor: '#deb887', obstacle: '#ff69b4', accent: '#add8e6' },
+            { name: "Donut Plains", bg1: '#deb887', bg2: '#d2b48c', floor: '#cd853f', obstacle: '#ff69b4', accent: '#ffd700' },
+            { name: "Lollipop Land", bg1: '#ff6eb4', bg2: '#ff1493', floor: '#c71585', obstacle: '#00ced1', accent: '#ffff00' },
+            { name: "Sugar Crystal Palace", bg1: '#f0f8ff', bg2: '#e6e6fa', floor: '#dda0dd', obstacle: '#ff00ff', accent: '#ffffff' }
+        ];
+
+        // Game constants
+        const FLOOR1_Y = 350;
+        const FLOOR2_Y = 180;
+        const PLAYER_WIDTH = 45;
+        const PLAYER_HEIGHT = 40;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 5;
+
+        // Game state
+        let player = {};
+        let obstacles = [];
+        let candies = [];
+        let particles = [];
+        let currentLand = 0;
+        let score = 0;
+        let lives = 3;
+        let landScore = 0;
+        let gameRunning = false;
+        let levelComplete = false;
+        let cameraX = 0;
+        let levelLength = 3000;
+        let completedLands = [];
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space') e.preventDefault();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Touch controls
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
+        const jumpBtn = document.getElementById('jumpBtn');
+
+        let joystickTouchId = null;
+        const joystickRadius = 60;
+        const knobRadius = 25;
+        const maxKnobDistance = joystickRadius - knobRadius;
+
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    updateJoystick(e.changedTouches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', () => resetJoystick(), { passive: false });
+
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            const normalizedX = dx / maxKnobDistance;
+            const deadzone = 0.3;
+            keys['ArrowLeft'] = normalizedX < -deadzone;
+            keys['ArrowRight'] = normalizedX > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+        }
+
+        let jumpTouchId = null;
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (jumpTouchId !== null) return;
+            jumpTouchId = e.changedTouches[0].identifier;
+            jumpBtn.classList.add('active');
+            keys['Space'] = true;
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === jumpTouchId) {
+                    jumpTouchId = null;
+                    jumpBtn.classList.remove('active');
+                    keys['Space'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchcancel', () => {
+            jumpTouchId = null;
+            jumpBtn.classList.remove('active');
+            keys['Space'] = false;
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+        function initPlayer() {
+            player = {
+                x: 100,
+                y: FLOOR1_Y - PLAYER_HEIGHT,
+                vx: 0,
+                vy: 0,
+                grounded: true,
+                facingRight: true,
+                canDoubleJump: true,
+                spaceReleased: true
+            };
+        }
+
+        function generateLand(landNum) {
+            obstacles = [];
+            candies = [];
+            particles = [];
+            cameraX = 0;
+            landScore = 0;
+            levelComplete = false;
+
+            const difficulty = landNum + 1;
+            levelLength = 2800 + landNum * 350;
+
+            let x = 400;
+
+            while (x < levelLength - 300) {
+                const obstacleType = Math.floor(Math.random() * 12);
+                const floor = Math.random() < 0.4 ? FLOOR2_Y : FLOOR1_Y;
+
+                // Chocolate spikes
+                if (obstacleType < 2) {
+                    const count = 1 + Math.floor(Math.random() * difficulty / 3);
+                    for (let i = 0; i < count; i++) {
+                        obstacles.push({
+                            x: x + i * 25,
+                            y: floor,
+                            type: 'chocspike',
+                            width: 20,
+                            height: 25
+                        });
+                    }
+                    x += count * 25 + 140;
+                }
+                // Rolling donut
+                else if (obstacleType === 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 35,
+                        type: 'donut',
+                        width: 50,
+                        height: 50,
+                        startX: x,
+                        range: 100,
+                        speed: 1.5 + difficulty * 0.2,
+                        rotation: 0
+                    });
+                    x += 220;
+                }
+                // Sticky caramel (slows player)
+                else if (obstacleType === 3 && difficulty > 1) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 15,
+                        type: 'caramel',
+                        width: 100,
+                        height: 15
+                    });
+                    x += 180;
+                }
+                // Bouncing gummy bear
+                else if (obstacleType === 4 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 40,
+                        type: 'gummy',
+                        width: 35,
+                        height: 40,
+                        startY: floor - 40,
+                        bouncePhase: Math.random() * Math.PI * 2,
+                        color: ['#ff6347', '#ffd700', '#32cd32', '#ff69b4'][Math.floor(Math.random() * 4)]
+                    });
+                    x += 180;
+                }
+                // Lollipop spinner
+                else if (obstacleType === 5 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 70,
+                        type: 'lollipop',
+                        width: 60,
+                        height: 60,
+                        rotation: 0
+                    });
+                    x += 200;
+                }
+                // Frosting drip
+                else if (obstacleType === 6 && difficulty > 3) {
+                    obstacles.push({
+                        x: x,
+                        y: 30,
+                        type: 'frosting',
+                        width: 40,
+                        height: 40,
+                        dripping: false,
+                        dripY: 30
+                    });
+                    x += 160;
+                }
+                // Hot cocoa pit
+                else if (obstacleType === 7 && difficulty > 4) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 20,
+                        type: 'cocoa',
+                        width: 80,
+                        height: 20,
+                        bubblePhase: 0
+                    });
+                    x += 180;
+                }
+                // Candy cane barrier
+                else if (obstacleType === 8 && difficulty > 4) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 80,
+                        type: 'candycane',
+                        width: 20,
+                        height: 80,
+                        active: true,
+                        phase: Math.random() * 2000
+                    });
+                    x += 160;
+                }
+                // Ice cream scoop (falls)
+                else if (obstacleType === 9 && difficulty > 5) {
+                    obstacles.push({
+                        x: x,
+                        y: 50,
+                        type: 'icecream',
+                        width: 45,
+                        height: 45,
+                        triggered: false,
+                        fallSpeed: 0,
+                        flavor: ['#ffb6c1', '#90ee90', '#deb887'][Math.floor(Math.random() * 3)]
+                    });
+                    x += 180;
+                }
+                // Cupcake bouncer
+                else if (obstacleType === 10 && difficulty > 6) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 50,
+                        type: 'cupcake',
+                        width: 50,
+                        height: 50
+                    });
+                    x += 180;
+                }
+                // Default chocolate spike
+                else {
+                    obstacles.push({
+                        x: x,
+                        y: floor,
+                        type: 'chocspike',
+                        width: 20,
+                        height: 25
+                    });
+                    x += 150;
+                }
+
+                // Add candies
+                if (Math.random() < 0.5) {
+                    const candyY = Math.random() < 0.5 ? FLOOR2_Y - 50 : FLOOR1_Y - 50;
+                    for (let i = 0; i < 3; i++) {
+                        candies.push({
+                            x: x - 80 + i * 30,
+                            y: candyY - Math.sin(i * 0.5) * 20,
+                            collected: false,
+                            type: ['lemon', 'cherry', 'mint'][Math.floor(Math.random() * 3)],
+                            bobPhase: Math.random() * Math.PI * 2
+                        });
+                    }
+                }
+
+                x += Math.random() * 80;
+            }
+
+            // End flag (giant cookie)
+            obstacles.push({
+                x: levelLength - 100,
+                y: FLOOR1_Y,
+                type: 'giantcookie',
+                width: 60,
+                height: 60
+            });
+        }
+
+        function update() {
+            if (!gameRunning || levelComplete) return;
+
+            const land = lands[currentLand];
+
+            // Movement
+            let inCaramel = false;
+            for (const obs of obstacles) {
+                if (obs.type === 'caramel') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT >= obs.y && player.y + PLAYER_HEIGHT <= obs.y + obs.height + 10) {
+                        inCaramel = true;
+                    }
+                }
+            }
+
+            const moveSpeed = inCaramel ? MOVE_SPEED * 0.4 : MOVE_SPEED;
+
+            if (keys['ArrowLeft']) {
+                player.vx = -moveSpeed;
+                player.facingRight = false;
+            } else if (keys['ArrowRight']) {
+                player.vx = moveSpeed;
+                player.facingRight = true;
+            } else {
+                player.vx *= 0.8;
+            }
+
+            // Jump
+            if (keys['Space'] && player.spaceReleased) {
+                if (player.grounded) {
+                    player.vy = JUMP_FORCE;
+                    player.grounded = false;
+                    player.canDoubleJump = true;
+                    player.spaceReleased = false;
+                    // Cookie crumb particles
+                    for (let i = 0; i < 6; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: Math.random() * -3,
+                            life: 25,
+                            color: '#d2691e'
+                        });
+                    }
+                } else if (player.canDoubleJump) {
+                    player.vy = JUMP_FORCE;
+                    player.canDoubleJump = false;
+                    player.spaceReleased = false;
+                    for (let i = 0; i < 10; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT / 2,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 6,
+                            life: 25,
+                            color: '#f5deb3'
+                        });
+                    }
+                }
+            }
+            if (!keys['Space']) player.spaceReleased = true;
+
+            // Check cupcake bounce
+            for (const obs of obstacles) {
+                if (obs.type === 'cupcake') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT >= obs.y && player.y + PLAYER_HEIGHT <= obs.y + 20 &&
+                        player.vy > 0) {
+                        player.vy = JUMP_FORCE * 1.3;
+                        player.canDoubleJump = true;
+                        for (let i = 0; i < 8; i++) {
+                            particles.push({
+                                x: obs.x + obs.width / 2,
+                                y: obs.y,
+                                vx: (Math.random() - 0.5) * 5,
+                                vy: -Math.random() * 4,
+                                life: 20,
+                                color: '#ff69b4'
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Gravity
+            player.vy += GRAVITY;
+
+            // Move
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Boundaries
+            if (player.x < 0) player.x = 0;
+            if (player.x > levelLength - PLAYER_WIDTH) player.x = levelLength - PLAYER_WIDTH;
+
+            // Floor collision
+            player.grounded = false;
+            if (player.y + PLAYER_HEIGHT >= FLOOR1_Y && player.vy >= 0) {
+                player.y = FLOOR1_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+            if (player.y + PLAYER_HEIGHT >= FLOOR2_Y && player.y + PLAYER_HEIGHT <= FLOOR2_Y + 10 &&
+                player.vy >= 0 && player.y < FLOOR2_Y) {
+                player.y = FLOOR2_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+
+            if (player.y > canvas.height + 50) {
+                loseLife();
+                return;
+            }
+
+            // Camera
+            const targetCameraX = player.x - 200;
+            cameraX += (targetCameraX - cameraX) * 0.1;
+            if (cameraX < 0) cameraX = 0;
+            if (cameraX > levelLength - canvas.width) cameraX = levelLength - canvas.width;
+
+            // Update obstacles
+            for (const obs of obstacles) {
+                if (obs.type === 'donut') {
+                    obs.x = obs.startX + Math.sin(Date.now() * 0.002 * obs.speed) * obs.range;
+                    obs.rotation += 3;
+                }
+                else if (obs.type === 'gummy') {
+                    obs.bouncePhase += 0.06;
+                    obs.y = obs.startY + Math.sin(obs.bouncePhase) * 50;
+                }
+                else if (obs.type === 'lollipop') {
+                    obs.rotation += 2;
+                }
+                else if (obs.type === 'frosting') {
+                    if (!obs.dripping && Math.abs(player.x - obs.x) < 100) {
+                        obs.dripping = true;
+                    }
+                    if (obs.dripping && obs.dripY < FLOOR1_Y) {
+                        obs.dripY += 4;
+                    }
+                }
+                else if (obs.type === 'cocoa') {
+                    obs.bubblePhase += 0.1;
+                }
+                else if (obs.type === 'candycane') {
+                    obs.active = Math.floor((Date.now() + obs.phase) / 1000) % 2 === 0;
+                }
+                else if (obs.type === 'icecream') {
+                    if (!obs.triggered && Math.abs(player.x - obs.x) < 80) {
+                        obs.triggered = true;
+                    }
+                    if (obs.triggered) {
+                        obs.fallSpeed += 0.4;
+                        obs.y += obs.fallSpeed;
+                    }
+                }
+            }
+
+            // Collision detection
+            for (const obs of obstacles) {
+                if (obs.type === 'giantcookie') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT > obs.y - obs.height && player.y < obs.y) {
+                        completeLand();
+                        return;
+                    }
+                    continue;
+                }
+                if (obs.type === 'caramel' || obs.type === 'cupcake') continue;
+
+                let hit = false;
+                const px = player.x + 5;
+                const py = player.y + 5;
+                const pw = PLAYER_WIDTH - 10;
+                const ph = PLAYER_HEIGHT - 10;
+
+                if (obs.type === 'chocspike') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y && py + ph > obs.y - obs.height) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'donut' || obs.type === 'gummy') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'lollipop') {
+                    const cx = obs.x + obs.width / 2;
+                    const cy = obs.y + obs.height / 2;
+                    const dist = Math.sqrt(Math.pow(player.x + PLAYER_WIDTH/2 - cx, 2) +
+                                          Math.pow(player.y + PLAYER_HEIGHT/2 - cy, 2));
+                    if (dist < 35) hit = true;
+                }
+                else if (obs.type === 'frosting' && obs.dripping) {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.dripY + 40 && py + ph > obs.dripY) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'cocoa') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'candycane' && obs.active) {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'icecream') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+
+                if (hit) {
+                    loseLife();
+                    return;
+                }
+            }
+
+            // Collect candies
+            for (const candy of candies) {
+                if (!candy.collected) {
+                    candy.bobPhase += 0.05;
+                    const bobY = candy.y + Math.sin(candy.bobPhase) * 5;
+                    const dist = Math.sqrt(
+                        Math.pow(player.x + PLAYER_WIDTH/2 - candy.x, 2) +
+                        Math.pow(player.y + PLAYER_HEIGHT/2 - bobY, 2)
+                    );
+                    if (dist < 30) {
+                        candy.collected = true;
+                        score += 15;
+                        landScore += 15;
+                        for (let i = 0; i < 8; i++) {
+                            const colors = { lemon: '#fff44f', cherry: '#ff6b6b', mint: '#98fb98' };
+                            particles.push({
+                                x: candy.x,
+                                y: bobY,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                life: 25,
+                                color: colors[candy.type]
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].vy += 0.1;
+                particles[i].life--;
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+            document.getElementById('livesDisplay').textContent = `Lives: ${lives}`;
+        }
+
+        function draw() {
+            const land = lands[currentLand];
+
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, land.bg1);
+            gradient.addColorStop(1, land.bg2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background decorations (floating sprinkles)
+            for (let i = 0; i < 20; i++) {
+                const x = ((i * 100 + Date.now() * 0.02) % (canvas.width + 50)) - 25;
+                const y = 50 + (i * 37) % 300;
+                ctx.fillStyle = ['#ff69b4', '#ffd700', '#87ceeb', '#98fb98'][i % 4];
+                ctx.fillRect(x, y, 8, 3);
+            }
+
+            // Floors (cookie/cake texture)
+            ctx.fillStyle = land.floor;
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 15);
+            ctx.fillStyle = land.accent + '80';
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 4);
+
+            ctx.fillStyle = land.floor;
+            ctx.fillRect(0, FLOOR1_Y, canvas.width, canvas.height - FLOOR1_Y);
+            ctx.fillStyle = land.accent + '80';
+            ctx.fillRect(0, FLOOR1_Y, canvas.width, 5);
+
+            // Chocolate chips on floor
+            ctx.fillStyle = '#3d2314';
+            for (let i = 0; i < 15; i++) {
+                const chipX = ((i * 70) - cameraX * 0.5) % canvas.width;
+                ctx.beginPath();
+                ctx.ellipse(chipX, FLOOR1_Y + 20, 8, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw obstacles
+            for (const obs of obstacles) {
+                const screenX = obs.x - cameraX;
+                if (screenX < -100 || screenX > canvas.width + 100) continue;
+
+                ctx.save();
+
+                if (obs.type === 'chocspike') {
+                    ctx.fillStyle = '#3d2314';
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + obs.width / 2, obs.y - obs.height);
+                    ctx.lineTo(screenX + obs.width, obs.y);
+                    ctx.lineTo(screenX, obs.y);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Chocolate drip
+                    ctx.fillStyle = '#5c3a21';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width / 2, obs.y - obs.height + 5, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'donut') {
+                    ctx.translate(screenX + obs.width/2, obs.y + obs.height/2);
+                    ctx.rotate(obs.rotation * Math.PI / 180);
+                    // Donut body
+                    ctx.fillStyle = '#deb887';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Frosting
+                    ctx.fillStyle = '#ff69b4';
+                    ctx.beginPath();
+                    ctx.arc(0, -5, 22, Math.PI, 0);
+                    ctx.fill();
+                    // Hole
+                    ctx.fillStyle = land.bg1;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Sprinkles
+                    ctx.fillStyle = '#fff';
+                    for (let i = 0; i < 6; i++) {
+                        ctx.fillRect(-15 + i * 6, -12 + (i % 2) * 4, 4, 2);
+                    }
+                }
+                else if (obs.type === 'caramel') {
+                    ctx.fillStyle = '#d2691e';
+                    ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    // Shine
+                    ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+                    ctx.fillRect(screenX + 10, obs.y + 2, obs.width - 20, 4);
+                }
+                else if (obs.type === 'gummy') {
+                    ctx.fillStyle = obs.color;
+                    // Body
+                    ctx.beginPath();
+                    ctx.ellipse(screenX + obs.width/2, obs.y + obs.height - 15, 15, 20, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + 12, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Ears
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2 - 10, obs.y + 5, 5, 0, Math.PI * 2);
+                    ctx.arc(screenX + obs.width/2 + 10, obs.y + 5, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Eyes
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2 - 4, obs.y + 10, 3, 0, Math.PI * 2);
+                    ctx.arc(screenX + obs.width/2 + 4, obs.y + 10, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'lollipop') {
+                    // Stick
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(screenX + obs.width/2 - 3, obs.y + obs.height/2, 6, 50);
+                    // Candy
+                    ctx.translate(screenX + obs.width/2, obs.y + obs.height/2);
+                    ctx.rotate(obs.rotation * Math.PI / 180);
+                    // Spiral
+                    for (let i = 0; i < 6; i++) {
+                        ctx.fillStyle = i % 2 === 0 ? '#ff1493' : '#fff';
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.arc(0, 0, 28, (i / 6) * Math.PI * 2, ((i + 1) / 6) * Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                else if (obs.type === 'frosting') {
+                    // Dispenser
+                    ctx.fillStyle = '#ff69b4';
+                    ctx.fillRect(screenX, obs.y, obs.width, 30);
+                    // Drip
+                    if (obs.dripping) {
+                        ctx.fillStyle = '#ffb6c1';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX + 10, obs.y + 30);
+                        ctx.lineTo(screenX + obs.width - 10, obs.y + 30);
+                        ctx.lineTo(screenX + obs.width/2, obs.dripY + 20);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                }
+                else if (obs.type === 'cocoa') {
+                    ctx.fillStyle = '#3d2314';
+                    ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    // Bubbles
+                    ctx.fillStyle = '#5c3a21';
+                    for (let i = 0; i < 4; i++) {
+                        const bubbleY = obs.y + Math.sin(obs.bubblePhase + i) * 5;
+                        ctx.beginPath();
+                        ctx.arc(screenX + 15 + i * 18, bubbleY, 6, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    // Steam
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 3; i++) {
+                        const steamX = screenX + 20 + i * 20;
+                        const steamWave = Math.sin(Date.now() * 0.005 + i) * 5;
+                        ctx.beginPath();
+                        ctx.moveTo(steamX, obs.y);
+                        ctx.quadraticCurveTo(steamX + steamWave, obs.y - 15, steamX, obs.y - 30);
+                        ctx.stroke();
+                    }
+                }
+                else if (obs.type === 'candycane') {
+                    if (obs.active) {
+                        // Stripes
+                        for (let i = 0; i < 8; i++) {
+                            ctx.fillStyle = i % 2 === 0 ? '#ff0000' : '#fff';
+                            ctx.fillRect(screenX, obs.y + i * 10, obs.width, 10);
+                        }
+                    } else {
+                        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                        ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    }
+                }
+                else if (obs.type === 'icecream') {
+                    // Scoop
+                    ctx.fillStyle = obs.flavor;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, 22, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Drips
+                    ctx.beginPath();
+                    ctx.ellipse(screenX + obs.width/2 - 10, obs.y + obs.height/2 + 15, 5, 8, 0, 0, Math.PI * 2);
+                    ctx.ellipse(screenX + obs.width/2 + 8, obs.y + obs.height/2 + 12, 4, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'cupcake') {
+                    // Wrapper
+                    ctx.fillStyle = '#ff69b4';
+                    ctx.beginPath();
+                    ctx.moveTo(screenX, obs.y + obs.height);
+                    ctx.lineTo(screenX + 10, obs.y + 25);
+                    ctx.lineTo(screenX + obs.width - 10, obs.y + 25);
+                    ctx.lineTo(screenX + obs.width, obs.y + obs.height);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Frosting swirl
+                    ctx.fillStyle = '#ffb6c1';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + 20, 20, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + 10, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Cherry
+                    ctx.fillStyle = '#dc143c';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + 5, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'giantcookie') {
+                    // Cookie
+                    ctx.fillStyle = '#d2691e';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y - obs.height/2, 30, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Chocolate chips
+                    ctx.fillStyle = '#3d2314';
+                    const chipPositions = [[-10, -10], [8, -5], [-5, 10], [12, 8], [-12, 3]];
+                    for (const [cx, cy] of chipPositions) {
+                        ctx.beginPath();
+                        ctx.arc(screenX + obs.width/2 + cx, obs.y - obs.height/2 + cy, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    // Star
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = '20px Arial';
+                    ctx.fillText('★', screenX + obs.width/2 - 10, obs.y - obs.height/2 + 7);
+                }
+
+                ctx.restore();
+            }
+
+            // Draw candies
+            for (const candy of candies) {
+                if (candy.collected) continue;
+                const screenX = candy.x - cameraX;
+                if (screenX < -20 || screenX > canvas.width + 20) continue;
+
+                const bobY = candy.y + Math.sin(candy.bobPhase) * 5;
+                const colors = { lemon: '#fff44f', cherry: '#ff6b6b', mint: '#98fb98' };
+
+                ctx.fillStyle = colors[candy.type];
+                ctx.beginPath();
+                ctx.arc(screenX, bobY, 10, 0, Math.PI * 2);
+                ctx.fill();
+                // Wrapper twist
+                ctx.fillStyle = colors[candy.type];
+                ctx.beginPath();
+                ctx.moveTo(screenX - 15, bobY - 3);
+                ctx.lineTo(screenX - 10, bobY);
+                ctx.lineTo(screenX - 15, bobY + 3);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(screenX + 15, bobY - 3);
+                ctx.lineTo(screenX + 10, bobY);
+                ctx.lineTo(screenX + 15, bobY + 3);
+                ctx.fill();
+                // Shine
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.beginPath();
+                ctx.arc(screenX - 3, bobY - 3, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                const screenX = p.x - cameraX;
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 25;
+                ctx.beginPath();
+                ctx.arc(screenX, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player (Cookie Box)
+            const playerScreenX = player.x - cameraX;
+            ctx.save();
+            ctx.translate(playerScreenX + PLAYER_WIDTH/2, player.y + PLAYER_HEIGHT/2);
+            if (!player.facingRight) ctx.scale(-1, 1);
+
+            // Box body
+            ctx.fillStyle = '#deb887';
+            ctx.fillRect(-PLAYER_WIDTH/2, -PLAYER_HEIGHT/2, PLAYER_WIDTH, PLAYER_HEIGHT);
+
+            // Box outline
+            ctx.strokeStyle = '#8b4513';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-PLAYER_WIDTH/2, -PLAYER_HEIGHT/2, PLAYER_WIDTH, PLAYER_HEIGHT);
+
+            // Cookie pattern on box
+            ctx.fillStyle = '#d2691e';
+            ctx.beginPath();
+            ctx.arc(-8, -5, 8, 0, Math.PI * 2);
+            ctx.arc(10, 0, 7, 0, Math.PI * 2);
+            ctx.arc(-5, 10, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Chocolate chips on cookies
+            ctx.fillStyle = '#3d2314';
+            ctx.beginPath();
+            ctx.arc(-10, -7, 2, 0, Math.PI * 2);
+            ctx.arc(-5, -3, 2, 0, Math.PI * 2);
+            ctx.arc(8, -2, 2, 0, Math.PI * 2);
+            ctx.arc(12, 3, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Face on box
+            ctx.fillStyle = '#000';
+            // Eyes
+            ctx.beginPath();
+            ctx.arc(-10, -12, 4, 0, Math.PI * 2);
+            ctx.arc(6, -12, 4, 0, Math.PI * 2);
+            ctx.fill();
+            // Happy mouth
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(-2, -5, 8, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+
+            ctx.restore();
+
+            // Progress bar
+            const progress = player.x / levelLength;
+            ctx.fillStyle = '#3d2524';
+            ctx.fillRect(canvas.width - 210, 10, 200, 15);
+            ctx.fillStyle = '#ff9a9e';
+            ctx.fillRect(canvas.width - 210, 10, 200 * progress, 15);
+            ctx.strokeStyle = '#ffecd2';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width - 210, 10, 200, 15);
+        }
+
+        function loseLife() {
+            lives--;
+            for (let i = 0; i < 25; i++) {
+                particles.push({
+                    x: player.x + PLAYER_WIDTH/2,
+                    y: player.y + PLAYER_HEIGHT/2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 35,
+                    color: '#d2691e'
+                });
+            }
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                initPlayer();
+                cameraX = 0;
+            }
+        }
+
+        function completeLand() {
+            levelComplete = true;
+            gameRunning = false;
+            completedLands[currentLand] = true;
+            score += 150 * (currentLand + 1);
+            const stars = lives === 3 ? '⭐⭐⭐' : lives === 2 ? '⭐⭐☆' : '⭐☆☆';
+            document.getElementById('completedLand').textContent = lands[currentLand].name;
+            document.getElementById('starsEarned').textContent = stars;
+            document.getElementById('landScore').textContent = `Land Score: ${landScore + 150 * (currentLand + 1)}`;
+            document.getElementById('levelComplete').style.display = 'flex';
+            updateLandProgress();
+        }
+
+        function nextLand() {
+            document.getElementById('levelComplete').style.display = 'none';
+            currentLand++;
+            if (currentLand >= lands.length) {
+                winGame();
+                return;
+            }
+            document.getElementById('landDisplay').textContent = `Land ${currentLand + 1}: ${lands[currentLand].name}`;
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function winGame() {
+            gameRunning = false;
+            document.getElementById('totalScore').textContent = `Total Score: ${score}`;
+            document.getElementById('winScreen').style.display = 'flex';
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            currentLand = 0;
+            score = 0;
+            lives = 3;
+            completedLands = [];
+            document.getElementById('landDisplay').textContent = `Land ${currentLand + 1}: ${lands[currentLand].name}`;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+            startMusic();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+        }
+
+        function backToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+            updateLandProgress();
+        }
+
+        function updateLandProgress() {
+            const container = document.getElementById('landProgress');
+            container.innerHTML = '';
+            for (let i = 0; i < lands.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'land-dot';
+                if (completedLands[i]) dot.classList.add('completed');
+                if (i === currentLand && gameRunning) dot.classList.add('current');
+                dot.title = lands[i].name;
+                container.appendChild(dot);
+            }
+        }
+
+        // Music System - Sweet Cheerful Music
+        let audioCtx = null;
+        let musicPlaying = false;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function startMusic() {
+            if (musicPlaying) return;
+            initAudio();
+            musicPlaying = true;
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.25;
+            masterGain.connect(audioCtx.destination);
+
+            // Sweet happy melody
+            const melodyNotes = [392, 440, 494, 523, 587, 523, 494, 440, 392, 440, 494, 587, 659, 587, 523, 494];
+            const bassNotes = [196, 196, 220, 220, 247, 247, 262, 262];
+            let melodyIndex = 0;
+            let bassIndex = 0;
+
+            function playMelody() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = melodyNotes[melodyIndex % melodyNotes.length];
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+                melodyIndex++;
+                setTimeout(playMelody, 200);
+            }
+
+            function playBass() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = bassNotes[bassIndex % bassNotes.length];
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+                bassIndex++;
+                setTimeout(playBass, 400);
+            }
+
+            function playChime() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 1047 + Math.random() * 500;
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+                setTimeout(playChime, 600 + Math.random() * 400);
+            }
+
+            playMelody();
+            setTimeout(playBass, 100);
+            setTimeout(playChime, 300);
+        }
+
+        function stopMusic() {
+            musicPlaying = false;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        updateLandProgress();
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cool Jumper 6">
+    <title>Cool Jumper 6: Chess Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1008 0%, #2a1a0a 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(218, 165, 32, 0.4);
+            touch-action: none;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #startScreen, #levelComplete, #gameOver, #winScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(20, 12, 5, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #daa520, #fff8dc, #daa520);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: chessGlow 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes chessGlow {
+            from { filter: drop-shadow(0 0 5px #daa520) drop-shadow(0 0 10px #8b6914); }
+            to { filter: drop-shadow(0 0 20px #daa520) drop-shadow(0 0 30px #fff8dc); }
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 15px;
+            color: #daa520;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #c4a35a;
+        }
+        .feature {
+            color: #fff8dc;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        .land-name {
+            font-size: 28px;
+            color: #daa520;
+            margin: 15px 0;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #daa520, #8b6914);
+            color: #fff;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(218, 165, 32, 0.5);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #8b7355;
+        }
+        .controls p {
+            margin: 5px 0;
+        }
+        .stars {
+            font-size: 40px;
+            margin: 15px 0;
+        }
+        #landProgress {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .land-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2a1a0a;
+            border: 2px solid #5a3a1a;
+        }
+        .land-dot.completed {
+            background: #daa520;
+            border-color: #daa520;
+            box-shadow: 0 0 10px #daa520;
+        }
+        .land-dot.current {
+            background: #fff8dc;
+            border-color: #fff8dc;
+            box-shadow: 0 0 10px #fff8dc;
+        }
+        #dashMeter {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 12px;
+            background: #2a1a0a;
+            border-radius: 6px;
+            overflow: hidden;
+            pointer-events: none;
+            border: 2px solid #daa520;
+        }
+        #dashFill {
+            height: 100%;
+            background: linear-gradient(90deg, #fff8dc, #daa520);
+            width: 100%;
+            transition: width 0.05s;
+        }
+        #dashLabel {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #daa520;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #joystickArea {
+            position: absolute;
+            left: 30px;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(218, 165, 32, 0.5);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(218, 165, 32, 0.6);
+            border: 2px solid rgba(255, 248, 220, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        .touchBtn {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(218, 165, 32, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #jumpBtn {
+            right: 30px;
+            bottom: 100px;
+        }
+        #dashBtn {
+            right: 120px;
+            bottom: 40px;
+        }
+        .touchBtn:active, .touchBtn.active {
+            background: rgba(218, 165, 32, 0.6);
+            border-color: rgba(255, 248, 220, 0.8);
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="500"></canvas>
+        <div id="ui">
+            <span id="landDisplay">Board 1: Pawn's Opening</span>
+            <span id="scoreDisplay">Score: 0</span>
+            <span id="livesDisplay">Lives: 3</span>
+        </div>
+        <div id="dashLabel">KNIGHT CHARGE</div>
+        <div id="dashMeter">
+            <div id="dashFill"></div>
+        </div>
+
+        <div id="startScreen">
+            <h1>Cool Jumper 6</h1>
+            <p class="feature">CHESS EDITION!</p>
+            <p>You are the White Knight!</p>
+            <p>Dodge enemy black pieces!</p>
+            <p>10 boards to checkmate!</p>
+            <div class="controls">
+                <p>Arrow Keys - Move | Space - Jump | Shift - KNIGHT CHARGE</p>
+                <p>Knight Charge dashes through enemies!</p>
+                <p>Touch: Joystick + Jump & Charge buttons</p>
+            </div>
+            <button onclick="startGame()">Start Match</button>
+            <div id="landProgress"></div>
+        </div>
+
+        <div id="levelComplete" style="display: none;">
+            <h2>Board Cleared!</h2>
+            <div class="land-name" id="completedLand"></div>
+            <div class="stars" id="starsEarned"></div>
+            <p id="landScore"></p>
+            <button onclick="nextLand()">Next Board</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>CHECKMATE!</h2>
+            <p id="finalScore"></p>
+            <button onclick="restartGame()">Rematch</button>
+            <button onclick="backToMenu()">Main Menu</button>
+        </div>
+
+        <div id="winScreen" style="display: none;">
+            <h1>GRANDMASTER!</h1>
+            <p>You conquered every board!</p>
+            <p id="totalScore"></p>
+            <div class="stars">&#x265A;&#x265B;&#x265C;</div>
+            <button onclick="backToMenu()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
+        </div>
+        <div id="jumpBtn" class="touchBtn">JUMP</div>
+        <div id="dashBtn" class="touchBtn">CHARGE</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Chess board themes
+        const lands = [
+            { name: "Pawn's Opening", bg1: '#1a1410', bg2: '#0f0c08', light: '#f0d9b5', dark: '#b58863', accent: '#daa520', pieceColor: '#222' },
+            { name: "Knight's Gambit", bg1: '#0a1018', bg2: '#050810', light: '#c8d8e8', dark: '#5a7a9a', accent: '#88bbff', pieceColor: '#1a1a2a' },
+            { name: "Bishop's Diagonal", bg1: '#18100a', bg2: '#0c0805', light: '#e8d8c0', dark: '#9a7a5a', accent: '#cc8833', pieceColor: '#2a1a0a' },
+            { name: "Rook's Castle", bg1: '#101018', bg2: '#080810', light: '#d0d0e0', dark: '#6a6a8a', accent: '#aaaacc', pieceColor: '#1a1a22' },
+            { name: "Queen's Domain", bg1: '#180a18', bg2: '#0c050c', light: '#e8c8e8', dark: '#8a5a8a', accent: '#cc66cc', pieceColor: '#2a0a2a' },
+            { name: "King's Defense", bg1: '#181808', bg2: '#0c0c04', light: '#e8e8c0', dark: '#8a8a5a', accent: '#cccc44', pieceColor: '#22220a' },
+            { name: "Sicilian Board", bg1: '#180a0a', bg2: '#0c0505', light: '#e8c8c8', dark: '#8a5a5a', accent: '#cc6666', pieceColor: '#2a0a0a' },
+            { name: "French Defense", bg1: '#0a0a18', bg2: '#050510', light: '#c8c8e8', dark: '#5a5a8a', accent: '#8888ff', pieceColor: '#0a0a2a' },
+            { name: "Endgame Rush", bg1: '#0a180a', bg2: '#050c05', light: '#c8e8c8', dark: '#5a8a5a', accent: '#66cc66', pieceColor: '#0a2a0a' },
+            { name: "Final Checkmate", bg1: '#080808', bg2: '#040404', light: '#e0e0e0', dark: '#444444', accent: '#ffffff', pieceColor: '#000000' }
+        ];
+
+        // Game constants
+        const FLOOR1_Y = 350;
+        const FLOOR2_Y = 180;
+        const PLAYER_WIDTH = 38;
+        const PLAYER_HEIGHT = 48;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 5;
+        const DASH_SPEED = 15;
+        const DASH_DURATION = 15;
+        const DASH_COOLDOWN = 60;
+
+        // Game state
+        let player = {};
+        let obstacles = [];
+        let coins = [];
+        let particles = [];
+        let currentLand = 0;
+        let score = 0;
+        let lives = 3;
+        let landScore = 0;
+        let dashEnergy = 100;
+        let gameRunning = false;
+        let levelComplete = false;
+        let cameraX = 0;
+        let levelLength = 3000;
+        let completedLands = [];
+        let frameCount = 0;
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') e.preventDefault();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Touch controls
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
+        const jumpBtn = document.getElementById('jumpBtn');
+        const dashBtn = document.getElementById('dashBtn');
+
+        let joystickTouchId = null;
+        const joystickRadius = 60;
+        const knobRadius = 25;
+        const maxKnobDistance = joystickRadius - knobRadius;
+
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    updateJoystick(e.changedTouches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', () => resetJoystick(), { passive: false });
+
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            const normalizedX = dx / maxKnobDistance;
+            const deadzone = 0.3;
+            keys['ArrowLeft'] = normalizedX < -deadzone;
+            keys['ArrowRight'] = normalizedX > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+        }
+
+        let jumpTouchId = null;
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (jumpTouchId !== null) return;
+            jumpTouchId = e.changedTouches[0].identifier;
+            jumpBtn.classList.add('active');
+            keys['Space'] = true;
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === jumpTouchId) {
+                    jumpTouchId = null;
+                    jumpBtn.classList.remove('active');
+                    keys['Space'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchcancel', () => {
+            jumpTouchId = null;
+            jumpBtn.classList.remove('active');
+            keys['Space'] = false;
+        }, { passive: false });
+
+        let dashTouchId = null;
+        dashBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (dashTouchId !== null) return;
+            dashTouchId = e.changedTouches[0].identifier;
+            dashBtn.classList.add('active');
+            keys['ShiftLeft'] = true;
+        }, { passive: false });
+
+        dashBtn.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === dashTouchId) {
+                    dashTouchId = null;
+                    dashBtn.classList.remove('active');
+                    keys['ShiftLeft'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        dashBtn.addEventListener('touchcancel', () => {
+            dashTouchId = null;
+            dashBtn.classList.remove('active');
+            keys['ShiftLeft'] = false;
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+        // Draw chess piece shapes
+        function drawPawn(cx, cy, size, color) {
+            ctx.fillStyle = color;
+            // Base
+            ctx.fillRect(cx - size * 0.4, cy + size * 0.3, size * 0.8, size * 0.2);
+            // Body
+            ctx.beginPath();
+            ctx.moveTo(cx - size * 0.3, cy + size * 0.3);
+            ctx.lineTo(cx - size * 0.15, cy - size * 0.1);
+            ctx.lineTo(cx + size * 0.15, cy - size * 0.1);
+            ctx.lineTo(cx + size * 0.3, cy + size * 0.3);
+            ctx.fill();
+            // Head
+            ctx.beginPath();
+            ctx.arc(cx, cy - size * 0.25, size * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawRook(cx, cy, size, color) {
+            ctx.fillStyle = color;
+            // Base
+            ctx.fillRect(cx - size * 0.4, cy + size * 0.3, size * 0.8, size * 0.2);
+            // Body
+            ctx.fillRect(cx - size * 0.25, cy - size * 0.2, size * 0.5, size * 0.5);
+            // Battlements
+            ctx.fillRect(cx - size * 0.35, cy - size * 0.4, size * 0.15, size * 0.2);
+            ctx.fillRect(cx - size * 0.08, cy - size * 0.4, size * 0.16, size * 0.2);
+            ctx.fillRect(cx + size * 0.2, cy - size * 0.4, size * 0.15, size * 0.2);
+        }
+
+        function drawBishop(cx, cy, size, color) {
+            ctx.fillStyle = color;
+            // Base
+            ctx.fillRect(cx - size * 0.35, cy + size * 0.3, size * 0.7, size * 0.2);
+            // Body
+            ctx.beginPath();
+            ctx.moveTo(cx - size * 0.25, cy + size * 0.3);
+            ctx.lineTo(cx - size * 0.1, cy - size * 0.2);
+            ctx.lineTo(cx + size * 0.1, cy - size * 0.2);
+            ctx.lineTo(cx + size * 0.25, cy + size * 0.3);
+            ctx.fill();
+            // Top
+            ctx.beginPath();
+            ctx.arc(cx, cy - size * 0.25, size * 0.13, 0, Math.PI * 2);
+            ctx.fill();
+            // Point
+            ctx.beginPath();
+            ctx.moveTo(cx - size * 0.05, cy - size * 0.35);
+            ctx.lineTo(cx, cy - size * 0.5);
+            ctx.lineTo(cx + size * 0.05, cy - size * 0.35);
+            ctx.fill();
+        }
+
+        function drawQueen(cx, cy, size, color) {
+            ctx.fillStyle = color;
+            // Base
+            ctx.fillRect(cx - size * 0.4, cy + size * 0.3, size * 0.8, size * 0.2);
+            // Body
+            ctx.beginPath();
+            ctx.moveTo(cx - size * 0.3, cy + size * 0.3);
+            ctx.lineTo(cx - size * 0.2, cy - size * 0.15);
+            ctx.lineTo(cx + size * 0.2, cy - size * 0.15);
+            ctx.lineTo(cx + size * 0.3, cy + size * 0.3);
+            ctx.fill();
+            // Crown points
+            const points = 5;
+            for (let i = 0; i < points; i++) {
+                const px = cx - size * 0.3 + (i / (points - 1)) * size * 0.6;
+                ctx.beginPath();
+                ctx.moveTo(px - size * 0.05, cy - size * 0.15);
+                ctx.lineTo(px, cy - size * 0.45);
+                ctx.lineTo(px + size * 0.05, cy - size * 0.15);
+                ctx.fill();
+                // Crown jewels
+                ctx.fillStyle = '#daa520';
+                ctx.beginPath();
+                ctx.arc(px, cy - size * 0.45, size * 0.04, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = color;
+            }
+        }
+
+        function drawKing(cx, cy, size, color) {
+            ctx.fillStyle = color;
+            // Base
+            ctx.fillRect(cx - size * 0.4, cy + size * 0.3, size * 0.8, size * 0.2);
+            // Body
+            ctx.beginPath();
+            ctx.moveTo(cx - size * 0.3, cy + size * 0.3);
+            ctx.lineTo(cx - size * 0.2, cy - size * 0.1);
+            ctx.lineTo(cx + size * 0.2, cy - size * 0.1);
+            ctx.lineTo(cx + size * 0.3, cy + size * 0.3);
+            ctx.fill();
+            // Crown
+            ctx.fillRect(cx - size * 0.25, cy - size * 0.2, size * 0.5, size * 0.1);
+            // Cross
+            ctx.fillRect(cx - size * 0.04, cy - size * 0.5, size * 0.08, size * 0.3);
+            ctx.fillRect(cx - size * 0.12, cy - size * 0.42, size * 0.24, size * 0.08);
+        }
+
+        function drawKnight(cx, cy, size, color, facingRight) {
+            ctx.fillStyle = color;
+            // Base
+            ctx.fillRect(cx - size * 0.35, cy + size * 0.3, size * 0.7, size * 0.2);
+            // Body
+            ctx.fillRect(cx - size * 0.2, cy, size * 0.4, size * 0.3);
+            // Neck
+            const dir = facingRight ? 1 : -1;
+            ctx.beginPath();
+            ctx.moveTo(cx - size * 0.15, cy);
+            ctx.lineTo(cx - size * 0.1, cy - size * 0.3);
+            ctx.lineTo(cx + size * 0.15, cy - size * 0.35);
+            ctx.lineTo(cx + size * 0.2, cy);
+            ctx.fill();
+            // Head
+            ctx.beginPath();
+            ctx.moveTo(cx + dir * size * 0.15, cy - size * 0.35);
+            ctx.lineTo(cx + dir * size * 0.35, cy - size * 0.3);
+            ctx.lineTo(cx + dir * size * 0.35, cy - size * 0.15);
+            ctx.lineTo(cx + dir * size * 0.15, cy - size * 0.15);
+            ctx.fill();
+            // Ear
+            ctx.beginPath();
+            ctx.moveTo(cx + dir * size * 0.05, cy - size * 0.35);
+            ctx.lineTo(cx + dir * size * 0.1, cy - size * 0.5);
+            ctx.lineTo(cx + dir * size * 0.18, cy - size * 0.35);
+            ctx.fill();
+            // Eye
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(cx + dir * size * 0.25, cy - size * 0.27, size * 0.04, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(cx + dir * size * 0.26, cy - size * 0.27, size * 0.02, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function initPlayer() {
+            player = {
+                x: 100,
+                y: FLOOR1_Y - PLAYER_HEIGHT,
+                vx: 0,
+                vy: 0,
+                grounded: true,
+                facingRight: true,
+                canDoubleJump: true,
+                spaceReleased: true,
+                dashing: false,
+                dashTimer: 0,
+                dashCooldown: 0,
+                dashInvincible: false,
+                shiftReleased: true,
+                runFrame: 0
+            };
+            dashEnergy = 100;
+        }
+
+        function generateLand(landNum) {
+            obstacles = [];
+            coins = [];
+            particles = [];
+            cameraX = 0;
+            landScore = 0;
+            levelComplete = false;
+            dashEnergy = 100;
+
+            const difficulty = landNum + 1;
+            levelLength = 2800 + landNum * 350;
+
+            let x = 400;
+
+            while (x < levelLength - 300) {
+                const obstacleType = Math.floor(Math.random() * 12);
+                const floor = Math.random() < 0.4 ? FLOOR2_Y : FLOOR1_Y;
+
+                // Pawn obstacles (static)
+                if (obstacleType < 2) {
+                    const count = 1 + Math.floor(Math.random() * difficulty / 3);
+                    for (let i = 0; i < count; i++) {
+                        obstacles.push({
+                            x: x + i * 35,
+                            y: floor,
+                            type: 'pawn',
+                            width: 28,
+                            height: 35
+                        });
+                    }
+                    x += count * 35 + 140;
+                }
+                // Rook (moves horizontally)
+                else if (obstacleType === 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 50,
+                        type: 'rook',
+                        width: 45,
+                        height: 50,
+                        startX: x,
+                        range: 80 + Math.random() * 60,
+                        speed: 1.5 + difficulty * 0.2
+                    });
+                    x += 220;
+                }
+                // Bishop (moves diagonally)
+                else if (obstacleType === 3 && difficulty > 1) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 60,
+                        type: 'bishop',
+                        width: 35,
+                        height: 50,
+                        startX: x,
+                        startY: floor - 60,
+                        range: 80,
+                        speed: 2 + difficulty * 0.15,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                    x += 200;
+                }
+                // Knight (jumps around)
+                else if (obstacleType === 4 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 50,
+                        type: 'enemy_knight',
+                        width: 40,
+                        height: 50,
+                        startX: x,
+                        startY: floor - 50,
+                        range: 100,
+                        speed: 2 + difficulty * 0.3,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                    x += 220;
+                }
+                // Queen (chases horizontally, fast)
+                else if (obstacleType === 5 && difficulty > 3) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 55,
+                        type: 'queen',
+                        width: 45,
+                        height: 55,
+                        startX: x,
+                        range: 120 + difficulty * 10,
+                        speed: 2.5 + difficulty * 0.25,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                    x += 280;
+                }
+                // King (slow but has danger zone around it)
+                else if (obstacleType === 6 && difficulty > 4) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 55,
+                        type: 'king',
+                        width: 45,
+                        height: 55,
+                        startX: x,
+                        range: 40,
+                        speed: 0.8,
+                        dangerRadius: 60 + difficulty * 5
+                    });
+                    x += 200;
+                }
+                // Falling pawn (drops from above)
+                else if (obstacleType === 7 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: 20,
+                        type: 'falling_pawn',
+                        width: 28,
+                        height: 35,
+                        phase: Math.random() * 2000
+                    });
+                    x += 170;
+                }
+                // Chess clock trap (timed danger zone)
+                else if (obstacleType === 8 && difficulty > 5) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 80,
+                        type: 'clock',
+                        width: 40,
+                        height: 80,
+                        active: true,
+                        phase: Math.random() * 1500
+                    });
+                    x += 180;
+                }
+                // Checkered pit (slows player)
+                else if (obstacleType === 9 && difficulty > 3) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 5,
+                        type: 'check_pit',
+                        width: 100,
+                        height: 10
+                    });
+                    x += 200;
+                }
+                // Spinning bishop pair
+                else if (obstacleType === 10 && difficulty > 6) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 70,
+                        type: 'bishop_pair',
+                        width: 40,
+                        height: 40,
+                        rotation: 0,
+                        orbitRadius: 50
+                    });
+                    x += 200;
+                }
+                // Default pawn
+                else {
+                    obstacles.push({
+                        x: x,
+                        y: floor,
+                        type: 'pawn',
+                        width: 28,
+                        height: 35
+                    });
+                    x += 150;
+                }
+
+                // Crown coins to collect
+                if (Math.random() < 0.45) {
+                    const coinY = Math.random() < 0.5 ? FLOOR2_Y - 50 : FLOOR1_Y - 50;
+                    for (let i = 0; i < 3; i++) {
+                        coins.push({
+                            x: x - 80 + i * 30,
+                            y: coinY - Math.sin(i * 0.5) * 20,
+                            collected: false,
+                            phase: Math.random() * Math.PI * 2
+                        });
+                    }
+                }
+
+                x += Math.random() * 80;
+            }
+
+            // End goal - checkmate square
+            obstacles.push({
+                x: levelLength - 100,
+                y: FLOOR1_Y,
+                type: 'checkmate',
+                width: 60,
+                height: 100
+            });
+        }
+
+        function update() {
+            if (!gameRunning || levelComplete) return;
+            frameCount++;
+
+            const land = lands[currentLand];
+
+            // Dash mechanics
+            if (player.dashCooldown > 0) player.dashCooldown--;
+
+            if ((keys['ShiftLeft'] || keys['ShiftRight']) && player.shiftReleased && dashEnergy >= 30 && player.dashCooldown <= 0 && !player.dashing) {
+                player.dashing = true;
+                player.dashTimer = DASH_DURATION;
+                player.dashInvincible = true;
+                player.shiftReleased = false;
+                dashEnergy -= 30;
+                for (let i = 0; i < 15; i++) {
+                    particles.push({
+                        x: player.x + PLAYER_WIDTH / 2,
+                        y: player.y + PLAYER_HEIGHT / 2,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8,
+                        life: 20,
+                        color: '#daa520'
+                    });
+                }
+            }
+            if (!keys['ShiftLeft'] && !keys['ShiftRight']) player.shiftReleased = true;
+
+            if (player.dashing) {
+                player.dashTimer--;
+                if (player.dashTimer <= 0) {
+                    player.dashing = false;
+                    player.dashInvincible = false;
+                    player.dashCooldown = DASH_COOLDOWN;
+                }
+            }
+
+            if (!player.dashing) {
+                dashEnergy += 0.25;
+                if (dashEnergy > 100) dashEnergy = 100;
+            }
+
+            document.getElementById('dashFill').style.width = dashEnergy + '%';
+
+            const currentSpeed = player.dashing ? DASH_SPEED : MOVE_SPEED;
+            let inCheckPit = false;
+
+            for (const obs of obstacles) {
+                if (obs.type === 'check_pit') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT > obs.y && player.y + PLAYER_HEIGHT < obs.y + 20) {
+                        if (!player.dashing) inCheckPit = true;
+                    }
+                }
+            }
+
+            const speedMultiplier = inCheckPit ? 0.4 : 1;
+
+            if (keys['ArrowLeft']) {
+                player.vx = -currentSpeed * speedMultiplier;
+                player.facingRight = false;
+            } else if (keys['ArrowRight']) {
+                player.vx = currentSpeed * speedMultiplier;
+                player.facingRight = true;
+            } else {
+                player.vx *= 0.8;
+            }
+
+            if (Math.abs(player.vx) > 1 && player.grounded) {
+                player.runFrame += 0.2;
+            }
+
+            if (keys['Space'] && player.spaceReleased) {
+                if (player.grounded) {
+                    player.vy = JUMP_FORCE;
+                    player.grounded = false;
+                    player.canDoubleJump = true;
+                    player.spaceReleased = false;
+                    for (let i = 0; i < 8; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: Math.random() * -2,
+                            life: 20,
+                            color: land.accent
+                        });
+                    }
+                } else if (player.canDoubleJump) {
+                    player.vy = JUMP_FORCE;
+                    player.canDoubleJump = false;
+                    player.spaceReleased = false;
+                    for (let i = 0; i < 12; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT / 2,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 6,
+                            life: 25,
+                            color: '#daa520'
+                        });
+                    }
+                }
+            }
+            if (!keys['Space']) player.spaceReleased = true;
+
+            player.vy += GRAVITY;
+            player.x += player.vx;
+            player.y += player.vy;
+
+            if (player.x < 0) player.x = 0;
+            if (player.x > levelLength - PLAYER_WIDTH) player.x = levelLength - PLAYER_WIDTH;
+
+            player.grounded = false;
+            if (player.y + PLAYER_HEIGHT >= FLOOR1_Y && player.vy >= 0) {
+                player.y = FLOOR1_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+            if (player.y + PLAYER_HEIGHT >= FLOOR2_Y && player.y + PLAYER_HEIGHT <= FLOOR2_Y + 10 &&
+                player.vy >= 0 && player.y < FLOOR2_Y) {
+                player.y = FLOOR2_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+
+            if (player.y > canvas.height + 50) {
+                loseLife();
+                return;
+            }
+
+            const targetCameraX = player.x - 200;
+            cameraX += (targetCameraX - cameraX) * 0.1;
+            if (cameraX < 0) cameraX = 0;
+            if (cameraX > levelLength - canvas.width) cameraX = levelLength - canvas.width;
+
+            // Update obstacles
+            for (const obs of obstacles) {
+                if (obs.type === 'rook') {
+                    obs.x = obs.startX + Math.sin(Date.now() * 0.002 * obs.speed) * obs.range;
+                }
+                else if (obs.type === 'bishop') {
+                    obs.phase += 0.03 * obs.speed;
+                    obs.x = obs.startX + Math.sin(obs.phase) * obs.range;
+                    obs.y = obs.startY + Math.cos(obs.phase) * 40;
+                }
+                else if (obs.type === 'enemy_knight') {
+                    obs.phase += 0.025 * obs.speed;
+                    // L-shaped movement
+                    const step = Math.floor(obs.phase % 4);
+                    if (step < 2) {
+                        obs.x = obs.startX + Math.sin(obs.phase * 1.5) * obs.range;
+                    } else {
+                        obs.y = obs.startY + Math.sin(obs.phase * 2) * 50;
+                    }
+                }
+                else if (obs.type === 'queen') {
+                    obs.phase += 0.03 * obs.speed;
+                    obs.x = obs.startX + Math.sin(obs.phase) * obs.range;
+                }
+                else if (obs.type === 'king') {
+                    obs.x = obs.startX + Math.sin(Date.now() * 0.001 * obs.speed) * obs.range;
+                }
+                else if (obs.type === 'falling_pawn') {
+                    const phase = (Date.now() + obs.phase) % 2500;
+                    if (phase < 600) {
+                        obs.currentY = 20 + (phase / 600) * (FLOOR1_Y - 55);
+                    } else if (phase < 800) {
+                        obs.currentY = FLOOR1_Y - 35;
+                    } else {
+                        obs.currentY = 20 + Math.max(0, (1 - (phase - 800) / 600)) * (FLOOR1_Y - 55);
+                    }
+                }
+                else if (obs.type === 'clock') {
+                    obs.active = Math.floor((Date.now() + obs.phase) / 1000) % 2 === 0;
+                }
+                else if (obs.type === 'bishop_pair') {
+                    obs.rotation += 0.04;
+                }
+            }
+
+            // Collision detection
+            for (const obs of obstacles) {
+                if (obs.type === 'checkmate') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT > obs.y - obs.height && player.y < obs.y) {
+                        completeLand();
+                        return;
+                    }
+                    continue;
+                }
+                if (obs.type === 'check_pit') continue;
+
+                if (player.dashInvincible) continue;
+
+                let hit = false;
+                const px = player.x + 5;
+                const py = player.y + 5;
+                const pw = PLAYER_WIDTH - 10;
+                const ph = PLAYER_HEIGHT - 10;
+
+                if (obs.type === 'pawn') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y && py + ph > obs.y - obs.height) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'rook' || obs.type === 'queen' || obs.type === 'enemy_knight') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'bishop') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'king') {
+                    // King has danger radius
+                    const kcx = obs.x + obs.width / 2;
+                    const kcy = obs.y + obs.height / 2;
+                    const pcx = px + pw / 2;
+                    const pcy = py + ph / 2;
+                    const dist = Math.sqrt((kcx - pcx) ** 2 + (kcy - pcy) ** 2);
+                    if (dist < obs.dangerRadius) hit = true;
+                }
+                else if (obs.type === 'falling_pawn') {
+                    const pawnY = obs.currentY || obs.y;
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < pawnY + obs.height && py + ph > pawnY) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'clock' && obs.active) {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'bishop_pair') {
+                    // Two orbiting bishops
+                    for (let i = 0; i < 2; i++) {
+                        const angle = obs.rotation + i * Math.PI;
+                        const bx = obs.x + obs.width/2 + Math.cos(angle) * obs.orbitRadius;
+                        const by = obs.y + obs.height/2 + Math.sin(angle) * obs.orbitRadius;
+                        if (px < bx + 15 && px + pw > bx - 15 &&
+                            py < by + 20 && py + ph > by - 20) {
+                            hit = true;
+                        }
+                    }
+                }
+
+                if (hit) {
+                    loseLife();
+                    return;
+                }
+            }
+
+            // Collect crown coins
+            for (const coin of coins) {
+                if (!coin.collected) {
+                    coin.phase += 0.05;
+                    const dist = Math.sqrt(
+                        Math.pow(player.x + PLAYER_WIDTH/2 - coin.x, 2) +
+                        Math.pow(player.y + PLAYER_HEIGHT/2 - coin.y, 2)
+                    );
+                    if (dist < 30) {
+                        coin.collected = true;
+                        score += 15;
+                        landScore += 15;
+                        for (let i = 0; i < 8; i++) {
+                            particles.push({
+                                x: coin.x,
+                                y: coin.y,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                life: 25,
+                                color: '#daa520'
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life--;
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            // Dash trail
+            if (player.dashing) {
+                particles.push({
+                    x: player.x + (player.facingRight ? 0 : PLAYER_WIDTH),
+                    y: player.y + PLAYER_HEIGHT / 2 + (Math.random() - 0.5) * 20,
+                    vx: player.facingRight ? -3 : 3,
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 15,
+                    color: Math.random() < 0.5 ? '#fff8dc' : '#daa520'
+                });
+            }
+
+            document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+            document.getElementById('livesDisplay').textContent = `Lives: ${lives}`;
+        }
+
+        function draw() {
+            const land = lands[currentLand];
+
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, land.bg1);
+            gradient.addColorStop(1, land.bg2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background chess pieces (decorative, faded)
+            ctx.globalAlpha = 0.06;
+            for (let i = 0; i < 6; i++) {
+                const bgX = (i * 250 - cameraX * 0.2) % (canvas.width + 250) - 125;
+                const pieceType = i % 3;
+                if (pieceType === 0) drawKing(bgX, 250, 80, land.accent);
+                else if (pieceType === 1) drawQueen(bgX, 230, 70, land.accent);
+                else drawRook(bgX, 260, 60, land.accent);
+            }
+            ctx.globalAlpha = 1;
+
+            // Upper platform with checkerboard
+            const tileSize = 20;
+            for (let tx = 0; tx < canvas.width; tx += tileSize) {
+                const tileIndex = Math.floor((tx + cameraX) / tileSize);
+                ctx.fillStyle = tileIndex % 2 === 0 ? land.light : land.dark;
+                ctx.fillRect(tx, FLOOR2_Y, tileSize, 12);
+            }
+            ctx.fillStyle = land.accent + '40';
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 2);
+
+            // Main ground with checkerboard
+            const groundTileSize = 25;
+            for (let tx = 0; tx < canvas.width; tx += groundTileSize) {
+                const tileIndex = Math.floor((tx + cameraX) / groundTileSize);
+                for (let ty = FLOOR1_Y; ty < canvas.height; ty += groundTileSize) {
+                    const rowIndex = Math.floor((ty - FLOOR1_Y) / groundTileSize);
+                    ctx.fillStyle = (tileIndex + rowIndex) % 2 === 0 ? land.light : land.dark;
+                    ctx.fillRect(tx, ty, groundTileSize, groundTileSize);
+                }
+            }
+            ctx.fillStyle = land.accent + '60';
+            ctx.fillRect(0, FLOOR1_Y, canvas.width, 3);
+
+            // Board border decorations
+            ctx.strokeStyle = land.accent + '30';
+            ctx.lineWidth = 1;
+            for (let tx = 0; tx < canvas.width; tx += 80) {
+                const bx = (tx - cameraX * 0.1) % canvas.width;
+                ctx.beginPath();
+                ctx.moveTo(bx, FLOOR1_Y - 5);
+                ctx.lineTo(bx + 5, FLOOR1_Y - 10);
+                ctx.lineTo(bx + 10, FLOOR1_Y - 5);
+                ctx.stroke();
+            }
+
+            // Draw obstacles
+            for (const obs of obstacles) {
+                const screenX = obs.x - cameraX;
+                if (screenX < -150 || screenX > canvas.width + 150) continue;
+
+                ctx.save();
+
+                if (obs.type === 'pawn') {
+                    drawPawn(screenX + obs.width/2, obs.y - obs.height/2, obs.height, land.pieceColor);
+                    // Outline
+                    ctx.strokeStyle = land.accent + '80';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y - obs.height * 0.75, obs.height * 0.18, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                else if (obs.type === 'rook') {
+                    drawRook(screenX + obs.width/2, obs.y + obs.height/2, obs.height, land.pieceColor);
+                    // Glow
+                    ctx.shadowColor = '#ff4444';
+                    ctx.shadowBlur = 8;
+                    ctx.strokeStyle = '#ff444480';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(screenX, obs.y, obs.width, obs.height);
+                    ctx.shadowBlur = 0;
+                }
+                else if (obs.type === 'bishop') {
+                    drawBishop(screenX + obs.width/2, obs.y + obs.height/2, obs.height, land.pieceColor);
+                    // Diagonal indicator
+                    ctx.strokeStyle = land.accent + '40';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX - 30, obs.y - 30);
+                    ctx.lineTo(screenX + obs.width + 30, obs.y + obs.height + 30);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                else if (obs.type === 'enemy_knight') {
+                    drawKnight(screenX + obs.width/2, obs.y + obs.height/2, obs.height, land.pieceColor, true);
+                    // L-shape indicator
+                    ctx.strokeStyle = '#ff880060';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + obs.width/2, obs.y);
+                    ctx.lineTo(screenX + obs.width/2, obs.y - 30);
+                    ctx.lineTo(screenX + obs.width/2 + 20, obs.y - 30);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                else if (obs.type === 'queen') {
+                    drawQueen(screenX + obs.width/2, obs.y + obs.height/2, obs.height, land.pieceColor);
+                    // Danger glow
+                    ctx.shadowColor = '#ff00ff';
+                    ctx.shadowBlur = 12;
+                    ctx.strokeStyle = '#ff00ff60';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2 + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+                else if (obs.type === 'king') {
+                    drawKing(screenX + obs.width/2, obs.y + obs.height/2, obs.height, land.pieceColor);
+                    // Danger radius
+                    ctx.strokeStyle = '#ff000040';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.dangerRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // Crown glow
+                    ctx.fillStyle = '#daa52060';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'falling_pawn') {
+                    const pawnY = obs.currentY || obs.y;
+                    drawPawn(screenX + obs.width/2, pawnY + obs.height/2, obs.height, land.pieceColor);
+                    // Warning
+                    if (pawnY < 50) {
+                        ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
+                        ctx.fillRect(screenX - 5, 0, obs.width + 10, FLOOR1_Y);
+                    }
+                }
+                else if (obs.type === 'clock') {
+                    // Clock body
+                    ctx.fillStyle = obs.active ? '#882222' : '#443333';
+                    ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    // Clock face
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + 20, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Clock hands
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    const angle = (Date.now() / 500) % (Math.PI * 2);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + obs.width/2, obs.y + 20);
+                    ctx.lineTo(screenX + obs.width/2 + Math.cos(angle) * 8, obs.y + 20 + Math.sin(angle) * 8);
+                    ctx.stroke();
+                    // Danger zone when active
+                    if (obs.active) {
+                        ctx.fillStyle = '#ff000030';
+                        ctx.shadowColor = '#ff0000';
+                        ctx.shadowBlur = 10;
+                        ctx.fillRect(screenX - 5, obs.y, obs.width + 10, obs.height);
+                        ctx.shadowBlur = 0;
+                    }
+                    // Button on top
+                    ctx.fillStyle = '#daa520';
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y - 3, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (obs.type === 'check_pit') {
+                    // Checkered danger pit
+                    const pitTile = 10;
+                    for (let px = 0; px < obs.width; px += pitTile) {
+                        const ti = Math.floor(px / pitTile);
+                        ctx.fillStyle = ti % 2 === 0 ? '#aa4444' : '#660000';
+                        ctx.fillRect(screenX + px, obs.y, pitTile, obs.height);
+                    }
+                    // Warning border
+                    ctx.strokeStyle = '#ff4444';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(screenX, obs.y, obs.width, obs.height);
+                }
+                else if (obs.type === 'bishop_pair') {
+                    // Two orbiting bishops
+                    for (let i = 0; i < 2; i++) {
+                        const angle = obs.rotation + i * Math.PI;
+                        const bx = screenX + obs.width/2 + Math.cos(angle) * obs.orbitRadius;
+                        const by = obs.y + obs.height/2 + Math.sin(angle) * obs.orbitRadius;
+                        drawBishop(bx, by, 35, land.pieceColor);
+                    }
+                    // Orbit path
+                    ctx.strokeStyle = land.accent + '30';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.orbitRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                else if (obs.type === 'checkmate') {
+                    // Victory square
+                    const glow = Math.sin(frameCount * 0.05) * 0.3 + 0.7;
+                    // Checkerboard goal
+                    for (let gx = 0; gx < obs.width; gx += 15) {
+                        for (let gy = 0; gy < obs.height; gy += 15) {
+                            const gi = Math.floor(gx / 15) + Math.floor(gy / 15);
+                            ctx.fillStyle = gi % 2 === 0 ? `rgba(218, 165, 32, ${glow * 0.8})` : `rgba(255, 248, 220, ${glow * 0.8})`;
+                            ctx.fillRect(screenX + gx, obs.y - obs.height + gy, 15, 15);
+                        }
+                    }
+                    ctx.shadowColor = '#daa520';
+                    ctx.shadowBlur = 20 * glow;
+                    ctx.strokeStyle = '#daa520';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(screenX, obs.y - obs.height, obs.width, obs.height);
+                    ctx.shadowBlur = 0;
+                    // Crown on top
+                    ctx.fillStyle = '#daa520';
+                    ctx.font = 'bold 20px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('\u265A', screenX + obs.width/2, obs.y - obs.height - 8);
+                    ctx.textAlign = 'left';
+                }
+
+                ctx.restore();
+            }
+
+            // Draw crown coins
+            for (const coin of coins) {
+                if (coin.collected) continue;
+                const screenX = coin.x - cameraX;
+                if (screenX < -20 || screenX > canvas.width + 20) continue;
+
+                const pulse = Math.sin(coin.phase) * 0.3 + 0.7;
+                const bob = Math.sin(coin.phase) * 3;
+                // Coin
+                ctx.fillStyle = '#daa520';
+                ctx.shadowColor = '#daa520';
+                ctx.shadowBlur = 10 * pulse;
+                ctx.beginPath();
+                ctx.arc(screenX, coin.y + bob, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // Crown symbol
+                ctx.fillStyle = '#8b6914';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('\u265B', screenX, coin.y + bob + 4);
+                ctx.textAlign = 'left';
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                const screenX = p.x - cameraX;
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 25;
+                ctx.fillRect(screenX - 2, p.y - 2, 4, 4);
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player (White Knight)
+            const playerScreenX = player.x - cameraX;
+            ctx.save();
+
+            if (player.dashing) {
+                ctx.shadowColor = '#daa520';
+                ctx.shadowBlur = 25;
+            }
+
+            // Draw the knight piece
+            const knightColor = player.dashing ? '#daa520' : '#f0f0f0';
+            drawKnight(
+                playerScreenX + PLAYER_WIDTH/2,
+                player.y + PLAYER_HEIGHT/2,
+                PLAYER_HEIGHT,
+                knightColor,
+                player.facingRight
+            );
+
+            // Outline for visibility
+            ctx.strokeStyle = player.dashing ? '#fff8dc' : '#daa520';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(playerScreenX + 2, player.y + 2, PLAYER_WIDTH - 4, PLAYER_HEIGHT - 4);
+
+            ctx.shadowBlur = 0;
+            ctx.restore();
+
+            // Dash overlay
+            if (player.dashing) {
+                ctx.fillStyle = 'rgba(218, 165, 32, 0.08)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Progress bar
+            const progress = player.x / levelLength;
+            ctx.fillStyle = '#2a1a0a';
+            ctx.fillRect(canvas.width - 210, 10, 200, 15);
+            ctx.fillStyle = '#daa520';
+            ctx.fillRect(canvas.width - 210, 10, 200 * progress, 15);
+            ctx.strokeStyle = '#fff8dc';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width - 210, 10, 200, 15);
+        }
+
+        function loseLife() {
+            lives--;
+            for (let i = 0; i < 25; i++) {
+                particles.push({
+                    x: player.x + PLAYER_WIDTH/2,
+                    y: player.y + PLAYER_HEIGHT/2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 35,
+                    color: '#ff4400'
+                });
+            }
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                initPlayer();
+                cameraX = 0;
+            }
+        }
+
+        function completeLand() {
+            levelComplete = true;
+            gameRunning = false;
+            completedLands[currentLand] = true;
+            score += 150 * (currentLand + 1);
+            const stars = lives === 3 ? '\u2B50\u2B50\u2B50' : lives === 2 ? '\u2B50\u2B50' : '\u2B50';
+            document.getElementById('completedLand').textContent = lands[currentLand].name;
+            document.getElementById('starsEarned').textContent = stars;
+            document.getElementById('landScore').textContent = `Board Score: ${landScore + 150 * (currentLand + 1)}`;
+            document.getElementById('levelComplete').style.display = 'flex';
+            updateLandProgress();
+        }
+
+        function nextLand() {
+            document.getElementById('levelComplete').style.display = 'none';
+            currentLand++;
+            if (currentLand >= lands.length) {
+                winGame();
+                return;
+            }
+            document.getElementById('landDisplay').textContent = `Board ${currentLand + 1}: ${lands[currentLand].name}`;
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function winGame() {
+            gameRunning = false;
+            document.getElementById('totalScore').textContent = `Total Score: ${score}`;
+            document.getElementById('winScreen').style.display = 'flex';
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            currentLand = 0;
+            score = 0;
+            lives = 3;
+            completedLands = [];
+            document.getElementById('landDisplay').textContent = `Board ${currentLand + 1}: ${lands[currentLand].name}`;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+            startMusic();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+        }
+
+        function backToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+            updateLandProgress();
+        }
+
+        function updateLandProgress() {
+            const container = document.getElementById('landProgress');
+            container.innerHTML = '';
+            for (let i = 0; i < lands.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'land-dot';
+                if (completedLands[i]) dot.classList.add('completed');
+                if (i === currentLand && gameRunning) dot.classList.add('current');
+                dot.title = lands[i].name;
+                container.appendChild(dot);
+            }
+        }
+
+        // Music System - Classical/Chess Theme
+        let audioCtx = null;
+        let musicPlaying = false;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function startMusic() {
+            if (musicPlaying) return;
+            initAudio();
+            musicPlaying = true;
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.18;
+            masterGain.connect(audioCtx.destination);
+
+            // Regal melody (minor key, classical feel)
+            const melodyNotes = [329.6, 311.1, 293.7, 261.6, 293.7, 311.1, 349.2, 329.6, 392, 349.2, 329.6, 293.7, 261.6, 293.7, 329.6, 311.1];
+            let melodyIndex = 0;
+
+            function playMelody() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 2500;
+                osc.type = 'triangle';
+                osc.frequency.value = melodyNotes[melodyIndex % melodyNotes.length];
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+                melodyIndex++;
+                setTimeout(playMelody, 300);
+            }
+
+            // Deep bass
+            const bassNotes = [65.4, 73.4, 82.4, 73.4, 65.4, 61.7, 65.4, 73.4];
+            let bassIndex = 0;
+
+            function playBass() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = bassNotes[bassIndex % bassNotes.length];
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.55);
+                bassIndex++;
+                setTimeout(playBass, 600);
+            }
+
+            // Ticking clock sound (chess clock)
+            function playTick() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 800;
+                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.04);
+                setTimeout(playTick, 300);
+            }
+
+            // Soft strings (sustained chords)
+            const chordNotes = [196, 233.1, 261.6, 293.7];
+            let chordIndex = 0;
+
+            function playChord() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 1500;
+                osc.type = 'sine';
+                osc.frequency.value = chordNotes[chordIndex % chordNotes.length];
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.8);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.1);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.2);
+                chordIndex++;
+                setTimeout(playChord, 1200);
+            }
+
+            playMelody();
+            setTimeout(playBass, 50);
+            setTimeout(playTick, 150);
+            setTimeout(playChord, 100);
+        }
+
+        function stopMusic() {
+            musicPlaying = false;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        updateLandProgress();
+        gameLoop();
+    </script>
+</body>
+</html>

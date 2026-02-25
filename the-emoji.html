@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>The Emoji - Fighting Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            touch-action: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            border: 4px solid #e94560;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
+        }
+
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #ui > * {
+            pointer-events: auto;
+        }
+
+        .btn {
+            background: linear-gradient(145deg, #e94560, #c73e54);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        #menu, #shop, #gameOver {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+        }
+
+        #menu h1, #shop h1, #gameOver h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #e94560;
+        }
+
+        #menu h1 {
+            color: #fff;
+        }
+
+        .menu-emoji {
+            font-size: 80px;
+            margin-bottom: 30px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .player-select {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 400px;
+        }
+
+        .emoji-option {
+            font-size: 40px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px solid transparent;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 70px;
+        }
+
+        .emoji-option .power-label {
+            font-size: 10px;
+            color: #ff6b6b;
+            margin-top: 5px;
+        }
+
+        .emoji-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .emoji-option.selected {
+            border-color: #e94560;
+            background: rgba(233, 69, 96, 0.3);
+        }
+
+        .emoji-option.locked {
+            opacity: 0.4;
+            filter: grayscale(1);
+        }
+
+        .emoji-option.locked:hover {
+            transform: scale(1);
+        }
+
+        #coins {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ffd700;
+            z-index: 50;
+        }
+
+        /* Shop styles */
+        #shop {
+            overflow-y: auto;
+        }
+
+        .shop-container {
+            max-height: 80%;
+            overflow-y: auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .category {
+            margin-bottom: 30px;
+        }
+
+        .category h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+            font-size: 24px;
+            border-bottom: 2px solid #e94560;
+            padding-bottom: 10px;
+        }
+
+        .shop-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .shop-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 80px;
+        }
+
+        .shop-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .shop-item.owned {
+            border: 2px solid #4ade80;
+        }
+
+        .shop-item .emoji {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .shop-item .price {
+            color: #ffd700;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .shop-item.owned .price {
+            color: #4ade80;
+        }
+
+        .shop-item .power {
+            color: #ff6b6b;
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        .power-bar {
+            width: 60px;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            margin: 5px auto 0;
+            overflow: hidden;
+        }
+
+        .power-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ff0000);
+            border-radius: 3px;
+        }
+
+        .shop-buttons {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* Touch controls */
+        #touchControls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            display: none;
+            pointer-events: none;
+        }
+
+        .touch-btn {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(233, 69, 96, 0.6);
+            border: 3px solid #e94560;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            color: white;
+            pointer-events: auto;
+        }
+
+        .touch-btn:active {
+            background: rgba(233, 69, 96, 0.9);
+        }
+
+        #btnLeft { left: 20px; bottom: 40px; }
+        #btnRight { left: 110px; bottom: 40px; }
+        #btnJump { right: 110px; bottom: 40px; }
+        #btnAttack { right: 20px; bottom: 40px; }
+
+        #gameOver h1 {
+            color: #e94560;
+        }
+
+        .winner-display {
+            font-size: 100px;
+            margin: 20px 0;
+        }
+
+        .stats {
+            color: #aaa;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Health bars at top */
+        #healthBars {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 20px;
+            pointer-events: none;
+        }
+
+        .health-bar-container {
+            width: 200px;
+            text-align: center;
+        }
+
+        .health-bar-emoji {
+            font-size: 30px;
+            margin-bottom: 5px;
+        }
+
+        .health-bar {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #555;
+        }
+
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            transition: width 0.2s;
+        }
+
+        .health-fill.low {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .health-fill.medium {
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+
+        <div id="ui">
+            <div id="coins">Coins: 0</div>
+
+            <div id="healthBars" class="hidden">
+                <!-- Health bars will be generated dynamically -->
+            </div>
+
+            <div id="menu">
+                <div class="menu-emoji">🥊</div>
+                <h1 style="color: #e94560;">THE EMOJI</h1>
+                <p style="color: #aaa; margin-bottom: 30px;">Choose your fighter!</p>
+                <div class="player-select" id="playerSelect"></div>
+                <div style="display: flex; gap: 20px; margin-top: 20px;">
+                    <button class="btn" onclick="startGame()">FIGHT!</button>
+                    <button class="btn" style="background: linear-gradient(145deg, #ffd700, #ffaa00);" onclick="openShop()">SHOP</button>
+                </div>
+            </div>
+
+            <div id="shop" class="hidden">
+                <h1 style="color: #ffd700;">EMOJI SHOP</h1>
+                <div class="shop-container" id="shopContainer"></div>
+                <div class="shop-buttons">
+                    <button class="btn" onclick="closeShop()">BACK</button>
+                </div>
+            </div>
+
+            <div id="gameOver" class="hidden">
+                <h1>GAME OVER</h1>
+                <div class="winner-display" id="winnerEmoji"></div>
+                <p style="color: #fff; font-size: 24px; margin-bottom: 10px;" id="winnerText"></p>
+                <p class="stats" id="statsText"></p>
+                <div style="display: flex; gap: 20px;">
+                    <button class="btn" onclick="restartGame()">PLAY AGAIN</button>
+                    <button class="btn" style="background: linear-gradient(145deg, #666, #444);" onclick="backToMenu()">MENU</button>
+                </div>
+            </div>
+
+            <div id="touchControls">
+                <div class="touch-btn" id="btnLeft">←</div>
+                <div class="touch-btn" id="btnRight">→</div>
+                <div class="touch-btn" id="btnJump">↑</div>
+                <div class="touch-btn" id="btnAttack">👊</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game state
+        let gameState = 'menu'; // menu, playing, gameOver
+        let coins = parseInt(localStorage.getItem('emojiCoins') || '100');
+        let ownedEmojis = JSON.parse(localStorage.getItem('ownedEmojis') || '["😀","😎","🤖","👽"]');
+        let selectedEmoji = localStorage.getItem('selectedEmoji') || '😀';
+
+        // Emoji shop categories - sorted by power (lowest to highest)
+        const shopCategories = {
+            'Faces': [
+                { emoji: '😀', price: 0, power: 10 },
+                { emoji: '😎', price: 0, power: 12 },
+                { emoji: '😤', price: 75, power: 18 },
+                { emoji: '🤩', price: 50, power: 15 },
+                { emoji: '🥶', price: 100, power: 22 },
+                { emoji: '🥵', price: 100, power: 24 },
+                { emoji: '😈', price: 100, power: 28 },
+                { emoji: '🤯', price: 150, power: 35 }
+            ],
+            'Animals': [
+                { emoji: '🦊', price: 100, power: 20 },
+                { emoji: '🐺', price: 120, power: 25 },
+                { emoji: '🦁', price: 150, power: 32 },
+                { emoji: '🐯', price: 150, power: 34 },
+                { emoji: '🦅', price: 175, power: 38 },
+                { emoji: '🦈', price: 200, power: 42 },
+                { emoji: '🦖', price: 250, power: 50 },
+                { emoji: '🐉', price: 300, power: 60 }
+            ],
+            'Fantasy': [
+                { emoji: '👽', price: 0, power: 11 },
+                { emoji: '🤖', price: 0, power: 13 },
+                { emoji: '👻', price: 100, power: 23 },
+                { emoji: '💀', price: 125, power: 28 },
+                { emoji: '🧙', price: 175, power: 36 },
+                { emoji: '👹', price: 200, power: 40 },
+                { emoji: '👺', price: 200, power: 42 },
+                { emoji: '🧛', price: 225, power: 48 }
+            ],
+            'Warriors': [
+                { emoji: '🛡️', price: 275, power: 45 },
+                { emoji: '🥷', price: 250, power: 48 },
+                { emoji: '🦸', price: 300, power: 55 },
+                { emoji: '🦹', price: 300, power: 55 },
+                { emoji: '⚔️', price: 350, power: 62 },
+                { emoji: '👑', price: 500, power: 75 }
+            ],
+            'Special': [
+                { emoji: '🌈', price: 350, power: 52 },
+                { emoji: '🔥', price: 400, power: 65 },
+                { emoji: '⚡', price: 400, power: 68 },
+                { emoji: '🌟', price: 450, power: 72 },
+                { emoji: '☄️', price: 550, power: 80 },
+                { emoji: '💎', price: 600, power: 90 }
+            ]
+        };
+
+        // Sort each category by power
+        for (let cat in shopCategories) {
+            shopCategories[cat].sort((a, b) => a.power - b.power);
+        }
+
+        // Create emoji stats lookup
+        const emojiStats = {};
+        for (let cat in shopCategories) {
+            shopCategories[cat].forEach(item => {
+                emojiStats[item.emoji] = item;
+            });
+        }
+
+        // All possible AI emojis
+        const allEmojis = [];
+        for (let cat in shopCategories) {
+            shopCategories[cat].forEach(item => {
+                if (!allEmojis.includes(item.emoji)) {
+                    allEmojis.push(item.emoji);
+                }
+            });
+        }
+
+        // Fighters
+        let fighters = [];
+        let particles = [];
+        let damageNumbers = [];
+        let platforms = [];
+
+        // Input
+        const keys = {};
+        let touchLeft = false, touchRight = false, touchJump = false, touchAttack = false;
+
+        // Fighter class
+        class Fighter {
+            constructor(x, y, emoji, isPlayer = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.width = 60;
+                this.height = 60;
+                this.emoji = emoji;
+                this.isPlayer = isPlayer;
+
+                // Get power from emoji stats
+                const stats = emojiStats[emoji] || { power: 15 };
+                const power = stats.power;
+
+                // Scale stats based on power (power ranges from 10-90)
+                this.health = 80 + power; // Health: 90-170
+                this.maxHealth = this.health;
+                this.damage = 8 + (power * 0.3); // Damage: 11-35
+                this.speed = 3.5 + (power * 0.03); // Speed: 3.8-6.2
+                this.jumpPower = 14 + (power * 0.05); // Jump: 14.5-18.5
+
+                this.facing = isPlayer ? 1 : -1;
+                this.isAttacking = false;
+                this.attackCooldown = 0;
+                this.attackDuration = 0;
+                this.knockbackX = 0;
+                this.knockbackY = 0;
+                this.isOnGround = false;
+                this.jumpsLeft = 2;
+                this.isDead = false;
+                this.combo = 0;
+                this.lastHitBy = null;
+                this.kills = 0;
+                this.power = power;
+
+                // AI state
+                this.aiTarget = null;
+                this.aiState = 'idle';
+                this.aiTimer = 0;
+                this.aiDecisionTime = 30;
+            }
+
+            update() {
+                if (this.isDead) return;
+
+                // Cooldowns
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.attackDuration > 0) {
+                    this.attackDuration--;
+                    if (this.attackDuration === 0) {
+                        this.isAttacking = false;
+                    }
+                }
+
+                // Apply knockback
+                this.x += this.knockbackX;
+                this.y += this.knockbackY;
+                this.knockbackX *= 0.9;
+                this.knockbackY *= 0.9;
+
+                // Controls
+                if (this.isPlayer) {
+                    this.handlePlayerInput();
+                } else {
+                    this.handleAI();
+                }
+
+                // Physics
+                this.vy += 0.6; // Gravity
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Ground collision
+                const groundY = canvas.height - 100;
+                if (this.y + this.height > groundY) {
+                    this.y = groundY - this.height;
+                    this.vy = 0;
+                    this.isOnGround = true;
+                    this.jumpsLeft = 2;
+                } else {
+                    this.isOnGround = false;
+                }
+
+                // Platform collision
+                for (let plat of platforms) {
+                    if (this.vy > 0 &&
+                        this.y + this.height > plat.y &&
+                        this.y + this.height < plat.y + 20 &&
+                        this.x + this.width > plat.x &&
+                        this.x < plat.x + plat.width) {
+                        this.y = plat.y - this.height;
+                        this.vy = 0;
+                        this.isOnGround = true;
+                        this.jumpsLeft = 2;
+                    }
+                }
+
+                // Screen bounds
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+
+                // Fall off screen = death
+                if (this.y > canvas.height + 100) {
+                    this.takeDamage(this.health, null);
+                }
+
+                // Friction
+                this.vx *= 0.85;
+            }
+
+            handlePlayerInput() {
+                if (keys['ArrowLeft'] || keys['KeyA'] || touchLeft) {
+                    this.vx = -this.speed;
+                    this.facing = -1;
+                }
+                if (keys['ArrowRight'] || keys['KeyD'] || touchRight) {
+                    this.vx = this.speed;
+                    this.facing = 1;
+                }
+                if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchJump) && this.jumpsLeft > 0) {
+                    if (!this.jumpPressed) {
+                        this.vy = -this.jumpPower;
+                        this.jumpsLeft--;
+                        this.jumpPressed = true;
+                        createParticles(this.x + this.width/2, this.y + this.height, '#fff', 5);
+                    }
+                } else {
+                    this.jumpPressed = false;
+                }
+                if ((keys['KeyX'] || keys['KeyJ'] || touchAttack) && !this.isAttacking && this.attackCooldown === 0) {
+                    this.attack();
+                }
+            }
+
+            handleAI() {
+                this.aiTimer++;
+
+                // Find nearest alive fighter (that isn't self)
+                let nearest = null;
+                let nearestDist = Infinity;
+                for (let f of fighters) {
+                    if (f !== this && !f.isDead) {
+                        let dist = Math.abs(f.x - this.x);
+                        if (dist < nearestDist) {
+                            nearestDist = dist;
+                            nearest = f;
+                        }
+                    }
+                }
+                this.aiTarget = nearest;
+
+                if (!this.aiTarget) return;
+
+                // AI decision making
+                if (this.aiTimer >= this.aiDecisionTime) {
+                    this.aiTimer = 0;
+                    this.aiDecisionTime = 20 + Math.random() * 40;
+
+                    // Decide state based on distance and health
+                    if (nearestDist < 80) {
+                        // Close - attack or dodge
+                        if (this.health < 30 && Math.random() < 0.5) {
+                            this.aiState = 'flee';
+                        } else {
+                            this.aiState = Math.random() < 0.7 ? 'attack' : 'dodge';
+                        }
+                    } else if (nearestDist < 300) {
+                        // Medium range - approach or wait
+                        this.aiState = Math.random() < 0.8 ? 'approach' : 'wait';
+                    } else {
+                        // Far - approach
+                        this.aiState = 'approach';
+                    }
+                }
+
+                // Execute AI state
+                switch (this.aiState) {
+                    case 'approach':
+                        if (this.aiTarget.x < this.x) {
+                            this.vx = -this.speed * 0.8;
+                            this.facing = -1;
+                        } else {
+                            this.vx = this.speed * 0.8;
+                            this.facing = 1;
+                        }
+                        // Jump to reach platforms or avoid attacks
+                        if (Math.random() < 0.02 && this.jumpsLeft > 0) {
+                            this.vy = -this.jumpPower;
+                            this.jumpsLeft--;
+                        }
+                        break;
+
+                    case 'attack':
+                        // Move toward target
+                        if (this.aiTarget.x < this.x) {
+                            this.vx = -this.speed * 0.5;
+                            this.facing = -1;
+                        } else {
+                            this.vx = this.speed * 0.5;
+                            this.facing = 1;
+                        }
+                        // Attack when close
+                        if (nearestDist < 80 && !this.isAttacking && this.attackCooldown === 0) {
+                            this.attack();
+                        }
+                        break;
+
+                    case 'flee':
+                        // Run away
+                        if (this.aiTarget.x < this.x) {
+                            this.vx = this.speed;
+                            this.facing = 1;
+                        } else {
+                            this.vx = -this.speed;
+                            this.facing = -1;
+                        }
+                        // Jump away
+                        if (Math.random() < 0.05 && this.jumpsLeft > 0) {
+                            this.vy = -this.jumpPower;
+                            this.jumpsLeft--;
+                        }
+                        break;
+
+                    case 'dodge':
+                        // Quick dodge
+                        this.vx = (Math.random() < 0.5 ? -1 : 1) * this.speed * 1.5;
+                        if (Math.random() < 0.3 && this.jumpsLeft > 0) {
+                            this.vy = -this.jumpPower * 0.7;
+                            this.jumpsLeft--;
+                        }
+                        break;
+
+                    case 'wait':
+                        // Stand still, maybe attack
+                        if (nearestDist < 100 && Math.random() < 0.1 && this.attackCooldown === 0) {
+                            this.attack();
+                        }
+                        break;
+                }
+            }
+
+            attack() {
+                this.isAttacking = true;
+                this.attackDuration = 15;
+                this.attackCooldown = 30;
+
+                // Create attack hitbox
+                const attackX = this.facing === 1 ? this.x + this.width : this.x - 50;
+                const attackWidth = 50;
+
+                createParticles(attackX + attackWidth/2, this.y + this.height/2, '#ff0', 8);
+
+                // Check hits on all fighters
+                for (let f of fighters) {
+                    if (f !== this && !f.isDead) {
+                        if (attackX < f.x + f.width &&
+                            attackX + attackWidth > f.x &&
+                            this.y < f.y + f.height &&
+                            this.y + this.height > f.y) {
+                            f.takeDamage(this.damage, this);
+                        }
+                    }
+                }
+            }
+
+            takeDamage(amount, attacker) {
+                if (this.isDead) return;
+
+                this.health -= amount;
+                this.lastHitBy = attacker;
+
+                // Knockback
+                if (attacker) {
+                    this.knockbackX = (this.x > attacker.x ? 1 : -1) * 15;
+                    this.knockbackY = -8;
+                }
+
+                // Damage number
+                damageNumbers.push({
+                    x: this.x + this.width/2,
+                    y: this.y,
+                    value: Math.round(amount),
+                    life: 60,
+                    vy: -2
+                });
+
+                // Particles
+                createParticles(this.x + this.width/2, this.y + this.height/2, '#f00', 10);
+
+                if (this.health <= 0) {
+                    this.die();
+                }
+            }
+
+            die() {
+                this.isDead = true;
+                this.health = 0;
+
+                // Credit kill to attacker
+                if (this.lastHitBy) {
+                    this.lastHitBy.kills++;
+                }
+
+                // Big explosion
+                for (let i = 0; i < 30; i++) {
+                    particles.push({
+                        x: this.x + this.width/2,
+                        y: this.y + this.height/2,
+                        vx: (Math.random() - 0.5) * 15,
+                        vy: (Math.random() - 0.5) * 15,
+                        size: 5 + Math.random() * 10,
+                        color: ['#ff0', '#f00', '#ff6600', '#fff'][Math.floor(Math.random() * 4)],
+                        life: 60 + Math.random() * 30
+                    });
+                }
+            }
+
+            draw() {
+                if (this.isDead) return;
+
+                ctx.save();
+
+                // Flash when hit
+                if (this.knockbackX > 1 || this.knockbackX < -1) {
+                    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.05) * 0.5;
+                }
+
+                // Draw emoji
+                ctx.font = '50px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Flip based on facing
+                ctx.translate(this.x + this.width/2, this.y + this.height/2);
+                ctx.scale(this.facing, 1);
+
+                // Attack animation
+                if (this.isAttacking) {
+                    ctx.rotate(this.facing * 0.3);
+                }
+
+                ctx.fillText(this.emoji, 0, 0);
+
+                ctx.restore();
+
+                // Attack effect
+                if (this.isAttacking) {
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+                    const attackX = this.facing === 1 ? this.x + this.width : this.x - 50;
+                    ctx.beginPath();
+                    ctx.arc(attackX + 25, this.y + this.height/2, 30, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // Particles
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    size: 3 + Math.random() * 5,
+                    color: color,
+                    life: 30 + Math.random() * 20
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawParticles() {
+            for (let p of particles) {
+                ctx.globalAlpha = p.life / 50;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Damage numbers
+        function updateDamageNumbers() {
+            for (let i = damageNumbers.length - 1; i >= 0; i--) {
+                let d = damageNumbers[i];
+                d.y += d.vy;
+                d.life--;
+                if (d.life <= 0) {
+                    damageNumbers.splice(i, 1);
+                }
+            }
+        }
+
+        function drawDamageNumbers() {
+            for (let d of damageNumbers) {
+                ctx.globalAlpha = d.life / 60;
+                ctx.font = 'bold 24px Arial';
+                ctx.fillStyle = '#ff0000';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.textAlign = 'center';
+                ctx.strokeText('-' + d.value, d.x, d.y);
+                ctx.fillText('-' + d.value, d.x, d.y);
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Platforms
+        function createPlatforms() {
+            platforms = [
+                { x: 150, y: 400, width: 200 },
+                { x: 550, y: 400, width: 200 },
+                { x: 350, y: 280, width: 200 },
+                { x: 50, y: 200, width: 150 },
+                { x: 700, y: 200, width: 150 }
+            ];
+        }
+
+        function drawPlatforms() {
+            ctx.fillStyle = '#444';
+            for (let plat of platforms) {
+                ctx.fillRect(plat.x, plat.y, plat.width, 20);
+                // Platform edge glow
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(plat.x, plat.y, plat.width, 20);
+            }
+        }
+
+        // Draw arena
+        function drawArena() {
+            // Background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(233, 69, 96, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Ground
+            const groundY = canvas.height - 100;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, groundY, canvas.width, 100);
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
+
+            // Platforms
+            drawPlatforms();
+        }
+
+        // Health bars
+        function updateHealthBars() {
+            const container = document.getElementById('healthBars');
+            container.innerHTML = '';
+
+            for (let f of fighters) {
+                const div = document.createElement('div');
+                div.className = 'health-bar-container';
+
+                const healthPercent = Math.max(0, f.health / f.maxHealth * 100);
+                let fillClass = '';
+                if (healthPercent < 25) fillClass = 'low';
+                else if (healthPercent < 50) fillClass = 'medium';
+
+                div.innerHTML = `
+                    <div class="health-bar-emoji">${f.emoji} ${f.isPlayer ? '(YOU)' : ''}</div>
+                    <div class="health-bar">
+                        <div class="health-fill ${fillClass}" style="width: ${healthPercent}%"></div>
+                    </div>
+                `;
+
+                if (f.isDead) {
+                    div.style.opacity = '0.3';
+                }
+
+                container.appendChild(div);
+            }
+        }
+
+        // Check game over
+        function checkGameOver() {
+            const alive = fighters.filter(f => !f.isDead);
+
+            if (alive.length <= 1) {
+                gameState = 'gameOver';
+
+                const winner = alive[0];
+                const player = fighters.find(f => f.isPlayer);
+
+                document.getElementById('winnerEmoji').textContent = winner ? winner.emoji : '💀';
+
+                if (winner && winner.isPlayer) {
+                    document.getElementById('winnerText').textContent = 'YOU WIN!';
+                    // Award coins
+                    const reward = 50 + player.kills * 25;
+                    coins += reward;
+                    document.getElementById('statsText').textContent =
+                        `Kills: ${player.kills} | Reward: +${reward} coins`;
+                } else if (winner) {
+                    document.getElementById('winnerText').textContent = `${winner.emoji} WINS!`;
+                    document.getElementById('statsText').textContent =
+                        player ? `Your Kills: ${player.kills}` : '';
+                    // Small consolation prize
+                    if (player) {
+                        coins += 10 + player.kills * 10;
+                    }
+                } else {
+                    document.getElementById('winnerText').textContent = 'DRAW!';
+                    document.getElementById('statsText').textContent = '';
+                }
+
+                saveGame();
+                document.getElementById('gameOver').classList.remove('hidden');
+                document.getElementById('healthBars').classList.add('hidden');
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (gameState === 'playing') {
+                // Update
+                for (let f of fighters) {
+                    f.update();
+                }
+                updateParticles();
+                updateDamageNumbers();
+
+                // Draw
+                drawArena();
+                drawParticles();
+                for (let f of fighters) {
+                    f.draw();
+                }
+                drawDamageNumbers();
+
+                // Update health bars
+                updateHealthBars();
+
+                // Check game over
+                checkGameOver();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        function startGame() {
+            if (!ownedEmojis.includes(selectedEmoji)) {
+                selectedEmoji = ownedEmojis[0];
+            }
+
+            gameState = 'playing';
+            fighters = [];
+            particles = [];
+            damageNumbers = [];
+
+            createPlatforms();
+
+            // Create player
+            fighters.push(new Fighter(100, 300, selectedEmoji, true));
+
+            // Create AI opponents (3-5 random emojis)
+            const numAI = 3 + Math.floor(Math.random() * 3);
+            const usedEmojis = [selectedEmoji];
+
+            for (let i = 0; i < numAI; i++) {
+                let emoji;
+                do {
+                    emoji = allEmojis[Math.floor(Math.random() * allEmojis.length)];
+                } while (usedEmojis.includes(emoji) && usedEmojis.length < allEmojis.length);
+                usedEmojis.push(emoji);
+
+                const x = 200 + (i + 1) * (canvas.width - 400) / (numAI + 1);
+                fighters.push(new Fighter(x, 300, emoji, false));
+            }
+
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('healthBars').classList.remove('hidden');
+
+            // Show touch controls on mobile
+            if ('ontouchstart' in window) {
+                document.getElementById('touchControls').style.display = 'block';
+            }
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').classList.add('hidden');
+            startGame();
+        }
+
+        function backToMenu() {
+            gameState = 'menu';
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('healthBars').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+            document.getElementById('touchControls').style.display = 'none';
+            updatePlayerSelect();
+        }
+
+        // Shop
+        function openShop() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('shop').classList.remove('hidden');
+            renderShop();
+        }
+
+        function closeShop() {
+            document.getElementById('shop').classList.add('hidden');
+            document.getElementById('menu').classList.remove('hidden');
+            updatePlayerSelect();
+        }
+
+        function renderShop() {
+            const container = document.getElementById('shopContainer');
+            container.innerHTML = '';
+
+            for (let category in shopCategories) {
+                const catDiv = document.createElement('div');
+                catDiv.className = 'category';
+                catDiv.innerHTML = `<h2>${category}</h2>`;
+
+                const itemsDiv = document.createElement('div');
+                itemsDiv.className = 'shop-items';
+
+                for (let item of shopCategories[category]) {
+                    const owned = ownedEmojis.includes(item.emoji);
+                    const powerPercent = (item.power / 90) * 100; // 90 is max power
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'shop-item' + (owned ? ' owned' : '');
+                    itemDiv.innerHTML = `
+                        <span class="emoji">${item.emoji}</span>
+                        <div class="power">PWR: ${item.power}</div>
+                        <div class="power-bar"><div class="power-fill" style="width: ${powerPercent}%"></div></div>
+                        <span class="price">${owned ? 'OWNED' : (item.price === 0 ? 'FREE' : item.price + ' coins')}</span>
+                    `;
+
+                    if (!owned) {
+                        itemDiv.onclick = () => buyEmoji(item);
+                    }
+
+                    itemsDiv.appendChild(itemDiv);
+                }
+
+                catDiv.appendChild(itemsDiv);
+                container.appendChild(catDiv);
+            }
+        }
+
+        function buyEmoji(item) {
+            if (ownedEmojis.includes(item.emoji)) return;
+
+            if (coins >= item.price) {
+                coins -= item.price;
+                ownedEmojis.push(item.emoji);
+                saveGame();
+                updateCoins();
+                renderShop();
+            } else {
+                alert('Not enough coins!');
+            }
+        }
+
+        // Player select
+        function updatePlayerSelect() {
+            const container = document.getElementById('playerSelect');
+            container.innerHTML = '';
+
+            // Sort owned emojis by power
+            const sortedOwned = [...ownedEmojis].sort((a, b) => {
+                const powerA = emojiStats[a] ? emojiStats[a].power : 10;
+                const powerB = emojiStats[b] ? emojiStats[b].power : 10;
+                return powerA - powerB;
+            });
+
+            for (let emoji of sortedOwned) {
+                const stats = emojiStats[emoji] || { power: 10 };
+                const div = document.createElement('div');
+                div.className = 'emoji-option' + (emoji === selectedEmoji ? ' selected' : '');
+                div.innerHTML = `
+                    <span>${emoji}</span>
+                    <span class="power-label">PWR ${stats.power}</span>
+                `;
+                div.onclick = () => {
+                    selectedEmoji = emoji;
+                    localStorage.setItem('selectedEmoji', emoji);
+                    updatePlayerSelect();
+                };
+                container.appendChild(div);
+            }
+        }
+
+        // Save/Load
+        function saveGame() {
+            localStorage.setItem('emojiCoins', coins.toString());
+            localStorage.setItem('ownedEmojis', JSON.stringify(ownedEmojis));
+            localStorage.setItem('selectedEmoji', selectedEmoji);
+            updateCoins();
+        }
+
+        function updateCoins() {
+            document.getElementById('coins').textContent = 'Coins: ' + coins;
+        }
+
+        // Input handling
+        document.addEventListener('keydown', e => {
+            keys[e.code] = true;
+
+            // Allow arrow keys to scroll in shop
+            if (gameState === 'menu' && !document.getElementById('shop').classList.contains('hidden')) {
+                const shopContainer = document.getElementById('shopContainer');
+                if (e.code === 'ArrowDown') {
+                    shopContainer.scrollTop += 50;
+                    e.preventDefault();
+                } else if (e.code === 'ArrowUp') {
+                    shopContainer.scrollTop -= 50;
+                    e.preventDefault();
+                }
+            } else {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('keyup', e => {
+            keys[e.code] = false;
+        });
+
+        // Touch controls
+        function setupTouchControl(id, pressVar) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', e => {
+                e.preventDefault();
+                window[pressVar] = true;
+            });
+            btn.addEventListener('touchend', e => {
+                e.preventDefault();
+                window[pressVar] = false;
+            });
+        }
+
+        setupTouchControl('btnLeft', 'touchLeft');
+        setupTouchControl('btnRight', 'touchRight');
+        setupTouchControl('btnJump', 'touchJump');
+        setupTouchControl('btnAttack', 'touchAttack');
+
+        // Initialize
+        updateCoins();
+        updatePlayerSelect();
+        gameLoop();
+    </script>
+</body>
+</html>

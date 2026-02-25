@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Cool Jumper 5">
+    <title>Cool Jumper 5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0014 0%, #1a0028 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.4);
+            touch-action: none;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        #startScreen, #levelComplete, #gameOver, #winScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(10, 0, 20, 0.95);
+            border-radius: 10px;
+            color: #fff;
+            text-align: center;
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glitch 0.5s infinite;
+        }
+        @keyframes glitch {
+            0%, 90%, 100% { transform: translate(0); }
+            92% { transform: translate(-2px, 1px); }
+            94% { transform: translate(2px, -1px); }
+            96% { transform: translate(-1px, 2px); }
+            98% { transform: translate(1px, -2px); }
+        }
+        h2 {
+            font-size: 36px;
+            margin-bottom: 15px;
+            color: #ff00ff;
+        }
+        p {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aa88cc;
+        }
+        .feature {
+            color: #00ffff;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        .land-name {
+            font-size: 28px;
+            color: #00ffff;
+            margin: 15px 0;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(45deg, #ff00ff, #8800aa);
+            color: #fff;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+        }
+        .controls {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #8866aa;
+        }
+        .controls p {
+            margin: 5px 0;
+        }
+        .stars {
+            font-size: 40px;
+            margin: 15px 0;
+        }
+        #landProgress {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .land-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #1a0028;
+            border: 2px solid #4a0068;
+        }
+        .land-dot.completed {
+            background: #ff00ff;
+            border-color: #ff00ff;
+            box-shadow: 0 0 10px #ff00ff;
+        }
+        .land-dot.current {
+            background: #00ffff;
+            border-color: #00ffff;
+            box-shadow: 0 0 10px #00ffff;
+        }
+        #timeMeter {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 12px;
+            background: #1a0028;
+            border-radius: 6px;
+            overflow: hidden;
+            pointer-events: none;
+            border: 2px solid #ff00ff;
+        }
+        #timeFill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffff, #ff00ff);
+            width: 100%;
+            transition: width 0.05s;
+        }
+        #timeLabel {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff00ff;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        /* Touch Controls */
+        #touchControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        #joystickArea {
+            position: absolute;
+            left: 30px;
+            bottom: 30px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 0, 255, 0.5);
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #joystickKnob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 0, 255, 0.6);
+            border: 2px solid rgba(0, 255, 255, 0.8);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        .touchBtn {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255, 0, 255, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        #jumpBtn {
+            right: 30px;
+            bottom: 100px;
+        }
+        #slowBtn {
+            right: 120px;
+            bottom: 40px;
+        }
+        .touchBtn:active, .touchBtn.active {
+            background: rgba(255, 0, 255, 0.6);
+            border-color: rgba(0, 255, 255, 0.8);
+        }
+        @media (pointer: coarse) {
+            #touchControls {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="500"></canvas>
+        <div id="ui">
+            <span id="landDisplay">Dimension 1: Binary Plains</span>
+            <span id="scoreDisplay">Score: 0</span>
+            <span id="livesDisplay">Lives: 3</span>
+        </div>
+        <div id="timeLabel">TIME ENERGY</div>
+        <div id="timeMeter">
+            <div id="timeFill"></div>
+        </div>
+
+        <div id="startScreen">
+            <h1>Cool Jumper 5</h1>
+            <p class="feature">GLITCH DIMENSION!</p>
+            <p>Slow down time!</p>
+            <p>Navigate glitched reality!</p>
+            <p>10 corrupted dimensions await!</p>
+            <div class="controls">
+                <p>Arrow Keys - Move | Space - Jump | Shift - SLOW TIME</p>
+                <p>Time energy recharges when not slowing!</p>
+                <p>Touch: Joystick + Jump & Slow buttons</p>
+            </div>
+            <button onclick="startGame()">Enter The Glitch</button>
+            <div id="landProgress"></div>
+        </div>
+
+        <div id="levelComplete" style="display: none;">
+            <h2>Dimension Cleared!</h2>
+            <div class="land-name" id="completedLand"></div>
+            <div class="stars" id="starsEarned"></div>
+            <p id="landScore"></p>
+            <button onclick="nextLand()">Next Dimension</button>
+        </div>
+
+        <div id="gameOver" style="display: none;">
+            <h2>CORRUPTED</h2>
+            <p id="finalScore"></p>
+            <button onclick="restartGame()">Reboot</button>
+            <button onclick="backToMenu()">Main Menu</button>
+        </div>
+
+        <div id="winScreen" style="display: none;">
+            <h1>SYSTEM MASTER!</h1>
+            <p>You debugged reality!</p>
+            <p id="totalScore"></p>
+            <div class="stars">💾💾💾</div>
+            <button onclick="backToMenu()">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touchControls">
+        <div id="joystickArea">
+            <div id="joystickKnob"></div>
+        </div>
+        <div id="jumpBtn" class="touchBtn">JUMP</div>
+        <div id="slowBtn" class="touchBtn">SLOW</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Glitch dimension themes
+        const lands = [
+            { name: "Binary Plains", bg1: '#0a0018', bg2: '#050010', floor: '#1a0028', obstacle: '#00ff00', accent: '#00ffff' },
+            { name: "Pixel Wasteland", bg1: '#180a00', bg2: '#100500', floor: '#281a00', obstacle: '#ff8800', accent: '#ffff00' },
+            { name: "Neon Grid", bg1: '#000a18', bg2: '#000510', floor: '#001a28', obstacle: '#ff00ff', accent: '#00ffff' },
+            { name: "Corrupted Core", bg1: '#180008', bg2: '#100005', floor: '#280018', obstacle: '#ff0044', accent: '#ff4488' },
+            { name: "Data Stream", bg1: '#001818', bg2: '#000a0a', floor: '#002828', obstacle: '#00ffaa', accent: '#88ffcc' },
+            { name: "Virus Sector", bg1: '#0a1800', bg2: '#051000', floor: '#1a2800', obstacle: '#aaff00', accent: '#ccff88' },
+            { name: "Firewall Zone", bg1: '#180a00', bg2: '#100500', floor: '#281a00', obstacle: '#ff4400', accent: '#ff8844' },
+            { name: "Memory Leak", bg1: '#10001a', bg2: '#080010', floor: '#20002a', obstacle: '#aa00ff', accent: '#cc88ff' },
+            { name: "Buffer Overflow", bg1: '#001a1a', bg2: '#001010', floor: '#002a2a', obstacle: '#00ffff', accent: '#88ffff' },
+            { name: "System Crash", bg1: '#000000', bg2: '#050005', floor: '#0a000a', obstacle: '#ff0000', accent: '#ffffff' }
+        ];
+
+        // Game constants
+        const FLOOR1_Y = 350;
+        const FLOOR2_Y = 180;
+        const PLAYER_WIDTH = 38;
+        const PLAYER_HEIGHT = 48;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 5;
+
+        // Game state
+        let player = {};
+        let obstacles = [];
+        let glitches = [];
+        let dataOrbs = [];
+        let particles = [];
+        let currentLand = 0;
+        let score = 0;
+        let lives = 3;
+        let landScore = 0;
+        let timeEnergy = 100;
+        let timeSlow = false;
+        let gameRunning = false;
+        let levelComplete = false;
+        let cameraX = 0;
+        let levelLength = 3000;
+        let completedLands = [];
+        let globalGlitch = 0;
+
+        // Input
+        const keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') e.preventDefault();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        // Touch controls
+        const joystickArea = document.getElementById('joystickArea');
+        const joystickKnob = document.getElementById('joystickKnob');
+        const jumpBtn = document.getElementById('jumpBtn');
+        const slowBtn = document.getElementById('slowBtn');
+
+        let joystickTouchId = null;
+        const joystickRadius = 60;
+        const knobRadius = 25;
+        const maxKnobDistance = joystickRadius - knobRadius;
+
+        joystickArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (joystickTouchId !== null) return;
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            updateJoystick(touch);
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    updateJoystick(e.changedTouches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        joystickArea.addEventListener('touchcancel', () => resetJoystick(), { passive: false });
+
+        function updateJoystick(touch) {
+            const rect = joystickArea.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > maxKnobDistance) {
+                dx = (dx / distance) * maxKnobDistance;
+                dy = (dy / distance) * maxKnobDistance;
+            }
+            joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            const normalizedX = dx / maxKnobDistance;
+            const deadzone = 0.3;
+            keys['ArrowLeft'] = normalizedX < -deadzone;
+            keys['ArrowRight'] = normalizedX > deadzone;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            joystickKnob.style.transform = 'translate(-50%, -50%)';
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+        }
+
+        let jumpTouchId = null;
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (jumpTouchId !== null) return;
+            jumpTouchId = e.changedTouches[0].identifier;
+            jumpBtn.classList.add('active');
+            keys['Space'] = true;
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === jumpTouchId) {
+                    jumpTouchId = null;
+                    jumpBtn.classList.remove('active');
+                    keys['Space'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        jumpBtn.addEventListener('touchcancel', () => {
+            jumpTouchId = null;
+            jumpBtn.classList.remove('active');
+            keys['Space'] = false;
+        }, { passive: false });
+
+        let slowTouchId = null;
+        slowBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (slowTouchId !== null) return;
+            slowTouchId = e.changedTouches[0].identifier;
+            slowBtn.classList.add('active');
+            keys['ShiftLeft'] = true;
+        }, { passive: false });
+
+        slowBtn.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === slowTouchId) {
+                    slowTouchId = null;
+                    slowBtn.classList.remove('active');
+                    keys['ShiftLeft'] = false;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        slowBtn.addEventListener('touchcancel', () => {
+            slowTouchId = null;
+            slowBtn.classList.remove('active');
+            keys['ShiftLeft'] = false;
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+        function initPlayer() {
+            player = {
+                x: 100,
+                y: FLOOR1_Y - PLAYER_HEIGHT,
+                vx: 0,
+                vy: 0,
+                grounded: true,
+                facingRight: true,
+                canDoubleJump: true,
+                spaceReleased: true
+            };
+            timeEnergy = 100;
+        }
+
+        function generateLand(landNum) {
+            obstacles = [];
+            glitches = [];
+            dataOrbs = [];
+            particles = [];
+            cameraX = 0;
+            landScore = 0;
+            levelComplete = false;
+            timeEnergy = 100;
+
+            const difficulty = landNum + 1;
+            levelLength = 2800 + landNum * 350;
+
+            let x = 400;
+
+            while (x < levelLength - 300) {
+                const obstacleType = Math.floor(Math.random() * 12);
+                const floor = Math.random() < 0.4 ? FLOOR2_Y : FLOOR1_Y;
+
+                // Glitch spikes
+                if (obstacleType < 2) {
+                    const count = 1 + Math.floor(Math.random() * difficulty / 3);
+                    for (let i = 0; i < count; i++) {
+                        obstacles.push({
+                            x: x + i * 25,
+                            y: floor,
+                            type: 'spike',
+                            width: 20,
+                            height: 20,
+                            glitchOffset: Math.random() * 10
+                        });
+                    }
+                    x += count * 25 + 140;
+                }
+                // Moving glitch block
+                else if (obstacleType === 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 70,
+                        type: 'glitchblock',
+                        width: 60,
+                        height: 60,
+                        startX: x,
+                        range: 80 + Math.random() * 60,
+                        speed: 1.5 + difficulty * 0.2
+                    });
+                    x += 220;
+                }
+                // Laser beam (fast)
+                else if (obstacleType === 3 && difficulty > 1) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 80,
+                        type: 'laser',
+                        width: 180,
+                        height: 10,
+                        active: true,
+                        phase: Math.random() * 1000
+                    });
+                    x += 250;
+                }
+                // Corrupted enemy
+                else if (obstacleType === 4 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 50,
+                        type: 'corrupted',
+                        width: 40,
+                        height: 50,
+                        startX: x,
+                        range: 100,
+                        speed: 2 + difficulty * 0.3,
+                        frame: 0
+                    });
+                    x += 200;
+                }
+                // Teleport trap
+                else if (obstacleType === 5 && difficulty > 2) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 100,
+                        type: 'teleporter',
+                        width: 50,
+                        height: 100,
+                        destX: x + 200,
+                        destY: floor - 60
+                    });
+                    x += 280;
+                }
+                // Pixel crusher
+                else if (obstacleType === 6 && difficulty > 3) {
+                    obstacles.push({
+                        x: x,
+                        y: 30,
+                        type: 'crusher',
+                        width: 60,
+                        height: 50,
+                        phase: Math.random() * 2000
+                    });
+                    x += 180;
+                }
+                // Data stream (damages)
+                else if (obstacleType === 7 && difficulty > 4) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 150,
+                        type: 'datastream',
+                        width: 30,
+                        height: 150,
+                        active: true,
+                        phase: Math.random() * 1500
+                    });
+                    x += 160;
+                }
+                // Glitch zone (random teleport)
+                else if (obstacleType === 8 && difficulty > 5) {
+                    glitches.push({
+                        x: x,
+                        y: floor - 120,
+                        width: 100,
+                        height: 120,
+                        intensity: 0.3 + Math.random() * 0.4
+                    });
+                    x += 200;
+                }
+                // Virus orb
+                else if (obstacleType === 9 && difficulty > 6) {
+                    obstacles.push({
+                        x: x,
+                        y: floor - 80,
+                        type: 'virus',
+                        width: 40,
+                        height: 40,
+                        phase: Math.random() * Math.PI * 2,
+                        startY: floor - 80
+                    });
+                    x += 180;
+                }
+                // Default spike
+                else {
+                    obstacles.push({
+                        x: x,
+                        y: floor,
+                        type: 'spike',
+                        width: 20,
+                        height: 20,
+                        glitchOffset: Math.random() * 10
+                    });
+                    x += 150;
+                }
+
+                // Data orbs to collect
+                if (Math.random() < 0.4) {
+                    const orbY = Math.random() < 0.5 ? FLOOR2_Y - 50 : FLOOR1_Y - 50;
+                    for (let i = 0; i < 3; i++) {
+                        dataOrbs.push({
+                            x: x - 80 + i * 30,
+                            y: orbY - Math.sin(i * 0.5) * 20,
+                            collected: false,
+                            phase: Math.random() * Math.PI * 2
+                        });
+                    }
+                }
+
+                x += Math.random() * 80;
+            }
+
+            // End portal
+            obstacles.push({
+                x: levelLength - 100,
+                y: FLOOR1_Y,
+                type: 'portal',
+                width: 50,
+                height: 100
+            });
+        }
+
+        function update() {
+            if (!gameRunning || levelComplete) return;
+
+            const land = lands[currentLand];
+            globalGlitch += 0.1;
+
+            // Time slow mechanics
+            const wasSlowing = timeSlow;
+            timeSlow = (keys['ShiftLeft'] || keys['ShiftRight']) && timeEnergy > 0;
+
+            if (timeSlow) {
+                timeEnergy -= 0.8;
+                if (timeEnergy < 0) timeEnergy = 0;
+            } else {
+                timeEnergy += 0.3;
+                if (timeEnergy > 100) timeEnergy = 100;
+            }
+
+            document.getElementById('timeFill').style.width = timeEnergy + '%';
+
+            // Time scale
+            const timeScale = timeSlow ? 0.3 : 1;
+
+            // Movement
+            if (keys['ArrowLeft']) {
+                player.vx = -MOVE_SPEED;
+                player.facingRight = false;
+            } else if (keys['ArrowRight']) {
+                player.vx = MOVE_SPEED;
+                player.facingRight = true;
+            } else {
+                player.vx *= 0.8;
+            }
+
+            // Jump
+            if (keys['Space'] && player.spaceReleased) {
+                if (player.grounded) {
+                    player.vy = JUMP_FORCE;
+                    player.grounded = false;
+                    player.canDoubleJump = true;
+                    player.spaceReleased = false;
+                    for (let i = 0; i < 8; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: Math.random() * -2,
+                            life: 20,
+                            color: land.accent
+                        });
+                    }
+                } else if (player.canDoubleJump) {
+                    player.vy = JUMP_FORCE;
+                    player.canDoubleJump = false;
+                    player.spaceReleased = false;
+                    for (let i = 0; i < 12; i++) {
+                        particles.push({
+                            x: player.x + PLAYER_WIDTH / 2,
+                            y: player.y + PLAYER_HEIGHT / 2,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 6,
+                            life: 25,
+                            color: '#ff00ff'
+                        });
+                    }
+                }
+            }
+            if (!keys['Space']) player.spaceReleased = true;
+
+            // Gravity
+            player.vy += GRAVITY * timeScale;
+
+            // Move
+            player.x += player.vx * timeScale;
+            player.y += player.vy * timeScale;
+
+            // Boundaries
+            if (player.x < 0) player.x = 0;
+            if (player.x > levelLength - PLAYER_WIDTH) player.x = levelLength - PLAYER_WIDTH;
+
+            // Floor collision
+            player.grounded = false;
+            if (player.y + PLAYER_HEIGHT >= FLOOR1_Y && player.vy >= 0) {
+                player.y = FLOOR1_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+            if (player.y + PLAYER_HEIGHT >= FLOOR2_Y && player.y + PLAYER_HEIGHT <= FLOOR2_Y + 10 &&
+                player.vy >= 0 && player.y < FLOOR2_Y) {
+                player.y = FLOOR2_Y - PLAYER_HEIGHT;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            }
+
+            if (player.y > canvas.height + 50) {
+                loseLife();
+                return;
+            }
+
+            // Camera
+            const targetCameraX = player.x - 200;
+            cameraX += (targetCameraX - cameraX) * 0.1;
+            if (cameraX < 0) cameraX = 0;
+            if (cameraX > levelLength - canvas.width) cameraX = levelLength - canvas.width;
+
+            // Update obstacles
+            for (const obs of obstacles) {
+                const obsTimeScale = timeSlow ? 0.3 : 1;
+
+                if (obs.type === 'glitchblock') {
+                    obs.x = obs.startX + Math.sin(Date.now() * 0.002 * obs.speed * obsTimeScale) * obs.range;
+                }
+                else if (obs.type === 'laser') {
+                    obs.active = Math.floor((Date.now() * obsTimeScale + obs.phase) / 500) % 2 === 0;
+                }
+                else if (obs.type === 'corrupted') {
+                    obs.x = obs.startX + Math.sin(Date.now() * 0.003 * obs.speed * obsTimeScale) * obs.range;
+                    obs.frame += 0.2 * obsTimeScale;
+                }
+                else if (obs.type === 'crusher') {
+                    const phase = (Date.now() * obsTimeScale + obs.phase) % 2000;
+                    if (phase < 500) {
+                        obs.currentY = 30 + (phase / 500) * (FLOOR1_Y - 80);
+                    } else if (phase < 700) {
+                        obs.currentY = FLOOR1_Y - 50;
+                    } else {
+                        obs.currentY = 30 + Math.max(0, (1 - (phase - 700) / 500)) * (FLOOR1_Y - 80);
+                    }
+                }
+                else if (obs.type === 'datastream') {
+                    obs.active = Math.floor((Date.now() * obsTimeScale + obs.phase) / 800) % 2 === 0;
+                }
+                else if (obs.type === 'virus') {
+                    obs.phase += 0.05 * obsTimeScale;
+                    obs.y = obs.startY + Math.sin(obs.phase) * 40;
+                }
+            }
+
+            // Collision detection
+            for (const obs of obstacles) {
+                if (obs.type === 'portal') {
+                    if (player.x + PLAYER_WIDTH > obs.x && player.x < obs.x + obs.width &&
+                        player.y + PLAYER_HEIGHT > obs.y - obs.height && player.y < obs.y) {
+                        completeLand();
+                        return;
+                    }
+                    continue;
+                }
+                if (obs.type === 'teleporter') continue;
+
+                let hit = false;
+                const px = player.x + 5;
+                const py = player.y + 5;
+                const pw = PLAYER_WIDTH - 10;
+                const ph = PLAYER_HEIGHT - 10;
+
+                if (obs.type === 'spike') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y && py + ph > obs.y - obs.height) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'glitchblock' || obs.type === 'corrupted' || obs.type === 'virus') {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'laser' && obs.active) {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'crusher') {
+                    const crushY = obs.currentY || obs.y;
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < crushY + obs.height && py + ph > crushY) {
+                        hit = true;
+                    }
+                }
+                else if (obs.type === 'datastream' && obs.active) {
+                    if (px < obs.x + obs.width && px + pw > obs.x &&
+                        py < obs.y + obs.height && py + ph > obs.y) {
+                        hit = true;
+                    }
+                }
+
+                if (hit) {
+                    loseLife();
+                    return;
+                }
+            }
+
+            // Glitch zones
+            for (const glitch of glitches) {
+                if (player.x + PLAYER_WIDTH > glitch.x && player.x < glitch.x + glitch.width &&
+                    player.y + PLAYER_HEIGHT > glitch.y && player.y < glitch.y + glitch.height) {
+                    if (Math.random() < glitch.intensity * 0.02) {
+                        player.x += (Math.random() - 0.5) * 30;
+                        player.y += (Math.random() - 0.5) * 30;
+                    }
+                }
+            }
+
+            // Collect data orbs
+            for (const orb of dataOrbs) {
+                if (!orb.collected) {
+                    orb.phase += 0.05;
+                    const dist = Math.sqrt(
+                        Math.pow(player.x + PLAYER_WIDTH/2 - orb.x, 2) +
+                        Math.pow(player.y + PLAYER_HEIGHT/2 - orb.y, 2)
+                    );
+                    if (dist < 30) {
+                        orb.collected = true;
+                        score += 15;
+                        landScore += 15;
+                        for (let i = 0; i < 8; i++) {
+                            particles.push({
+                                x: orb.x,
+                                y: orb.y,
+                                vx: (Math.random() - 0.5) * 6,
+                                vy: (Math.random() - 0.5) * 6,
+                                life: 25,
+                                color: '#00ffff'
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].x += particles[i].vx * timeScale;
+                particles[i].y += particles[i].vy * timeScale;
+                particles[i].life--;
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            // Glitch particles
+            if (Math.random() < 0.1) {
+                particles.push({
+                    x: cameraX + Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 20,
+                    color: Math.random() < 0.5 ? '#ff00ff' : '#00ffff'
+                });
+            }
+
+            document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+            document.getElementById('livesDisplay').textContent = `Lives: ${lives}`;
+        }
+
+        function draw() {
+            const land = lands[currentLand];
+
+            // Glitchy background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, land.bg1);
+            gradient.addColorStop(1, land.bg2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Scan lines
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            for (let y = 0; y < canvas.height; y += 4) {
+                ctx.fillRect(0, y, canvas.width, 2);
+            }
+
+            // Grid lines
+            ctx.strokeStyle = land.accent + '20';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            // Random glitch effect
+            if (timeSlow) {
+                ctx.fillStyle = 'rgba(255, 0, 255, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Floors
+            ctx.fillStyle = land.floor;
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 10);
+            ctx.fillStyle = land.accent + '80';
+            ctx.fillRect(0, FLOOR2_Y, canvas.width, 2);
+
+            ctx.fillStyle = land.floor;
+            ctx.fillRect(0, FLOOR1_Y, canvas.width, canvas.height - FLOOR1_Y);
+            ctx.fillStyle = land.accent + '80';
+            ctx.fillRect(0, FLOOR1_Y, canvas.width, 3);
+
+            // Draw glitch zones
+            for (const glitch of glitches) {
+                const screenX = glitch.x - cameraX;
+                if (screenX < -150 || screenX > canvas.width + 150) continue;
+
+                ctx.fillStyle = `rgba(255, 0, 255, ${glitch.intensity * 0.3})`;
+                ctx.fillRect(screenX, glitch.y, glitch.width, glitch.height);
+
+                // Glitch effect lines
+                for (let i = 0; i < 5; i++) {
+                    const offsetX = (Math.random() - 0.5) * 10;
+                    const offsetY = Math.random() * glitch.height;
+                    ctx.fillStyle = Math.random() < 0.5 ? '#ff00ff' : '#00ffff';
+                    ctx.fillRect(screenX + offsetX, glitch.y + offsetY, Math.random() * 30, 2);
+                }
+            }
+
+            // Draw obstacles
+            for (const obs of obstacles) {
+                const screenX = obs.x - cameraX;
+                if (screenX < -100 || screenX > canvas.width + 100) continue;
+
+                ctx.save();
+
+                // Glitch offset for some obstacles
+                const glitchX = Math.sin(globalGlitch + (obs.glitchOffset || 0)) * 2;
+
+                if (obs.type === 'spike') {
+                    ctx.fillStyle = land.obstacle;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + glitchX + obs.width / 2, obs.y - obs.height);
+                    ctx.lineTo(screenX + glitchX + obs.width, obs.y);
+                    ctx.lineTo(screenX + glitchX, obs.y);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                else if (obs.type === 'glitchblock') {
+                    ctx.fillStyle = '#ff00ff';
+                    ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    // Glitch lines
+                    ctx.fillStyle = '#00ffff';
+                    for (let i = 0; i < 4; i++) {
+                        ctx.fillRect(screenX + Math.random() * obs.width, obs.y + i * 15, 20, 3);
+                    }
+                }
+                else if (obs.type === 'laser') {
+                    ctx.fillStyle = '#444';
+                    ctx.fillRect(screenX - 10, obs.y - 10, 15, 30);
+                    ctx.fillRect(screenX + obs.width - 5, obs.y - 10, 15, 30);
+                    if (obs.active) {
+                        ctx.fillStyle = '#ff0000';
+                        ctx.shadowColor = '#ff0000';
+                        ctx.shadowBlur = 20;
+                        ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                        ctx.shadowBlur = 0;
+                    }
+                }
+                else if (obs.type === 'corrupted') {
+                    ctx.fillStyle = land.obstacle;
+                    ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    // Corrupted face
+                    ctx.fillStyle = '#000';
+                    const eyeOffset = Math.floor(obs.frame) % 2 === 0 ? 0 : 2;
+                    ctx.fillRect(screenX + 8, obs.y + 12 + eyeOffset, 8, 8);
+                    ctx.fillRect(screenX + 24, obs.y + 12 + eyeOffset, 8, 8);
+                    ctx.fillRect(screenX + 10, obs.y + 30, 20, 5);
+                }
+                else if (obs.type === 'teleporter') {
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(screenX, obs.y, obs.width, obs.height);
+                    ctx.setLineDash([]);
+                }
+                else if (obs.type === 'crusher') {
+                    const crushY = obs.currentY || obs.y;
+                    ctx.fillStyle = '#666';
+                    ctx.fillRect(screenX, crushY, obs.width, obs.height);
+                    ctx.fillStyle = '#ff00ff';
+                    for (let i = 0; i < 4; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(screenX + 5 + i * 15, crushY + obs.height);
+                        ctx.lineTo(screenX + 12 + i * 15, crushY + obs.height + 12);
+                        ctx.lineTo(screenX + i * 15 - 2, crushY + obs.height + 12);
+                        ctx.fill();
+                    }
+                }
+                else if (obs.type === 'datastream') {
+                    if (obs.active) {
+                        ctx.fillStyle = '#00ff00';
+                        ctx.shadowColor = '#00ff00';
+                        ctx.shadowBlur = 15;
+                        ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                        ctx.shadowBlur = 0;
+                        // Binary text
+                        ctx.fillStyle = '#003300';
+                        ctx.font = '10px monospace';
+                        for (let i = 0; i < 10; i++) {
+                            ctx.fillText(Math.random() < 0.5 ? '1' : '0', screenX + 8, obs.y + 15 + i * 15);
+                        }
+                    } else {
+                        ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                        ctx.fillRect(screenX, obs.y, obs.width, obs.height);
+                    }
+                }
+                else if (obs.type === 'virus') {
+                    ctx.fillStyle = '#aa00ff';
+                    ctx.shadowColor = '#aa00ff';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.arc(screenX + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    // Spikes
+                    ctx.strokeStyle = '#ff00ff';
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2 + obs.phase;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX + obs.width/2, obs.y + obs.height/2);
+                        ctx.lineTo(screenX + obs.width/2 + Math.cos(angle) * 25,
+                                   obs.y + obs.height/2 + Math.sin(angle) * 25);
+                        ctx.stroke();
+                    }
+                }
+                else if (obs.type === 'portal') {
+                    ctx.strokeStyle = '#ff00ff';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.ellipse(screenX + obs.width/2, obs.y - obs.height/2, obs.width/2, obs.height/2, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    // Inner glow
+                    ctx.fillStyle = 'rgba(255, 0, 255, 0.3)';
+                    ctx.beginPath();
+                    ctx.ellipse(screenX + obs.width/2, obs.y - obs.height/2, obs.width/2 - 5, obs.height/2 - 5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Swirl
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 2;
+                    const swirl = Date.now() * 0.003;
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.arc(screenX + obs.width/2, obs.y - obs.height/2, 10 + i * 10, swirl + i, swirl + i + Math.PI);
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
+            }
+
+            // Draw data orbs
+            for (const orb of dataOrbs) {
+                if (orb.collected) continue;
+                const screenX = orb.x - cameraX;
+                if (screenX < -20 || screenX > canvas.width + 20) continue;
+
+                const pulse = Math.sin(orb.phase) * 0.3 + 0.7;
+                ctx.fillStyle = '#00ffff';
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 10 * pulse;
+                ctx.beginPath();
+                ctx.arc(screenX, orb.y, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // Inner
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(screenX, orb.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw particles
+            for (const p of particles) {
+                const screenX = p.x - cameraX;
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 25;
+                ctx.fillRect(screenX - 2, p.y - 2, 4, 4);
+            }
+            ctx.globalAlpha = 1;
+
+            // Draw player
+            const playerScreenX = player.x - cameraX;
+            ctx.save();
+            ctx.translate(playerScreenX + PLAYER_WIDTH/2, player.y + PLAYER_HEIGHT/2);
+            if (!player.facingRight) ctx.scale(-1, 1);
+
+            // Glitch effect on player when slowing time
+            if (timeSlow) {
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 20;
+            }
+
+            // Body
+            ctx.fillStyle = timeSlow ? '#00ffff' : '#ff00ff';
+            ctx.fillRect(-PLAYER_WIDTH/2, -PLAYER_HEIGHT/2, PLAYER_WIDTH, PLAYER_HEIGHT);
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-PLAYER_WIDTH/2, -PLAYER_HEIGHT/2, PLAYER_WIDTH, PLAYER_HEIGHT);
+
+            ctx.shadowBlur = 0;
+
+            // Face (digital)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-10, -12, 6, 6);
+            ctx.fillRect(4, -12, 6, 6);
+            // Mouth
+            ctx.fillRect(-8, 5, 16, 4);
+
+            // Antenna
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -PLAYER_HEIGHT/2);
+            ctx.lineTo(0, -PLAYER_HEIGHT/2 - 12);
+            ctx.stroke();
+            ctx.fillStyle = '#ff00ff';
+            ctx.beginPath();
+            ctx.arc(0, -PLAYER_HEIGHT/2 - 14, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Time slow effect overlay
+            if (timeSlow) {
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Progress bar
+            const progress = player.x / levelLength;
+            ctx.fillStyle = '#1a0028';
+            ctx.fillRect(canvas.width - 210, 10, 200, 15);
+            ctx.fillStyle = '#ff00ff';
+            ctx.fillRect(canvas.width - 210, 10, 200 * progress, 15);
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(canvas.width - 210, 10, 200, 15);
+        }
+
+        function loseLife() {
+            lives--;
+            for (let i = 0; i < 25; i++) {
+                particles.push({
+                    x: player.x + PLAYER_WIDTH/2,
+                    y: player.y + PLAYER_HEIGHT/2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 35,
+                    color: '#ff00ff'
+                });
+            }
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                initPlayer();
+                cameraX = 0;
+            }
+        }
+
+        function completeLand() {
+            levelComplete = true;
+            gameRunning = false;
+            completedLands[currentLand] = true;
+            score += 150 * (currentLand + 1);
+            const stars = lives === 3 ? '⭐⭐⭐' : lives === 2 ? '⭐⭐☆' : '⭐☆☆';
+            document.getElementById('completedLand').textContent = lands[currentLand].name;
+            document.getElementById('starsEarned').textContent = stars;
+            document.getElementById('landScore').textContent = `Dimension Score: ${landScore + 150 * (currentLand + 1)}`;
+            document.getElementById('levelComplete').style.display = 'flex';
+            updateLandProgress();
+        }
+
+        function nextLand() {
+            document.getElementById('levelComplete').style.display = 'none';
+            currentLand++;
+            if (currentLand >= lands.length) {
+                winGame();
+                return;
+            }
+            document.getElementById('landDisplay').textContent = `Dimension ${currentLand + 1}: ${lands[currentLand].name}`;
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('gameOver').style.display = 'flex';
+        }
+
+        function winGame() {
+            gameRunning = false;
+            document.getElementById('totalScore').textContent = `Total Score: ${score}`;
+            document.getElementById('winScreen').style.display = 'flex';
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            currentLand = 0;
+            score = 0;
+            lives = 3;
+            completedLands = [];
+            document.getElementById('landDisplay').textContent = `Dimension ${currentLand + 1}: ${lands[currentLand].name}`;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+            updateLandProgress();
+            startMusic();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            lives = 3;
+            initPlayer();
+            generateLand(currentLand);
+            gameRunning = true;
+        }
+
+        function backToMenu() {
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('winScreen').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'flex';
+            updateLandProgress();
+        }
+
+        function updateLandProgress() {
+            const container = document.getElementById('landProgress');
+            container.innerHTML = '';
+            for (let i = 0; i < lands.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'land-dot';
+                if (completedLands[i]) dot.classList.add('completed');
+                if (i === currentLand && gameRunning) dot.classList.add('current');
+                dot.title = lands[i].name;
+                container.appendChild(dot);
+            }
+        }
+
+        // Music System - Glitchy Electronic Music
+        let audioCtx = null;
+        let musicPlaying = false;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function startMusic() {
+            if (musicPlaying) return;
+            initAudio();
+            musicPlaying = true;
+
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.2;
+            masterGain.connect(audioCtx.destination);
+
+            // Glitchy arpeggio
+            const arpNotes = [130.8, 164.8, 196, 261.6, 329.6, 261.6, 196, 164.8];
+            let arpIndex = 0;
+
+            function playArp() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 2000;
+                osc.type = 'square';
+                osc.frequency.value = arpNotes[arpIndex % arpNotes.length];
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+                arpIndex++;
+                setTimeout(playArp, 125);
+            }
+
+            // Bass
+            const bassNotes = [65.4, 65.4, 82.4, 73.4];
+            let bassIndex = 0;
+
+            function playBass() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = bassNotes[bassIndex % bassNotes.length];
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+                bassIndex++;
+                setTimeout(playBass, 500);
+            }
+
+            // Glitch sound
+            function playGlitch() {
+                if (!musicPlaying) return;
+                if (Math.random() < 0.3) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = 100 + Math.random() * 2000;
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.06);
+                }
+                setTimeout(playGlitch, 200 + Math.random() * 300);
+            }
+
+            // Drum
+            function playDrum() {
+                if (!musicPlaying) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+                setTimeout(playDrum, 250);
+            }
+
+            playArp();
+            setTimeout(playBass, 50);
+            setTimeout(playGlitch, 100);
+            setTimeout(playDrum, 25);
+        }
+
+        function stopMusic() {
+            musicPlaying = false;
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        updateLandProgress();
+        gameLoop();
+    </script>
+</body>
+</html>
